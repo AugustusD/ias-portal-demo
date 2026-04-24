@@ -9,44 +9,50 @@ type Dealer = { name: string; email: string };
 const TRAINING_TOTAL = 5;
 
 // ---------- THEMES ----------
-type ThemeId = "editorial" | "midnight" | "platinum" | "carbon";
+type ThemeId = "editorial" | "midnight" | "architect" | "terminal";
 
 type Theme = {
   id: ThemeId;
   name: string;
   description: string;
-  swatch: string; // color shown in switcher
-  // Core colors
+  swatch: string;
+  // Core
   bg: string;
-  bgAlt: string; // for the cream-dark tiles (Account row)
+  bgAlt: string;
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
   divider: string;
-  // Accents
+  // Accent
   gold: string;
   goldFill: string;
-  // Tool tile (dark tile, high-contrast)
+  // Tool tile
   toolBg: string;
   toolText: string;
   toolEyebrow: string;
   toolHoverBg: string;
   toolHoverText: string;
+  // Account tile
+  accountBg: string;
+  accountHoverBg: string;
+  accountHoverText: string;
   // Activity cards
   cardBg: string;
   cardBorder: string;
-  cardBorderHover: string;
+  cardShadow?: string; // Terminal-only glow
   // Logout button
   logoutBorder: string;
   logoutText: string;
   logoutHoverBg: string;
+  // Optional background pattern for Terminal
+  bgPattern?: string;
 };
 
 const THEMES: Theme[] = [
   {
     id: "editorial",
     name: "Editorial",
-    description: "Current brand. Cream, gold, ink.",
+    description: "Current brand. Warm, premium, magazine-like.",
     swatch: "#F9F6F0",
     bg: "#F9F6F0",
     bgAlt: "#EFEAE0",
@@ -61,9 +67,11 @@ const THEMES: Theme[] = [
     toolEyebrow: "#B69A5A",
     toolHoverBg: "#B69A5A",
     toolHoverText: "#0A0908",
+    accountBg: "#EFEAE0",
+    accountHoverBg: "#B69A5A",
+    accountHoverText: "#0A0908",
     cardBg: "#FFFFFF",
     cardBorder: "#E7E5E4",
-    cardBorderHover: "#A8A29E",
     logoutBorder: "#0A0908",
     logoutText: "#0A0908",
     logoutHoverBg: "#0A0908",
@@ -71,7 +79,7 @@ const THEMES: Theme[] = [
   {
     id: "midnight",
     name: "Midnight",
-    description: "Dark mode. High contrast, gold accents.",
+    description: "Dark mode. Rich, warm, gold-forward.",
     swatch: "#0A0908",
     bg: "#0A0908",
     bgAlt: "#1A1918",
@@ -86,62 +94,71 @@ const THEMES: Theme[] = [
     toolEyebrow: "#D4B975",
     toolHoverBg: "#D4B975",
     toolHoverText: "#0A0908",
+    accountBg: "#1A1918",
+    accountHoverBg: "#D4B975",
+    accountHoverText: "#0A0908",
     cardBg: "#1A1918",
     cardBorder: "#2A2928",
-    cardBorderHover: "#D4B975",
     logoutBorder: "#F9F6F0",
     logoutText: "#F9F6F0",
     logoutHoverBg: "#F9F6F0",
   },
   {
-    id: "platinum",
-    name: "Platinum",
-    description: "Ultra clean. White, charcoal, gold.",
-    swatch: "#F5F5F5",
-    bg: "#FAFAFA",
-    bgAlt: "#F0F0F0",
-    textPrimary: "#1A1A1A",
-    textSecondary: "#525252",
-    textMuted: "#A3A3A3",
-    divider: "#E5E5E5",
-    gold: "#B69A5A",
-    goldFill: "#C9AE6E",
-    toolBg: "#1A1A1A",
-    toolText: "#FAFAFA",
-    toolEyebrow: "#B69A5A",
-    toolHoverBg: "#B69A5A",
-    toolHoverText: "#1A1A1A",
+    id: "architect",
+    name: "Architect",
+    description: "Pure black and white. High-contrast, restrained.",
+    swatch: "#FFFFFF",
+    bg: "#FFFFFF",
+    bgAlt: "#F5F5F5",
+    textPrimary: "#000000",
+    textSecondary: "#333333",
+    textMuted: "#999999",
+    divider: "#000000",
+    gold: "#000000", // Pure black accent — gold becomes minimal, only on hover
+    goldFill: "#000000",
+    toolBg: "#000000",
+    toolText: "#FFFFFF",
+    toolEyebrow: "#FFFFFF",
+    toolHoverBg: "#FFFFFF",
+    toolHoverText: "#000000",
+    accountBg: "#F5F5F5",
+    accountHoverBg: "#000000",
+    accountHoverText: "#FFFFFF",
     cardBg: "#FFFFFF",
-    cardBorder: "#E5E5E5",
-    cardBorderHover: "#1A1A1A",
-    logoutBorder: "#1A1A1A",
-    logoutText: "#1A1A1A",
-    logoutHoverBg: "#1A1A1A",
+    cardBorder: "#000000",
+    logoutBorder: "#000000",
+    logoutText: "#000000",
+    logoutHoverBg: "#000000",
   },
   {
-    id: "carbon",
-    name: "Carbon",
-    description: "Deep blue-black. High-tech, aggressive.",
-    swatch: "#0B111D",
-    bg: "#0B111D",
-    bgAlt: "#141C2D",
-    textPrimary: "#E8EEF5",
-    textSecondary: "#8A94A6",
-    textMuted: "#4A5568",
-    divider: "#1E2838",
-    gold: "#D4B975",
-    goldFill: "#EACE8A",
-    toolBg: "#141C2D",
-    toolText: "#E8EEF5",
-    toolEyebrow: "#D4B975",
-    toolHoverBg: "#D4B975",
-    toolHoverText: "#0B111D",
-    cardBg: "#141C2D",
-    cardBorder: "#1E2838",
-    cardBorderHover: "#D4B975",
-    logoutBorder: "#E8EEF5",
-    logoutText: "#E8EEF5",
-    logoutHoverBg: "#E8EEF5",
+    id: "terminal",
+    name: "Terminal",
+    description: "Deep blue-black. Electric gold. High-tech.",
+    swatch: "#050A14",
+    bg: "#050A14",
+    bgAlt: "#0F1828",
+    textPrimary: "#FFFFFF",
+    textSecondary: "#8B9AB4",
+    textMuted: "#4A5872",
+    divider: "#1A2740",
+    gold: "#FFC857", // Electric yellow-gold
+    goldFill: "#FFD670",
+    toolBg: "#0F1828",
+    toolText: "#FFFFFF",
+    toolEyebrow: "#FFC857",
+    toolHoverBg: "#FFC857",
+    toolHoverText: "#050A14",
+    accountBg: "#0F1828",
+    accountHoverBg: "#FFC857",
+    accountHoverText: "#050A14",
+    cardBg: "#0F1828",
+    cardBorder: "#1A2740",
+    cardShadow: "0 0 0 1px rgba(255, 200, 87, 0.15), 0 4px 20px rgba(255, 200, 87, 0.08)",
+    logoutBorder: "#FFC857",
+    logoutText: "#FFC857",
+    logoutHoverBg: "#FFC857",
+    // Subtle grid background for terminal
+    bgPattern: "linear-gradient(rgba(255, 200, 87, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 200, 87, 0.03) 1px, transparent 1px)",
   },
 ];
 
@@ -171,10 +188,9 @@ function useCountUp(target: number, duration: number = 1200, enabled: boolean = 
   return value;
 }
 
-// Hexagon badge — uses theme gold
+// Hexagon badge
 function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean; progress: number; theme: Theme }) {
   const fillPercent = authorized ? 100 : progress * 100;
-  const emptyStroke = theme.divider;
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: 96, height: 108 }}>
@@ -191,7 +207,7 @@ function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean;
         <polygon
           points="48,4 88,28 88,80 48,104 8,80 8,28"
           fill="none"
-          stroke={authorized ? theme.gold : emptyStroke}
+          stroke={authorized ? theme.gold : theme.divider}
           strokeWidth="2"
         />
         <g clipPath="url(#hexClip)">
@@ -207,7 +223,7 @@ function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean;
         <polygon
           points="48,14 78,32 78,76 48,94 18,76 18,32"
           fill="none"
-          stroke={authorized ? "#FFFFFF" : "transparent"}
+          stroke={authorized ? (theme.id === "architect" ? "#FFFFFF" : "#FFFFFF") : "transparent"}
           strokeWidth="1"
           opacity="0.4"
         />
@@ -229,7 +245,6 @@ function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean;
   );
 }
 
-// Theme Switcher — floating bottom-right
 function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id: ThemeId) => void }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -243,30 +258,33 @@ function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id:
           </div>
         )}
         <div className="flex items-center gap-3 p-3">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => { onChange(t.id); setExpanded(true); }}
-              onMouseEnter={() => setExpanded(true)}
-              className={`group relative w-10 h-10 border-2 transition-all flex items-center justify-center ${
-                current === t.id ? "border-stone-900 scale-110" : "border-stone-300 hover:border-stone-500"
-              }`}
-              style={{ background: t.swatch }}
-              title={t.name}
-            >
-              {current === t.id && (
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M5 10L9 14L15 6"
-                    stroke={t.id === "editorial" || t.id === "platinum" ? "#0A0908" : "#F9F6F0"}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-          ))}
+          {THEMES.map((t) => {
+            const isDark = t.id === "midnight" || t.id === "terminal";
+            return (
+              <button
+                key={t.id}
+                onClick={() => { onChange(t.id); setExpanded(true); }}
+                onMouseEnter={() => setExpanded(true)}
+                className={`group relative w-10 h-10 border-2 transition-all flex items-center justify-center ${
+                  current === t.id ? "border-stone-900 scale-110" : "border-stone-300 hover:border-stone-500"
+                }`}
+                style={{ background: t.swatch }}
+                title={t.name}
+              >
+                {current === t.id && (
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path
+                      d="M5 10L9 14L15 6"
+                      stroke={isDark ? "#F9F6F0" : "#0A0908"}
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-stone-400 hover:text-stone-700 text-xs font-body uppercase tracking-wider ml-1"
@@ -315,7 +333,6 @@ export default function DashboardPage() {
       } catch {}
     }
 
-    // Load saved theme preference
     const savedTheme = localStorage.getItem("ias_dashboard_theme");
     if (savedTheme && THEMES.find(t => t.id === savedTheme)) {
       setThemeId(savedTheme as ThemeId);
@@ -348,8 +365,19 @@ export default function DashboardPage() {
   const trainingPercent = (completedCount / TRAINING_TOTAL) * 100;
   const isAuthorized = completedCount === TRAINING_TOTAL;
 
+  // Architect uses thick black borders instead of thin gray
+  const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
+
   return (
-    <div style={{ background: theme.bg, color: theme.textPrimary, transition: "background 0.4s, color 0.4s" }}>
+    <div
+      style={{
+        background: theme.bg,
+        color: theme.textPrimary,
+        transition: "background 0.4s, color 0.4s",
+        backgroundImage: theme.bgPattern,
+        backgroundSize: theme.bgPattern ? "40px 40px" : undefined,
+      }}
+    >
       <div className="section-container section-padding">
         {/* HERO */}
         <div className="mb-12">
@@ -406,7 +434,7 @@ export default function DashboardPage() {
                   <span style={{ color: theme.textMuted }}> / {TRAINING_TOTAL} modules</span>
                 </p>
               </div>
-              <div className="relative w-full h-2 overflow-hidden" style={{ background: theme.divider }}>
+              <div className="relative w-full h-2 overflow-hidden" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
                 <div
                   className="absolute inset-y-0 left-0 transition-all duration-1500 ease-out"
                   style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}
@@ -420,7 +448,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <circle cx="10" cy="10" r="10" fill={theme.gold} />
-                  <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6 10L9 13L14 7" stroke={theme.id === "architect" ? "#FFFFFF" : theme.id === "terminal" ? "#050A14" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <p className="font-body text-sm font-semibold" style={{ color: theme.textPrimary }}>
                   All 5 training modules complete. You are a certified Authorized Partner.
@@ -442,7 +470,6 @@ export default function DashboardPage() {
               { href: "/dealers/tools/order-sheets", eyebrow: "Catalog", title: "Order Sheets", subtitle: "Full product catalog and order builder.", external: false },
               { href: "https://designer.innovativealuminum.com", eyebrow: "Visualize", title: "Designer", subtitle: "3D project visualizer ↗", external: true },
             ].map((t) => {
-              const [isHover, setIsHover] = [false, () => {}]; // pseudo - we rely on CSS
               const Component: any = t.external ? "a" : Link;
               const props: any = t.external ? { href: t.href, target: "_blank", rel: "noopener noreferrer" } : { href: t.href };
               return (
@@ -450,7 +477,11 @@ export default function DashboardPage() {
                   key={t.title}
                   {...props}
                   className="group block p-7 transition-colors duration-200 relative"
-                  style={{ background: theme.toolBg, color: theme.toolText }}
+                  style={{
+                    background: theme.toolBg,
+                    color: theme.toolText,
+                    boxShadow: theme.cardShadow,
+                  }}
                   onMouseEnter={(e: any) => {
                     e.currentTarget.style.background = theme.toolHoverBg;
                     e.currentTarget.style.color = theme.toolHoverText;
@@ -462,7 +493,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <p className="eyebrow" style={{ color: "currentColor" }}>
-                      <span className="group-hover:!text-current" style={{ color: theme.toolEyebrow }}>{t.eyebrow}</span>
+                      <span style={{ color: theme.toolEyebrow }}>{t.eyebrow}</span>
                     </p>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: theme.toolEyebrow }}>
                       <path d={t.external ? "M11 3H17V9M9 11L17 3M9 17H3V11" : "M5 15L15 5M15 5H7M15 5V13"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -489,13 +520,17 @@ export default function DashboardPage() {
                 key={item.title}
                 href={item.href}
                 className="group block p-6 transition-colors duration-200"
-                style={{ background: theme.bgAlt, color: theme.textPrimary }}
+                style={{
+                  background: theme.accountBg,
+                  color: theme.textPrimary,
+                  boxShadow: theme.cardShadow,
+                }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = theme.gold;
-                  e.currentTarget.style.color = "#0A0908";
+                  e.currentTarget.style.background = theme.accountHoverBg;
+                  e.currentTarget.style.color = theme.accountHoverText;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = theme.bgAlt;
+                  e.currentTarget.style.background = theme.accountBg;
                   e.currentTarget.style.color = theme.textPrimary;
                 }}
               >
@@ -504,7 +539,7 @@ export default function DashboardPage() {
                   {item.showCheck && (
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <circle cx="10" cy="10" r="10" fill={theme.gold} />
-                      <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M6 10L9 13L14 7" stroke={theme.id === "terminal" ? "#050A14" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
                 </div>
@@ -520,17 +555,16 @@ export default function DashboardPage() {
           <p className="eyebrow mb-8" style={{ color: theme.textMuted }}>Your Activity</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-            {/* Training */}
             <div
-              className="p-8 transition-colors"
-              style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}
+              className="p-8 transition-all"
+              style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}
             >
               <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
               <div className="flex items-end gap-2 mb-4">
                 <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
                 <span className="mb-2" style={{ color: theme.textMuted }}>of {TRAINING_TOTAL} modules</span>
               </div>
-              <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.divider }}>
+              <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
                 <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
               </div>
               <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
@@ -538,8 +572,7 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {/* Leads */}
-            <div className="p-8" style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
               <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Leads</h3>
               <div className="flex items-end gap-2 mb-4">
                 <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{leadsAnimated}</span>
@@ -551,8 +584,7 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {/* Quotes */}
-            <div className="p-8" style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
               <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Recent Quotes</h3>
               <div className="flex items-end gap-2 mb-4">
                 <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{quotesAnimated}</span>
@@ -609,7 +641,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Theme switcher — fixed bottom-right */}
       <ThemeSwitcher current={themeId} onChange={handleThemeChange} />
     </div>
   );
