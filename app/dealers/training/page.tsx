@@ -71,64 +71,96 @@ const MODULES: Module[] = [
     duration: "6 min",
     videoId: "8rBR4K4E9TA",
     type: "video",
+    references: [
+      {
+        name: "Infinity Topless Sell Sheet",
+        description: "Product overview for our flagship topless glass system.",
+        url: "/documents/sellsheet_infinity.pdf",
+      },
+      {
+        name: "Glass Component Sell Sheet",
+        description: "Product overview for component glass railings.",
+        url: "/documents/sellsheet_glass.pdf",
+      },
+      {
+        name: "Picket Sell Sheet",
+        description: "Product overview for welded picket systems.",
+        url: "/documents/sellsheet_picket.pdf",
+      },
+      {
+        name: "Custom Railings Sell Sheet",
+        description: "Product overview for custom aluminum railing options.",
+        url: "/documents/sellsheet_custom.pdf",
+      },
+      {
+        name: "Powder Coating Sell Sheet",
+        description: "Our 5-stage AAMA 2604 powder coating process and color options.",
+        url: "/documents/sellsheet_powdercoating.pdf",
+      },
+    ],
   },
   {
-    id: "fascia-install",
-    title: "Fascia Mount Installation",
-    description: "Step-by-step installation of the Infinity fascia mount system. Required for all installation dealers.",
-    duration: "12 min",
+    id: "installation",
+    title: "Installation Fundamentals",
+    description: "Core principles across all IAS railing systems: mounting types, post spacing, engineering requirements, and code compliance for the full product family.",
+    duration: "15 min",
     videoId: "8rBR4K4E9TA",
     type: "video",
     references: [
       {
         name: "Infinity Fascia Installation Guide",
-        description: "Detailed reference manual for fascia mount installations. Keep this on hand.",
+        description: "Fascia mount installation reference for Infinity Topless systems.",
         url: "/documents/InfinityInstallationGuideFascia.pdf",
       },
       {
         name: "Infinity Surface Installation Guide",
-        description: "Companion guide for surface mount installations.",
-        url: "/documents/InfinityInstallationGuideSurface.pdf",
-      },
-      {
-        name: "Glass Installation Reference",
-        description: "Glass measurement, ordering, and installation specifics.",
-        url: "/documents/installation_glass.pdf",
-      },
-    ],
-  },
-  {
-    id: "surface-install",
-    title: "Surface Mount Installation",
-    description: "Installation guide for the Infinity surface mount configuration. Covers post placement, glass setting, and finishing.",
-    duration: "10 min",
-    videoId: "8rBR4K4E9TA",
-    type: "video",
-    references: [
-      {
-        name: "Infinity Surface Installation Guide",
-        description: "Detailed reference manual for surface mount installations.",
+        description: "Surface mount installation reference for Infinity Topless systems.",
         url: "/documents/InfinityInstallationGuideSurface.pdf",
       },
       {
         name: "Wall Track Installation Guide",
-        description: "Complete reference for wall track applications.",
+        description: "Complete wall track application reference.",
         url: "/documents/InstallationGuideWallTrackComplete.pdf",
-      },
-      {
-        name: "Picket Installation Reference",
-        description: "Picket railing installation specifics for mixed installs.",
-        url: "/documents/installation_picket.pdf",
-      },
-      {
-        name: "Stairs Installation Reference",
-        description: "Stair railing installation guide for sloped applications.",
-        url: "/documents/installation_stairs.pdf",
       },
       {
         name: "Flex Rail Installation Guide",
         description: "Flex rail installation reference.",
         url: "/documents/Installation_Guide-Flex_Rail.pdf",
+      },
+      {
+        name: "Glass Installation Reference",
+        description: "Glass measurement, ordering, and installation.",
+        url: "/documents/installation_glass.pdf",
+      },
+      {
+        name: "Picket Installation Reference",
+        description: "Welded picket installation specifics.",
+        url: "/documents/installation_picket.pdf",
+      },
+      {
+        name: "Stairs Installation Reference",
+        description: "Stair railing installation for sloped applications.",
+        url: "/documents/installation_stairs.pdf",
+      },
+    ],
+  },
+  {
+    id: "warranty",
+    title: "Warranty, Claims & Customer Support",
+    description: "Understand the 20-year structural warranty, when dealers must register warranties, how to handle claims, and how warranty registration unlocks homeowner rewards and long-term business.",
+    duration: "8 min",
+    videoId: "8rBR4K4E9TA",
+    type: "video",
+    references: [
+      {
+        name: "Residential Warranty",
+        description: "Full residential warranty terms — 20 year structural, 10 year finish.",
+        url: "/documents/INNOVATIVE-ALUMINUM-RESIDENTIAL-WARRANTY.pdf",
+      },
+      {
+        name: "Commercial Warranty",
+        description: "Commercial warranty terms — 20 year structural, 5 year finish.",
+        url: "/documents/INNOVATIVE-ALUMINUM-COMMERCIAL-WARRANTY.pdf",
       },
     ],
   },

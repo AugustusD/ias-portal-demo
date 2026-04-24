@@ -9,7 +9,7 @@ type Dealer = { name: string; email: string };
 type ResourceDoc = {
   name: string;
   description: string;
-  category: "onboarding" | "installation" | "reference" | "brochures" | "branding";
+  category: "onboarding" | "installation" | "brochures" | "branding" | "warranty";
   url: string;
   fileType: "PDF" | "PNG";
   tags: string[];
@@ -34,7 +34,7 @@ const RESOURCES: ResourceDoc[] = [
     tags: ["credit", "net-30", "terms", "application", "finance"],
   },
 
-  // INSTALLATION
+  // INSTALLATION (merged from former "Installation" + "Reference" categories)
   {
     name: "Infinity Fascia Installation Guide",
     description: "Step-by-step installation guide for fascia mount Infinity Topless railing systems.",
@@ -67,28 +67,26 @@ const RESOURCES: ResourceDoc[] = [
     fileType: "PDF",
     tags: ["flex rail", "install", "rail"],
   },
-
-  // REFERENCE
   {
-    name: "Glass Installation Reference",
-    description: "Glass measurement, ordering, and installation guide.",
-    category: "reference",
+    name: "Glass Installation Guide",
+    description: "Glass measurement, ordering, and installation reference for Glass Component systems.",
+    category: "installation",
     url: "/documents/installation_glass.pdf",
     fileType: "PDF",
     tags: ["glass", "measurement", "install", "component"],
   },
   {
-    name: "Picket Installation Reference",
+    name: "Picket Installation Guide",
     description: "Picket railing installation specifics for welded and modular picket systems.",
-    category: "reference",
+    category: "installation",
     url: "/documents/installation_picket.pdf",
     fileType: "PDF",
     tags: ["picket", "welded", "install", "rail"],
   },
   {
-    name: "Stairs Installation Reference",
+    name: "Stairs Installation Guide",
     description: "Stair railing installation guide for sloped applications.",
-    category: "reference",
+    category: "installation",
     url: "/documents/installation_stairs.pdf",
     fileType: "PDF",
     tags: ["stairs", "sloped", "install", "rail"],
@@ -161,14 +159,32 @@ const RESOURCES: ResourceDoc[] = [
     fileType: "PNG",
     tags: ["ias", "innovative", "logo", "gold", "branding", "identity"],
   },
+
+  // WARRANTY
+  {
+    name: "Residential Warranty",
+    description: "Full residential warranty terms. 20-year structural, 10-year finish (5yr within 5mi of ocean).",
+    category: "warranty",
+    url: "/documents/INNOVATIVE-ALUMINUM-RESIDENTIAL-WARRANTY.pdf",
+    fileType: "PDF",
+    tags: ["warranty", "residential", "terms", "coverage", "claims"],
+  },
+  {
+    name: "Commercial Warranty",
+    description: "Full commercial warranty terms. 20-year structural, 5-year finish (1yr within 5mi of ocean).",
+    category: "warranty",
+    url: "/documents/INNOVATIVE-ALUMINUM-COMMERCIAL-WARRANTY.pdf",
+    fileType: "PDF",
+    tags: ["warranty", "commercial", "terms", "coverage", "claims", "multi-family"],
+  },
 ];
 
 const CATEGORY_LABELS: Record<ResourceDoc["category"], string> = {
   onboarding: "Onboarding",
   installation: "Installation",
-  reference: "Reference",
   brochures: "Brochures",
   branding: "Branding",
+  warranty: "Warranty",
 };
 
 export default function DealerResourcesPage() {
@@ -213,9 +229,9 @@ export default function DealerResourcesPage() {
     all: RESOURCES.length,
     onboarding: RESOURCES.filter((r) => r.category === "onboarding").length,
     installation: RESOURCES.filter((r) => r.category === "installation").length,
-    reference: RESOURCES.filter((r) => r.category === "reference").length,
     brochures: RESOURCES.filter((r) => r.category === "brochures").length,
     branding: RESOURCES.filter((r) => r.category === "branding").length,
+    warranty: RESOURCES.filter((r) => r.category === "warranty").length,
   }), []);
 
   if (loading || !dealer) {
@@ -239,11 +255,10 @@ export default function DealerResourcesPage() {
           <p className="eyebrow text-gold mb-3">Library</p>
           <h1 className="text-4xl md:text-5xl font-heading font-bold mb-3">Dealer Resources</h1>
           <p className="font-body text-stone-600 max-w-2xl">
-            Onboarding forms, installation guides, sell sheets, brochures, and brand assets. Download or view any document below.
+            Onboarding forms, installation guides, sell sheets, brochures, brand assets, and warranty documents. Download or view any document below.
           </p>
         </div>
 
-        {/* Search */}
         <div className="mb-6">
           <div className="relative max-w-xl">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" aria-hidden="true">
@@ -254,7 +269,7 @@ export default function DealerResourcesPage() {
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search resources (e.g., fascia, infinity, sell sheet, logo)..."
+              placeholder="Search resources (e.g., fascia, infinity, warranty, logo)..."
               className="w-full pl-12 pr-4 py-3 bg-white border border-stone-300 font-body text-sm placeholder-stone-400 focus:outline-none focus:border-gold transition-colors"
             />
             {searchQuery && (
@@ -268,15 +283,14 @@ export default function DealerResourcesPage() {
           </div>
         </div>
 
-        {/* Category tabs */}
         <div className="flex flex-wrap gap-2 mb-8 border-b border-stone-200">
           {[
             { id: "all" as const, label: `All (${categoryCounts.all})` },
             { id: "onboarding" as const, label: `Onboarding (${categoryCounts.onboarding})` },
             { id: "installation" as const, label: `Installation (${categoryCounts.installation})` },
-            { id: "reference" as const, label: `Reference (${categoryCounts.reference})` },
             { id: "brochures" as const, label: `Brochures (${categoryCounts.brochures})` },
             { id: "branding" as const, label: `Branding (${categoryCounts.branding})` },
+            { id: "warranty" as const, label: `Warranty (${categoryCounts.warranty})` },
           ].map((tab) => (
             <button
               key={tab.id}
