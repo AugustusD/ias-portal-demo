@@ -16,7 +16,6 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    // 1. Real Supabase login
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -28,7 +27,6 @@ export default function LoginPage() {
       return;
     }
 
-    // 2. Fetch this user's profile to get name + role
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("full_name, email, role")
@@ -41,8 +39,6 @@ export default function LoginPage() {
       return;
     }
 
-    // 3. Write to localStorage so existing dashboard/training/leads pages keep working
-    //    (transitional — will remove in a later commit)
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "ias_dealer",
@@ -53,7 +49,6 @@ export default function LoginPage() {
       );
     }
 
-    // 4. Route based on role
     if (profile.role === "admin") {
       router.push("/admin/dashboard");
     } else {
@@ -106,6 +101,7 @@ export default function LoginPage() {
 
           <div className="border-t border-stone-200 pt-6 text-center space-y-2">
             <p className="text-sm text-stone-600 font-body">Test credentials:</p>
+            <p className="font-mono text-sm text-ink font-bold">admin@innovativealuminum.com / admin123</p>
             <p className="font-mono text-sm text-ink">dealer1@test.com / password123</p>
             <p className="font-mono text-sm text-ink">dealer2@test.com / password123</p>
           </div>
