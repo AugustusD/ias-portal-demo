@@ -48,7 +48,6 @@ export default function DashboardPage() {
 
   return (
     <div className="section-container section-padding">
-      {/* Welcome */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
         <div>
           <p className="eyebrow text-gold mb-3">Dealer Portal</p>
@@ -159,7 +158,7 @@ export default function DashboardPage() {
             className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <p className="eyebrow text-gold mb-3">Library</p>
-            <h3 className="font-heading text-xl font-bold mb-2">Resources</h3>
+            <h3 className="font-heading text-xl font-bold mb-2">Dealer Resources</h3>
             <p className="font-body text-sm text-stone-600">
               Installation guides and documents.
             </p>
