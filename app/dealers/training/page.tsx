@@ -9,6 +9,7 @@ type DealerDocument = {
   description: string;
   required: boolean;
   templateUrl: string;
+  uploadSubtext: string;
   instructions: string;
 };
 
@@ -50,6 +51,7 @@ const MODULES: Module[] = [
         description: "Tell us about your business so we can set up your account properly.",
         required: true,
         templateUrl: "/documents/new-customer-form.pdf",
+        uploadSubtext: "Send your signed Customer Form to IAS.",
         instructions: "Download the form, fill it out using Adobe Acrobat (free) or print and complete by hand, then upload the signed file back here.",
       },
       {
@@ -57,6 +59,7 @@ const MODULES: Module[] = [
         description: "Optional. Apply for net-30 terms with IAS.",
         required: false,
         templateUrl: "/documents/credit-application.pdf",
+        uploadSubtext: "Send your signed Credit Application to IAS.",
         instructions: "Only complete this if you want to apply for credit terms. Bank information is encrypted in transit and only shared with our credit team.",
       },
     ],
@@ -133,7 +136,6 @@ const MODULES: Module[] = [
 
 type Dealer = { name: string; email: string };
 
-// SLIDE TO COMPLETE
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(0);
@@ -207,7 +209,6 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   );
 }
 
-// DOCUMENT UPLOAD CARD with Download + View
 function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUploaded: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -252,7 +253,6 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
 
       {!uploaded ? (
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200">
-          {/* LEFT: Download + View template */}
           <div className="p-6 bg-cream-dark">
             <p className="eyebrow text-stone-500 mb-3">Step 1</p>
             <h4 className="font-heading text-base font-bold mb-2">Get Template</h4>
@@ -263,11 +263,10 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
             </div>
           </div>
 
-          {/* RIGHT: Upload completed */}
           <div className="p-6">
             <p className="eyebrow text-stone-500 mb-3">Step 2</p>
-            <h4 className="font-heading text-base font-bold mb-2">Upload Completed</h4>
-            <p className="font-body text-xs text-stone-600 mb-4">Send your signed form to IAS.</p>
+            <h4 className="font-heading text-base font-bold mb-2">Upload File</h4>
+            <p className="font-body text-xs text-stone-600 mb-4">{doc.uploadSubtext}</p>
 
             <label className="block mb-3">
               <input
@@ -300,7 +299,7 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
             </svg>
             <div>
               <p className="font-body font-semibold mb-1">Submitted to IAS</p>
-              <p className="font-body text-sm text-stone-600">Mike has been notified. We'll be in touch within 1 business day.</p>
+              <p className="font-body text-sm text-stone-600">This document has been shared with our team. We'll be in touch within 1 business day.</p>
             </div>
           </div>
         </div>
@@ -309,7 +308,6 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
   );
 }
 
-// REFERENCE DOC CARD with Download + View
 function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
   return (
     <div className="block p-5 bg-white border border-stone-200 hover:border-gold transition-colors">

@@ -23,7 +23,6 @@ export default function DashboardPage() {
       setDealer(parsedDealer);
     } catch { router.push("/dealers/login"); return; }
 
-    // Read REAL training progress from same key the training page writes to
     const progressKey = `ias_training_progress_${parsedDealer.email}`;
     const storedProgress = localStorage.getItem(progressKey);
     if (storedProgress) {
@@ -49,7 +48,7 @@ export default function DashboardPage() {
 
   return (
     <div className="section-container section-padding">
-      {/* Welcome header */}
+      {/* Welcome */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
         <div>
           <p className="eyebrow text-gold mb-3">Dealer Portal</p>
@@ -68,7 +67,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ROW 1 — TOOLS */}
+      {/* TOOLS */}
       <div className="mb-10">
         <div className="flex items-baseline justify-between mb-5">
           <p className="eyebrow text-stone-400">Tools</p>
@@ -77,11 +76,11 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/dealers/tools/calculator"
-            className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
+            className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold group-hover:text-ink">Pricing</p>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
+              <p className="eyebrow text-gold">Pricing</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                 <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
@@ -91,11 +90,11 @@ export default function DashboardPage() {
 
           <Link
             href="/dealers/tools/brochure"
-            className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
+            className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold group-hover:text-ink">Marketing</p>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
+              <p className="eyebrow text-gold">Marketing</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                 <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
@@ -107,11 +106,11 @@ export default function DashboardPage() {
             href="https://designer.innovativealuminum.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
+            className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold group-hover:text-ink">Visualize</p>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
+              <p className="eyebrow text-gold">Visualize</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                 <path d="M11 3H17V9M9 11L17 3M9 17H3V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
@@ -121,13 +120,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ROW 2 — Navigation */}
+      {/* ACCOUNT */}
       <div className="mb-16">
         <p className="eyebrow text-stone-400 mb-5">Your Account</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/dealers/training"
-            className="group block p-6 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
+            className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="flex items-start justify-between mb-3">
               <p className="eyebrow text-gold">Program</p>
@@ -139,29 +138,29 @@ export default function DashboardPage() {
               )}
             </div>
             <h3 className="font-heading text-xl font-bold mb-2">Training</h3>
-            <p className="font-body text-sm text-stone-600 group-hover:text-ink">
+            <p className="font-body text-sm text-stone-600">
               {completedCount} of {TRAINING_TOTAL} modules complete
             </p>
           </Link>
 
           <Link
             href="/dealers/leads"
-            className="group block p-6 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
+            className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <p className="eyebrow text-gold mb-3">Pipeline</p>
             <h3 className="font-heading text-xl font-bold mb-2">Leads</h3>
-            <p className="font-body text-sm text-stone-600 group-hover:text-ink">
-              Submit and track customer leads.
+            <p className="font-body text-sm text-stone-600">
+              Customer leads from IAS.
             </p>
           </Link>
 
           <Link
             href="/dealers/resources"
-            className="group block p-6 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
+            className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <p className="eyebrow text-gold mb-3">Library</p>
             <h3 className="font-heading text-xl font-bold mb-2">Resources</h3>
-            <p className="font-body text-sm text-stone-600 group-hover:text-ink">
+            <p className="font-body text-sm text-stone-600">
               Installation guides and documents.
             </p>
           </Link>
@@ -174,7 +173,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
           {/* Training progress (REAL) */}
-          <div className="bg-white border border-stone-200 p-8">
+          <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Training Progress</h3>
             <div className="flex items-end gap-2 mb-4">
               <span className="text-5xl font-heading font-bold">{completedCount}</span>
@@ -188,16 +187,15 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Submitted leads */}
-          <div className="bg-white border border-stone-200 p-8">
-            <h3 className="font-heading text-xl font-bold mb-4">Submitted Leads</h3>
+          {/* Leads (RENAMED, simplified) */}
+          <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
+            <h3 className="font-heading text-xl font-bold mb-4">Leads</h3>
             <div className="flex items-end gap-2 mb-4">
               <span className="text-5xl font-heading font-bold">3</span>
               <span className="text-stone-400 mb-2">this month</span>
             </div>
             <div className="text-sm font-body text-stone-600 mb-4">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-              1 active · <span className="text-stone-400">2 pending</span>
+              Leads sent to you from IAS.
             </div>
             <Link href="/dealers/leads" className="text-sm font-body font-semibold text-gold hover:text-gold-hover uppercase tracking-wider">
               View Leads →
@@ -205,7 +203,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent quotes */}
-          <div className="bg-white border border-stone-200 p-8">
+          <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Recent Quotes</h3>
             <div className="flex items-end gap-2 mb-4">
               <span className="text-5xl font-heading font-bold">7</span>
