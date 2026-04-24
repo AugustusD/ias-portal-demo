@@ -3,8 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type Dealer = { name: string; email: string };
+
+type RecentLead = {
+  homeowner_name: string | null;
+  product_interest: string | null;
+  lineal_footage: number | null;
+  stage: string;
+  received_at: string;
+};
 
 const TRAINING_TOTAL = 5;
 
@@ -94,7 +103,6 @@ const THEMES: Theme[] = [
     logoutBorder: "#F9F6F0",
     logoutText: "#F9F6F0",
     logoutHoverBg: "#F9F6F0",
-    // NEW: grid pattern like Terminal
     bgPattern: "linear-gradient(rgba(212, 185, 117, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 117, 0.08) 1px, transparent 1px)",
   },
   {
@@ -261,7 +269,6 @@ function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id:
   );
 }
 
-// Separate Tool Tile component so we can manage hover state cleanly
 function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopment }: {
   theme: Theme;
   href: string;
@@ -277,7 +284,6 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
   const mainText = isHover ? theme.toolHoverText : theme.toolText;
   const accentColor = isHover ? theme.toolHoverText : theme.toolEyebrow;
 
-  // Architect theme: add permanent black border so white-on-white tiles stay visible
   const border = theme.id === "architect" ? "2px solid #000000" : "none";
 
   const Component: any = external ? "a" : Link;
@@ -303,9 +309,7 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
       {inDevelopment && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
-          style={{
-            background: "rgba(10, 9, 8, 0.78)",
-          }}
+          style={{ background: "rgba(10, 9, 8, 0.78)" }}
         >
           <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>In Development</p>
           <p className="font-heading text-lg font-bold text-cream mb-2">Coming soon</p>
@@ -316,7 +320,6 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
   );
 }
 
-// Account Tile with proper hover color management
 function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck }: {
   theme: Theme;
   href: string;
@@ -355,44 +358,98 @@ function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck }: {
   );
 }
 
+function formatLeadDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatLeadProject(lead: RecentLead): string {
+  const parts: string[] = [];
+  if (lead.product_interest) parts.push(lead.product_interest);
+  if (lead.lineal_footage) parts.push(`${lead.lineal_footage} LF`);
+  return parts.join(" — ") || "—";
+}
+
+function formatStage(stage: string): string {
+  return stage
+    .split("_")
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(" ");
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
+  const [leadsCount, setLeadsCount] = useState(0);
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [animationsReady, setAnimationsReady] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("editorial");
   const [logoutHover, setLogoutHover] = useState(false);
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/dealers/login"); return; }
-    let parsedDealer: Dealer;
-    try {
-      parsedDealer = JSON.parse(stored);
-      setDealer(parsedDealer);
-    } catch { router.push("/dealers/login"); return; }
+    async function load() {
+      // 1. Auth check
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/dealers/login");
+        return;
+      }
 
-    const progressKey = `ias_training_progress_${parsedDealer.email}`;
-    const storedProgress = localStorage.getItem(progressKey);
-    if (storedProgress) {
-      try {
-        const parsed = JSON.parse(storedProgress);
-        setCompletedCount(Array.isArray(parsed) ? parsed.length : 0);
-      } catch {}
+      // 2. Profile (real name + email)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .single();
+
+      setDealer({
+        name: profile?.full_name ?? "Dealer",
+        email: profile?.email ?? user.email ?? "",
+      });
+
+      // 3. Training progress count
+      const { count: trainingCount } = await supabase
+        .from("training_progress")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      setCompletedCount(trainingCount ?? 0);
+
+      // 4. Recent leads (RLS scopes to dealer's company automatically)
+      const { data: leads } = await supabase
+        .from("leads")
+        .select("homeowner_name, product_interest, lineal_footage, stage, received_at")
+        .order("received_at", { ascending: false })
+        .limit(3);
+
+      setRecentLeads(leads ?? []);
+
+      // 5. Total lead count
+      const { count: totalLeads } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true });
+
+      setLeadsCount(totalLeads ?? 0);
+
+      // 6. Theme stays in localStorage (UI preference, not data)
+      const savedTheme = localStorage.getItem("ias_dashboard_theme");
+      if (savedTheme && THEMES.find(t => t.id === savedTheme)) {
+        setThemeId(savedTheme as ThemeId);
+      }
+
+      setLoading(false);
+      setTimeout(() => setAnimationsReady(true), 150);
     }
-
-    const savedTheme = localStorage.getItem("ias_dashboard_theme");
-    if (savedTheme && THEMES.find(t => t.id === savedTheme)) {
-      setThemeId(savedTheme as ThemeId);
-    }
-
-    setLoading(false);
-    setTimeout(() => setAnimationsReady(true), 150);
+    load();
   }, [router]);
 
-  function handleLogout() {
-    localStorage.removeItem("ias_dealer");
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("ias_dealer");
+    }
     router.push("/dealers/login");
   }
 
@@ -402,7 +459,7 @@ export default function DashboardPage() {
   }
 
   const trainingAnimated = useCountUp(completedCount, 900, animationsReady);
-  const leadsAnimated = useCountUp(3, 1000, animationsReady);
+  const leadsAnimated = useCountUp(leadsCount, 1000, animationsReady);
   const quotesAnimated = useCountUp(7, 1100, animationsReady);
   const quoteValueAnimated = useCountUp(84250, 1400, animationsReady);
 
@@ -512,7 +569,7 @@ export default function DashboardPage() {
           <p className="eyebrow mb-5" style={{ color: theme.textMuted }}>Your Account</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <AccountTile theme={theme} href="/dealers/training" eyebrow="Program" title="Training" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={isAuthorized} />
-            <AccountTile theme={theme} href="/dealers/leads" eyebrow="Pipeline" title="Leads" subtitle="Customer leads from IAS." />
+            <AccountTile theme={theme} href="/dealers/leads" eyebrow="Pipeline" title="Leads" subtitle={leadsCount === 0 ? "No leads yet" : `${leadsCount} lead${leadsCount === 1 ? "" : "s"} in your pipeline`} />
             <AccountTile theme={theme} href="/dealers/resources" eyebrow="Library" title="Dealer Resources" subtitle="Installation guides and documents." />
           </div>
         </div>
@@ -540,7 +597,7 @@ export default function DashboardPage() {
               <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Leads</h3>
               <div className="flex items-end gap-2 mb-4">
                 <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{leadsAnimated}</span>
-                <span className="mb-2" style={{ color: theme.textMuted }}>this month</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>total</span>
               </div>
               <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Leads sent to you from IAS.</div>
               <Link href="/dealers/leads" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
@@ -566,24 +623,26 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div>
               <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>Recent Leads</h3>
-              <div className="space-y-4">
-                {[
-                  { customer: "Jim Smith", project: "Backyard deck — 80 LF", date: "Apr 22", status: "New" },
-                  { customer: "Sarah Liu", project: "Front porch — 32 LF", date: "Apr 20", status: "Contacted" },
-                  { customer: "Mike Chen", project: "Pool surround — 120 LF", date: "Apr 18", status: "Quoted" },
-                ].map((lead) => (
-                  <div key={lead.customer} className="flex justify-between items-center pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
-                    <div>
-                      <p className="font-body font-semibold" style={{ color: theme.textPrimary }}>{lead.customer}</p>
-                      <p className="text-sm" style={{ color: theme.textSecondary }}>{lead.project}</p>
+              {recentLeads.length === 0 ? (
+                <p className="text-sm font-body italic" style={{ color: theme.textMuted }}>
+                  No recent leads. New leads from IAS will appear here.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {recentLeads.map((lead, i) => (
+                    <div key={i} className="flex justify-between items-center pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                      <div>
+                        <p className="font-body font-semibold" style={{ color: theme.textPrimary }}>{lead.homeowner_name ?? "—"}</p>
+                        <p className="text-sm" style={{ color: theme.textSecondary }}>{formatLeadProject(lead)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: theme.gold }}>{formatStage(lead.stage)}</p>
+                        <p className="text-xs" style={{ color: theme.textMuted }}>{formatLeadDate(lead.received_at)}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: theme.gold }}>{lead.status}</p>
-                      <p className="text-xs" style={{ color: theme.textMuted }}>{lead.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
