@@ -8,7 +8,6 @@ type Dealer = { name: string; email: string };
 
 const TRAINING_TOTAL = 5;
 
-// ---------- THEMES ----------
 type ThemeId = "editorial" | "midnight" | "architect" | "terminal";
 
 type Theme = {
@@ -16,35 +15,28 @@ type Theme = {
   name: string;
   description: string;
   swatch: string;
-  // Core
   bg: string;
   bgAlt: string;
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
   divider: string;
-  // Accent
   gold: string;
   goldFill: string;
-  // Tool tile
   toolBg: string;
   toolText: string;
   toolEyebrow: string;
   toolHoverBg: string;
   toolHoverText: string;
-  // Account tile
   accountBg: string;
   accountHoverBg: string;
   accountHoverText: string;
-  // Activity cards
   cardBg: string;
   cardBorder: string;
-  cardShadow?: string; // Terminal-only glow
-  // Logout button
+  cardShadow?: string;
   logoutBorder: string;
   logoutText: string;
   logoutHoverBg: string;
-  // Optional background pattern for Terminal
   bgPattern?: string;
 };
 
@@ -79,7 +71,7 @@ const THEMES: Theme[] = [
   {
     id: "midnight",
     name: "Midnight",
-    description: "Dark mode. Rich, warm, gold-forward.",
+    description: "Dark mode. Rich, warm, gold-forward. Grid pattern.",
     swatch: "#0A0908",
     bg: "#0A0908",
     bgAlt: "#1A1918",
@@ -102,6 +94,8 @@ const THEMES: Theme[] = [
     logoutBorder: "#F9F6F0",
     logoutText: "#F9F6F0",
     logoutHoverBg: "#F9F6F0",
+    // NEW: grid pattern like Terminal
+    bgPattern: "linear-gradient(rgba(212, 185, 117, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 117, 0.04) 1px, transparent 1px)",
   },
   {
     id: "architect",
@@ -114,7 +108,7 @@ const THEMES: Theme[] = [
     textSecondary: "#333333",
     textMuted: "#999999",
     divider: "#000000",
-    gold: "#000000", // Pure black accent — gold becomes minimal, only on hover
+    gold: "#000000",
     goldFill: "#000000",
     toolBg: "#000000",
     toolText: "#FFFFFF",
@@ -141,7 +135,7 @@ const THEMES: Theme[] = [
     textSecondary: "#8B9AB4",
     textMuted: "#4A5872",
     divider: "#1A2740",
-    gold: "#FFC857", // Electric yellow-gold
+    gold: "#FFC857",
     goldFill: "#FFD670",
     toolBg: "#0F1828",
     toolText: "#FFFFFF",
@@ -157,22 +151,17 @@ const THEMES: Theme[] = [
     logoutBorder: "#FFC857",
     logoutText: "#FFC857",
     logoutHoverBg: "#FFC857",
-    // Subtle grid background for terminal
     bgPattern: "linear-gradient(rgba(255, 200, 87, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 200, 87, 0.03) 1px, transparent 1px)",
   },
 ];
 
-// Animated counter hook
 function useCountUp(target: number, duration: number = 1200, enabled: boolean = true): number {
   const [value, setValue] = useState(0);
-
   useEffect(() => {
     if (!enabled) return;
     if (target === 0) { setValue(0); return; }
-
     const startTime = performance.now();
     let rafId: number;
-
     function tick(now: number) {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
@@ -180,15 +169,12 @@ function useCountUp(target: number, duration: number = 1200, enabled: boolean = 
       setValue(Math.round(target * eased));
       if (progress < 1) rafId = requestAnimationFrame(tick);
     }
-
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
   }, [target, duration, enabled]);
-
   return value;
 }
 
-// Hexagon badge
 function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean; progress: number; theme: Theme }) {
   const fillPercent = authorized ? 100 : progress * 100;
 
@@ -204,31 +190,12 @@ function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean;
             <polygon points="48,4 88,28 88,80 48,104 8,80 8,28" />
           </clipPath>
         </defs>
-        <polygon
-          points="48,4 88,28 88,80 48,104 8,80 8,28"
-          fill="none"
-          stroke={authorized ? theme.gold : theme.divider}
-          strokeWidth="2"
-        />
+        <polygon points="48,4 88,28 88,80 48,104 8,80 8,28" fill="none" stroke={authorized ? theme.gold : theme.divider} strokeWidth="2" />
         <g clipPath="url(#hexClip)">
-          <rect
-            x="0"
-            y={108 - (108 * fillPercent) / 100}
-            width="96"
-            height={(108 * fillPercent) / 100}
-            fill="url(#badgeFill)"
-            style={{ transition: "all 1s ease-out" }}
-          />
+          <rect x="0" y={108 - (108 * fillPercent) / 100} width="96" height={(108 * fillPercent) / 100} fill="url(#badgeFill)" style={{ transition: "all 1s ease-out" }} />
         </g>
-        <polygon
-          points="48,14 78,32 78,76 48,94 18,76 18,32"
-          fill="none"
-          stroke={authorized ? (theme.id === "architect" ? "#FFFFFF" : "#FFFFFF") : "transparent"}
-          strokeWidth="1"
-          opacity="0.4"
-        />
+        <polygon points="48,14 78,32 78,76 48,94 18,76 18,32" fill="none" stroke={authorized ? "#FFFFFF" : "transparent"} strokeWidth="1" opacity="0.4" />
       </svg>
-
       <div className="relative z-10 flex flex-col items-center justify-center">
         {authorized ? (
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
@@ -247,7 +214,6 @@ function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean;
 
 function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id: ThemeId) => void }) {
   const [expanded, setExpanded] = useState(false);
-
   return (
     <div className="fixed bottom-6 right-6 z-40">
       <div className="bg-white shadow-2xl border border-stone-200">
@@ -265,31 +231,19 @@ function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id:
                 key={t.id}
                 onClick={() => { onChange(t.id); setExpanded(true); }}
                 onMouseEnter={() => setExpanded(true)}
-                className={`group relative w-10 h-10 border-2 transition-all flex items-center justify-center ${
-                  current === t.id ? "border-stone-900 scale-110" : "border-stone-300 hover:border-stone-500"
-                }`}
+                className={`group relative w-10 h-10 border-2 transition-all flex items-center justify-center ${current === t.id ? "border-stone-900 scale-110" : "border-stone-300 hover:border-stone-500"}`}
                 style={{ background: t.swatch }}
                 title={t.name}
               >
                 {current === t.id && (
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                    <path
-                      d="M5 10L9 14L15 6"
-                      stroke={isDark ? "#F9F6F0" : "#0A0908"}
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M5 10L9 14L15 6" stroke={isDark ? "#F9F6F0" : "#0A0908"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
               </button>
             );
           })}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-stone-400 hover:text-stone-700 text-xs font-body uppercase tracking-wider ml-1"
-            title={expanded ? "Collapse" : "Expand"}
-          >
+          <button onClick={() => setExpanded(!expanded)} className="text-stone-400 hover:text-stone-700 text-xs font-body uppercase tracking-wider ml-1" title={expanded ? "Collapse" : "Expand"}>
             {expanded ? "−" : "+"}
           </button>
         </div>
@@ -307,6 +261,85 @@ function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id:
   );
 }
 
+// Separate Tool Tile component so we can manage hover state cleanly
+function ToolTile({ theme, href, eyebrow, title, subtitle, external }: {
+  theme: Theme;
+  href: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  external: boolean;
+}) {
+  const [isHover, setIsHover] = useState(false);
+
+  const bg = isHover ? theme.toolHoverBg : theme.toolBg;
+  const mainText = isHover ? theme.toolHoverText : theme.toolText;
+  // On hover, eyebrow and arrow use the SAME color as text (so they stay visible)
+  // When not hovering, they use the gold accent
+  const accentColor = isHover ? theme.toolHoverText : theme.toolEyebrow;
+
+  const Component: any = external ? "a" : Link;
+  const props: any = external ? { href, target: "_blank", rel: "noopener noreferrer" } : { href };
+
+  return (
+    <Component
+      {...props}
+      className="block p-7 transition-colors duration-200 relative"
+      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow }}
+      onMouseEnter={() => setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <p className="eyebrow" style={{ color: accentColor }}>{eyebrow}</p>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: accentColor }}>
+          <path d={external ? "M11 3H17V9M9 11L17 3M9 17H3V11" : "M5 15L15 5M15 5H7M15 5V13"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <h3 className="font-heading text-2xl font-bold mb-2" style={{ color: mainText }}>{title}</h3>
+      <p className="font-body text-sm" style={{ color: mainText, opacity: 0.8 }}>{subtitle}</p>
+    </Component>
+  );
+}
+
+// Account Tile with proper hover color management
+function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck }: {
+  theme: Theme;
+  href: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  showCheck?: boolean;
+}) {
+  const [isHover, setIsHover] = useState(false);
+
+  const bg = isHover ? theme.accountHoverBg : theme.accountBg;
+  const mainText = isHover ? theme.accountHoverText : theme.textPrimary;
+  const secondaryText = isHover ? theme.accountHoverText : theme.textSecondary;
+  const accentColor = isHover ? theme.accountHoverText : theme.gold;
+
+  return (
+    <Link
+      href={href}
+      className="block p-6 transition-colors duration-200"
+      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow }}
+      onMouseEnter={() => setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <p className="eyebrow" style={{ color: accentColor }}>{eyebrow}</p>
+        {showCheck && (
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="10" fill={accentColor} />
+            <path d="M6 10L9 13L14 7" stroke={isHover ? bg : (theme.id === "terminal" ? "#050A14" : "white")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      <h3 className="font-heading text-xl font-bold mb-2" style={{ color: mainText }}>{title}</h3>
+      <p className="font-body text-sm" style={{ color: secondaryText, opacity: isHover ? 0.8 : 1 }}>{subtitle}</p>
+    </Link>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
@@ -314,6 +347,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [animationsReady, setAnimationsReady] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("editorial");
+  const [logoutHover, setLogoutHover] = useState(false);
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
@@ -365,7 +399,6 @@ export default function DashboardPage() {
   const trainingPercent = (completedCount / TRAINING_TOTAL) * 100;
   const isAuthorized = completedCount === TRAINING_TOTAL;
 
-  // Architect uses thick black borders instead of thin gray
   const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
 
   return (
@@ -385,10 +418,7 @@ export default function DashboardPage() {
             <div className="flex-1 flex items-start gap-6">
               <div className="hidden sm:block flex-shrink-0 pt-1">
                 <AuthorizedBadge authorized={isAuthorized} progress={trainingPercent / 100} theme={theme} />
-                <p
-                  className="text-[10px] font-body font-bold uppercase tracking-widest text-center mt-2"
-                  style={{ color: theme.textMuted }}
-                >
+                <p className="text-[10px] font-body font-bold uppercase tracking-widest text-center mt-2" style={{ color: theme.textMuted }}>
                   {isAuthorized ? "Authorized Partner" : "In Training"}
                 </p>
               </div>
@@ -406,19 +436,13 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={handleLogout}
+              onMouseEnter={() => setLogoutHover(true)}
+              onMouseLeave={() => setLogoutHover(false)}
               className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors"
               style={{
                 borderColor: theme.logoutBorder,
-                color: theme.logoutText,
-                background: "transparent",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = theme.logoutHoverBg;
-                e.currentTarget.style.color = theme.bg;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = theme.logoutText;
+                color: logoutHover ? theme.bg : theme.logoutText,
+                background: logoutHover ? theme.logoutHoverBg : "transparent",
               }}
             >
               Log Out
@@ -435,10 +459,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="relative w-full h-2 overflow-hidden" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
-                <div
-                  className="absolute inset-y-0 left-0 transition-all duration-1500 ease-out"
-                  style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}
-                ></div>
+                <div className="absolute inset-y-0 left-0 transition-all duration-1500 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
               </div>
             </div>
           )}
@@ -465,45 +486,9 @@ export default function DashboardPage() {
             <p className="text-xs font-body" style={{ color: theme.textMuted }}>Open and use any time</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { href: "/dealers/tools/calculator", eyebrow: "Pricing", title: "Calculator", subtitle: "Live pricing for Infinity systems.", external: false },
-              { href: "/dealers/tools/order-sheets", eyebrow: "Catalog", title: "Order Sheets", subtitle: "Full product catalog and order builder.", external: false },
-              { href: "https://designer.innovativealuminum.com", eyebrow: "Visualize", title: "Designer", subtitle: "3D project visualizer ↗", external: true },
-            ].map((t) => {
-              const Component: any = t.external ? "a" : Link;
-              const props: any = t.external ? { href: t.href, target: "_blank", rel: "noopener noreferrer" } : { href: t.href };
-              return (
-                <Component
-                  key={t.title}
-                  {...props}
-                  className="group block p-7 transition-colors duration-200 relative"
-                  style={{
-                    background: theme.toolBg,
-                    color: theme.toolText,
-                    boxShadow: theme.cardShadow,
-                  }}
-                  onMouseEnter={(e: any) => {
-                    e.currentTarget.style.background = theme.toolHoverBg;
-                    e.currentTarget.style.color = theme.toolHoverText;
-                  }}
-                  onMouseLeave={(e: any) => {
-                    e.currentTarget.style.background = theme.toolBg;
-                    e.currentTarget.style.color = theme.toolText;
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <p className="eyebrow" style={{ color: "currentColor" }}>
-                      <span style={{ color: theme.toolEyebrow }}>{t.eyebrow}</span>
-                    </p>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: theme.toolEyebrow }}>
-                      <path d={t.external ? "M11 3H17V9M9 11L17 3M9 17H3V11" : "M5 15L15 5M15 5H7M15 5V13"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                  <h3 className="font-heading text-2xl font-bold mb-2">{t.title}</h3>
-                  <p className="font-body text-sm opacity-80">{t.subtitle}</p>
-                </Component>
-              );
-            })}
+            <ToolTile theme={theme} href="/dealers/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} />
+            <ToolTile theme={theme} href="/dealers/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} />
+            <ToolTile theme={theme} href="https://designer.innovativealuminum.com" eyebrow="Visualize" title="Designer" subtitle="3D project visualizer ↗" external={true} />
           </div>
         </div>
 
@@ -511,42 +496,9 @@ export default function DashboardPage() {
         <div className="mb-16">
           <p className="eyebrow mb-5" style={{ color: theme.textMuted }}>Your Account</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { href: "/dealers/training", eyebrow: "Program", title: "Training", subtitle: `${completedCount} of ${TRAINING_TOTAL} modules complete`, showCheck: isAuthorized },
-              { href: "/dealers/leads", eyebrow: "Pipeline", title: "Leads", subtitle: "Customer leads from IAS." },
-              { href: "/dealers/resources", eyebrow: "Library", title: "Dealer Resources", subtitle: "Installation guides and documents." },
-            ].map((item) => (
-              <Link
-                key={item.title}
-                href={item.href}
-                className="group block p-6 transition-colors duration-200"
-                style={{
-                  background: theme.accountBg,
-                  color: theme.textPrimary,
-                  boxShadow: theme.cardShadow,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = theme.accountHoverBg;
-                  e.currentTarget.style.color = theme.accountHoverText;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = theme.accountBg;
-                  e.currentTarget.style.color = theme.textPrimary;
-                }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <p className="eyebrow" style={{ color: theme.gold }}>{item.eyebrow}</p>
-                  {item.showCheck && (
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="10" fill={theme.gold} />
-                      <path d="M6 10L9 13L14 7" stroke={theme.id === "terminal" ? "#050A14" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <h3 className="font-heading text-xl font-bold mb-2">{item.title}</h3>
-                <p className="font-body text-sm" style={{ color: theme.textSecondary }}>{item.subtitle}</p>
-              </Link>
-            ))}
+            <AccountTile theme={theme} href="/dealers/training" eyebrow="Program" title="Training" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={isAuthorized} />
+            <AccountTile theme={theme} href="/dealers/leads" eyebrow="Pipeline" title="Leads" subtitle="Customer leads from IAS." />
+            <AccountTile theme={theme} href="/dealers/resources" eyebrow="Library" title="Dealer Resources" subtitle="Installation guides and documents." />
           </div>
         </div>
 
@@ -555,10 +507,7 @@ export default function DashboardPage() {
           <p className="eyebrow mb-8" style={{ color: theme.textMuted }}>Your Activity</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-            <div
-              className="p-8 transition-all"
-              style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}
-            >
+            <div className="p-8 transition-all" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
               <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
               <div className="flex items-end gap-2 mb-4">
                 <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
