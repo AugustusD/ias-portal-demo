@@ -262,13 +262,14 @@ function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id:
 }
 
 // Separate Tool Tile component so we can manage hover state cleanly
-function ToolTile({ theme, href, eyebrow, title, subtitle, external }: {
+function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopment }: {
   theme: Theme;
   href: string;
   eyebrow: string;
   title: string;
   subtitle: string;
   external: boolean;
+  inDevelopment?: boolean;
 }) {
   const [isHover, setIsHover] = useState(false);
 
@@ -285,7 +286,7 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external }: {
   return (
     <Component
       {...props}
-      className="block p-7 transition-colors duration-200 relative"
+      className="block p-7 transition-colors duration-200 relative overflow-hidden"
       style={{ background: bg, color: mainText, boxShadow: theme.cardShadow, border }}
       onMouseEnter={() => setIsHover(true)}
       onMouseLeave={() => setIsHover(false)}
@@ -298,6 +299,19 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external }: {
       </div>
       <h3 className="font-heading text-2xl font-bold mb-2" style={{ color: mainText }}>{title}</h3>
       <p className="font-body text-sm" style={{ color: mainText, opacity: 0.8 }}>{subtitle}</p>
+
+      {inDevelopment && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
+          style={{
+            background: "rgba(10, 9, 8, 0.78)",
+          }}
+        >
+          <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>In Development</p>
+          <p className="font-heading text-lg font-bold text-cream mb-2">Coming soon</p>
+          <p className="text-[10px] font-body uppercase tracking-widest text-cream/60">Peek inside →</p>
+        </div>
+      )}
     </Component>
   );
 }
@@ -487,9 +501,9 @@ export default function DashboardPage() {
             <p className="text-xs font-body" style={{ color: theme.textMuted }}>Open and use any time</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ToolTile theme={theme} href="/dealers/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} />
-            <ToolTile theme={theme} href="/dealers/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} />
             <ToolTile theme={theme} href="https://designer.innovativealuminum.com" eyebrow="Visualize" title="Designer" subtitle="3D project visualizer ↗" external={true} />
+            <ToolTile theme={theme} href="/dealers/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} inDevelopment={true} />
+            <ToolTile theme={theme} href="/dealers/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} inDevelopment={true} />
           </div>
         </div>
 
