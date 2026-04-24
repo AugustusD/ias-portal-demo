@@ -26,7 +26,6 @@ export default function CalculatorPage() {
     setLoading(false);
   }, [router]);
 
-  // Popup timer
   useEffect(() => {
     if (loading) return;
     const dismissKey = `ias_help_popup_dismissed_${TOOL_KEY}`;
@@ -89,19 +88,30 @@ export default function CalculatorPage() {
       <div className="section-container pt-10 pb-6">
         <p className="eyebrow text-gold mb-2">Pricing Tool</p>
         <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">Infinity Calculator</h1>
-        <p className="font-body text-stone-600 max-w-2xl">
+        <p className="font-body text-stone-600 max-w-2xl mb-3">
           Generate live pricing for Infinity Topless railing systems. For full screen use, click Open in Full Window above.
+        </p>
+        <p className="text-xs font-body text-stone-500 italic">
+          Preview mode — interaction is disabled in this view. Click "Open in Full Window" to use the tool.
         </p>
       </div>
 
+      {/* Iframe wrapper with invisible click-blocker on top */}
       <div className="w-full px-4 md:px-6 lg:px-8 pb-24">
-        <div className="border border-stone-200 bg-white overflow-hidden" style={{ height: "1400px" }}>
+        <div className="relative border border-stone-200 bg-white overflow-hidden" style={{ height: "1400px" }}>
           <iframe
             src="https://ias-calculator.vercel.app"
             title="Infinity Calculator"
             className="w-full h-full"
             frameBorder="0"
           ></iframe>
+          {/* Transparent blocker — captures all clicks/scrolls so iframe is visible but not interactive */}
+          <div
+            className="absolute inset-0 z-10 cursor-not-allowed"
+            style={{ background: "transparent" }}
+            aria-label="Interaction disabled in preview mode"
+            title="Preview mode — open in full window to use this tool"
+          ></div>
         </div>
       </div>
 

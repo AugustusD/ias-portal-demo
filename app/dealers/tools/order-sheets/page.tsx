@@ -94,19 +94,26 @@ export default function OrderSheetsPage() {
           Browse the full 2026 product catalog, build orders, and export to Excel or email.
         </p>
         <p className="text-xs font-body text-stone-500 italic">
-          Tip: Scroll horizontally within the tool below to access all header controls (Export, Email, Summary, Order), or click "Open in Full Window" for the full-screen experience.
+          Preview mode — interaction is disabled in this view. Click "Open in Full Window" to use the tool.
         </p>
       </div>
 
-      {/* Horizontally scrollable wrapper with wide iframe */}
+      {/* Iframe wrapper with invisible click-blocker on top */}
       <div className="w-full pb-24">
-        <div className="border-y border-stone-200 bg-white overflow-x-auto" style={{ height: "1800px" }}>
+        <div className="relative border-y border-stone-200 bg-white overflow-x-auto" style={{ height: "1800px" }}>
           <iframe
             src={ORDER_SHEETS_URL}
             title="IAS Order Sheets"
             className="h-full block"
             style={{ width: "1600px", minWidth: "1600px", border: "none" }}
           ></iframe>
+          {/* Transparent blocker — 1600px wide to match iframe, so it covers even if user scrolls horizontally */}
+          <div
+            className="absolute inset-0 z-10 cursor-not-allowed"
+            style={{ background: "transparent", width: "1600px", minWidth: "1600px", height: "100%" }}
+            aria-label="Interaction disabled in preview mode"
+            title="Preview mode — open in full window to use this tool"
+          ></div>
         </div>
       </div>
 
