@@ -8,6 +8,14 @@ type DealerDocument = {
   name: string;
   description: string;
   required: boolean;
+  templateUrl: string;
+  instructions: string;
+};
+
+type ReferenceDoc = {
+  name: string;
+  description: string;
+  url: string;
 };
 
 type Module = {
@@ -18,6 +26,7 @@ type Module = {
   videoId?: string;
   type: "video" | "documents";
   documents?: DealerDocument[];
+  references?: ReferenceDoc[];
 };
 
 const MODULES: Module[] = [
@@ -40,11 +49,15 @@ const MODULES: Module[] = [
         name: "New Customer Form",
         description: "Tell us about your business so we can set up your account properly.",
         required: true,
+        templateUrl: "/documents/new-customer-form.pdf",
+        instructions: "Download the form, fill it out using Adobe Acrobat (free) or print and complete by hand, then upload the signed file back here.",
       },
       {
         name: "Credit Application",
         description: "Optional. Apply for net-30 terms with IAS.",
         required: false,
+        templateUrl: "/documents/credit-application.pdf",
+        instructions: "Only complete this if you want to apply for credit terms. Bank information is encrypted in transit and only shared with our credit team.",
       },
     ],
   },
@@ -63,6 +76,23 @@ const MODULES: Module[] = [
     duration: "12 min",
     videoId: "8rBR4K4E9TA",
     type: "video",
+    references: [
+      {
+        name: "Infinity Fascia Installation Guide",
+        description: "Detailed reference manual for fascia mount installations. Keep this on hand.",
+        url: "/documents/InfinityInstallationGuideFascia.pdf",
+      },
+      {
+        name: "Infinity Surface Installation Guide",
+        description: "Companion guide for surface mount installations.",
+        url: "/documents/InfinityInstallationGuideSurface.pdf",
+      },
+      {
+        name: "Glass Installation Reference",
+        description: "Glass measurement, ordering, and installation specifics.",
+        url: "/documents/installation_glass.pdf",
+      },
+    ],
   },
   {
     id: "surface-install",
@@ -71,12 +101,41 @@ const MODULES: Module[] = [
     duration: "10 min",
     videoId: "8rBR4K4E9TA",
     type: "video",
+    references: [
+      {
+        name: "Infinity Surface Installation Guide",
+        description: "Detailed reference manual for surface mount installations.",
+        url: "/documents/InfinityInstallationGuideSurface.pdf",
+      },
+      {
+        name: "Wall Track Installation Guide",
+        description: "Complete reference for wall track applications.",
+        url: "/documents/InstallationGuideWallTrackComplete.pdf",
+      },
+      {
+        name: "Picket Installation Reference",
+        description: "Picket railing installation specifics for mixed installs.",
+        url: "/documents/installation_picket.pdf",
+      },
+      {
+        name: "Stairs Installation Reference",
+        description: "Stair railing installation guide for sloped applications.",
+        url: "/documents/installation_stairs.pdf",
+      },
+      {
+        name: "Flex Rail Installation Guide",
+        description: "Flex rail installation reference.",
+        url: "/documents/Installation_Guide-Flex_Rail.pdf",
+      },
+    ],
   },
 ];
 
 type Dealer = { name: string; email: string };
 
-// Slide-to-complete component
+// ─────────────────────────────────────────────────────────────────
+// SLIDE TO COMPLETE
+// ─────────────────────────────────────────────────────────────────
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(0);
@@ -95,8 +154,6 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
     const maxPosition = rect.width - knobWidth;
     const newPosition = Math.max(0, Math.min(maxPosition, clientX - rect.left - knobWidth / 2));
     setPosition(newPosition);
-
-    // Check if slid >90%
     if (newPosition >= maxPosition * 0.92) {
       setCompleted(true);
       setPosition(maxPosition);
@@ -112,16 +169,9 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   }
 
   useEffect(() => {
-    function onMouseMove(e: MouseEvent) {
-      handleMove(e.clientX);
-    }
-    function onTouchMove(e: TouchEvent) {
-      if (e.touches[0]) handleMove(e.touches[0].clientX);
-    }
-    function onUp() {
-      handleEnd();
-    }
-
+    function onMouseMove(e: MouseEvent) { handleMove(e.clientX); }
+    function onTouchMove(e: TouchEvent) { if (e.touches[0]) handleMove(e.touches[0].clientX); }
+    function onUp() { handleEnd(); }
     if (isDragging) {
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("touchmove", onTouchMove);
@@ -137,45 +187,17 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDragging]);
 
-  const progressPercent = containerRef.current
-    ? (position / (containerRef.current.getBoundingClientRect().width - 56)) * 100
-    : 0;
-
   return (
-    <div
-      ref={containerRef}
-      className="relative h-14 bg-stone-100 border border-stone-300 select-none overflow-hidden"
-      style={{ touchAction: "none" }}
-    >
-      {/* Filled progress track */}
-      <div
-        className="absolute inset-y-0 left-0 bg-gold transition-all"
-        style={{
-          width: `${position + 56}px`,
-          transitionDuration: isDragging ? "0ms" : "300ms",
-        }}
-      ></div>
-
-      {/* Label */}
+    <div ref={containerRef} className="relative h-14 bg-stone-100 border border-stone-300 select-none overflow-hidden" style={{ touchAction: "none" }}>
+      <div className="absolute inset-y-0 left-0 bg-gold transition-all" style={{ width: `${position + 56}px`, transitionDuration: isDragging ? "0ms" : "300ms" }}></div>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span
-          className={`font-body font-bold text-sm uppercase tracking-widest transition-opacity ${
-            completed ? "text-ink" : progressPercent > 30 ? "text-ink opacity-50" : "text-stone-500"
-          }`}
-        >
+        <span className={`font-body font-bold text-sm uppercase tracking-widest transition-opacity ${completed ? "text-ink" : "text-stone-500"}`}>
           {completed ? "✓ Completed" : label}
         </span>
       </div>
-
-      {/* Draggable knob */}
       <div
-        className={`absolute top-1 bottom-1 w-14 bg-ink flex items-center justify-center cursor-grab active:cursor-grabbing transition-transform ${
-          isDragging ? "" : "transition-all duration-300"
-        }`}
-        style={{
-          left: `${position + 4}px`,
-          transitionDuration: isDragging ? "0ms" : "300ms",
-        }}
+        className={`absolute top-1 bottom-1 w-14 bg-ink flex items-center justify-center cursor-grab active:cursor-grabbing ${isDragging ? "" : "transition-all duration-300"}`}
+        style={{ left: `${position + 4}px` }}
         onMouseDown={handleStart}
         onTouchStart={handleStart}
       >
@@ -194,11 +216,14 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   );
 }
 
-// Document upload card
+// ─────────────────────────────────────────────────────────────────
+// DOCUMENT UPLOAD CARD (download template + upload completed)
+// ─────────────────────────────────────────────────────────────────
 function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUploaded: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -208,7 +233,6 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
   function handleUpload() {
     if (!file) return;
     setUploading(true);
-    // Simulated upload — in production this would POST to an API route that emails Mike
     setTimeout(() => {
       setUploading(false);
       setUploaded(true);
@@ -217,58 +241,90 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
   }
 
   return (
-    <div className="bg-white border border-stone-200 p-6">
-      <div className="flex items-start justify-between mb-4 gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-heading text-lg font-bold">{doc.name}</h3>
-            {doc.required && (
-              <span className="text-xs uppercase tracking-wider bg-gold text-ink px-2 py-0.5 font-bold">Required</span>
-            )}
+    <div className="bg-white border border-stone-200">
+      {/* Header */}
+      <div className="p-6 border-b border-stone-200">
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-heading text-lg font-bold">{doc.name}</h3>
+              {doc.required && (
+                <span className="text-xs uppercase tracking-wider bg-gold text-ink px-2 py-0.5 font-bold">Required</span>
+              )}
+            </div>
+            <p className="font-body text-sm text-stone-600">{doc.description}</p>
           </div>
-          <p className="font-body text-sm text-stone-600">{doc.description}</p>
         </div>
+        <button
+          onClick={() => setShowInstructions(!showInstructions)}
+          className="text-xs font-body uppercase tracking-wider text-gold hover:text-gold-hover"
+        >
+          {showInstructions ? "− Hide" : "+ View"} Instructions
+        </button>
+        {showInstructions && (
+          <p className="font-body text-sm text-stone-600 mt-3 leading-relaxed">{doc.instructions}</p>
+        )}
       </div>
 
-      {!uploaded && (
-        <div className="space-y-3">
-          <label className="block">
-            <span className="sr-only">Choose file</span>
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={handleFileChange}
-              disabled={uploading}
-              className="block w-full text-sm font-body text-stone-600 file:mr-4 file:py-2 file:px-4 file:border file:border-stone-300 file:bg-cream file:text-ink file:font-body file:font-semibold file:text-xs file:uppercase file:tracking-wider hover:file:bg-cream-dark file:cursor-pointer cursor-pointer"
-            />
-          </label>
-          {file && (
-            <div className="flex items-center justify-between gap-3 pt-3 border-t border-stone-200">
-              <p className="text-sm font-body text-stone-600 truncate">
-                Selected: <span className="text-ink font-semibold">{file.name}</span>
-              </p>
-              <button
-                onClick={handleUpload}
-                disabled={uploading}
-                className="btn-gold whitespace-nowrap text-xs px-6"
-              >
-                {uploading ? "Sending..." : "Submit"}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Action area: download + upload */}
+      {!uploaded ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200">
+          {/* LEFT: Download template */}
+          <div className="p-6 bg-cream-dark">
+            <p className="eyebrow text-stone-500 mb-3">Step 1</p>
+            <h4 className="font-heading text-base font-bold mb-2">Download Template</h4>
+            <p className="font-body text-xs text-stone-600 mb-4">Get the blank form to fill out.</p>
+            <a
+              href={doc.templateUrl}
+              download
+              className="btn-outline-dark text-xs px-6 inline-block"
+            >
+              Download PDF
+            </a>
+          </div>
 
-      {uploaded && (
-        <div className="bg-cream-dark p-4 border-l-2 border-gold">
+          {/* RIGHT: Upload completed */}
+          <div className="p-6">
+            <p className="eyebrow text-stone-500 mb-3">Step 2</p>
+            <h4 className="font-heading text-base font-bold mb-2">Upload Completed</h4>
+            <p className="font-body text-xs text-stone-600 mb-4">Send your signed form to IAS.</p>
+
+            <label className="block mb-3">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                onChange={handleFileChange}
+                disabled={uploading}
+                className="block w-full text-xs font-body text-stone-600 file:mr-3 file:py-1.5 file:px-3 file:border file:border-stone-300 file:bg-cream file:text-ink file:font-body file:font-semibold file:text-xs file:uppercase file:tracking-wider hover:file:bg-cream-dark file:cursor-pointer cursor-pointer"
+              />
+            </label>
+
+            {file && (
+              <div className="space-y-2">
+                <p className="text-xs font-body text-stone-600 truncate">
+                  Selected: <span className="text-ink font-semibold">{file.name}</span>
+                </p>
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="btn-gold text-xs px-6 w-full"
+                >
+                  {uploading ? "Sending..." : "Submit to IAS"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="p-6 bg-cream-dark border-t-2 border-gold">
           <div className="flex items-start gap-3">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 mt-0.5">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 mt-0.5">
               <circle cx="10" cy="10" r="10" fill="#B69A5A" />
               <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <div>
-              <p className="font-body font-semibold text-sm mb-1">Submitted to IAS</p>
-              <p className="font-body text-xs text-stone-600">Mike has been notified. We'll be in touch within 1 business day.</p>
+              <p className="font-body font-semibold mb-1">Submitted to IAS</p>
+              <p className="font-body text-sm text-stone-600">Mike has been notified. We'll be in touch within 1 business day.</p>
             </div>
           </div>
         </div>
@@ -277,6 +333,34 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// REFERENCE DOC CARD
+// ─────────────────────────────────────────────────────────────────
+function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
+  return (
+    <a
+      href={doc.url}
+      download
+      className="group block p-5 bg-white border border-stone-200 hover:border-gold transition-colors"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="eyebrow text-stone-400 mb-2">PDF</p>
+          <h4 className="font-heading text-base font-bold mb-1">{doc.name}</h4>
+          <p className="font-body text-xs text-stone-600">{doc.description}</p>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 text-stone-400 group-hover:text-gold transition-colors">
+          <path d="M10 4V14M10 14L6 10M10 14L14 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 16H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </a>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MAIN PAGE
+// ─────────────────────────────────────────────────────────────────
 export default function TrainingPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
@@ -285,23 +369,17 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const [uploadedDocs, setUploadedDocs] = useState<Set<string>>(new Set());
+  const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) {
-      router.push("/dealers/login");
-      return;
-    }
+    if (!stored) { router.push("/dealers/login"); return; }
     let parsedDealer: Dealer;
     try {
       parsedDealer = JSON.parse(stored);
       setDealer(parsedDealer);
-    } catch {
-      router.push("/dealers/login");
-      return;
-    }
+    } catch { router.push("/dealers/login"); return; }
 
-    // Per-dealer training progress key (so each dealer's progress is isolated)
     const progressKey = `ias_training_progress_${parsedDealer.email}`;
     const storedProgress = localStorage.getItem(progressKey);
     if (storedProgress) {
@@ -313,17 +391,31 @@ export default function TrainingPage() {
       } catch {}
     }
 
-    // Per-dealer uploaded docs
     const docsKey = `ias_uploaded_docs_${parsedDealer.email}`;
     const storedDocs = localStorage.getItem(docsKey);
     if (storedDocs) {
-      try {
-        setUploadedDocs(new Set(JSON.parse(storedDocs)));
-      } catch {}
+      try { setUploadedDocs(new Set(JSON.parse(storedDocs))); } catch {}
     }
-
     setLoading(false);
   }, [router]);
+
+  // Determine if a module is unlocked: module 0 always unlocked,
+  // module N unlocked if module N-1 is in completed array.
+  function isModuleUnlocked(moduleId: string): boolean {
+    const idx = MODULES.findIndex((m) => m.id === moduleId);
+    if (idx === 0) return true;
+    const previousId = MODULES[idx - 1].id;
+    return completed.includes(previousId);
+  }
+
+  function handleModuleClick(moduleId: string) {
+    if (!isModuleUnlocked(moduleId)) {
+      setLockedClickFeedback(moduleId);
+      setTimeout(() => setLockedClickFeedback(null), 1500);
+      return;
+    }
+    setActiveId(moduleId);
+  }
 
   function markComplete(id: string) {
     if (!dealer || completed.includes(id)) return;
@@ -332,7 +424,6 @@ export default function TrainingPage() {
     const progressKey = `ias_training_progress_${dealer.email}`;
     localStorage.setItem(progressKey, JSON.stringify(newCompleted));
     setJustCompleted(id);
-
     setTimeout(() => {
       setJustCompleted(null);
       const currentIdx = MODULES.findIndex((m) => m.id === id);
@@ -350,8 +441,7 @@ export default function TrainingPage() {
     const newSet = new Set(uploadedDocs);
     newSet.add(docName);
     setUploadedDocs(newSet);
-    const docsKey = `ias_uploaded_docs_${dealer.email}`;
-    localStorage.setItem(docsKey, JSON.stringify(Array.from(newSet)));
+    localStorage.setItem(`ias_uploaded_docs_${dealer.email}`, JSON.stringify(Array.from(newSet)));
   }
 
   function resetProgress() {
@@ -366,11 +456,7 @@ export default function TrainingPage() {
   }
 
   if (loading || !dealer) {
-    return (
-      <div className="section-container section-padding">
-        <p className="text-stone-600">Loading...</p>
-      </div>
-    );
+    return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
 
   const activeModule = MODULES.find((m) => m.id === activeId) || MODULES[0];
@@ -379,7 +465,7 @@ export default function TrainingPage() {
   const progressPercent = (completedCount / totalCount) * 100;
   const isAuthorized = completedCount === totalCount;
 
-  // For documents module: check if all required docs uploaded
+  // For documents module: check if all REQUIRED docs uploaded
   const activeRequiredDocs = activeModule.documents?.filter((d) => d.required) || [];
   const allRequiredUploaded =
     activeModule.type === "documents"
@@ -388,7 +474,7 @@ export default function TrainingPage() {
 
   return (
     <div className="bg-cream">
-      {/* Confetti overlay */}
+      {/* Confetti */}
       {justCompleted && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
           <div className="bg-gold text-ink px-12 py-8 shadow-2xl animate-pulse">
@@ -403,9 +489,7 @@ export default function TrainingPage() {
         <div className="section-container py-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4">
-              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">
-                ← Dashboard
-              </Link>
+              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
               <span className="text-stone-300">/</span>
               <p className="eyebrow text-stone-600">Training</p>
             </div>
@@ -423,10 +507,7 @@ export default function TrainingPage() {
             </div>
           </div>
           <div className="w-full bg-stone-200 h-1 overflow-hidden">
-            <div
-              className="h-full bg-gold transition-all duration-1000 ease-out"
-              style={{ width: `${progressPercent}%` }}
-            ></div>
+            <div className="h-full bg-gold transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
           </div>
         </div>
       </div>
@@ -440,22 +521,30 @@ export default function TrainingPage() {
         <p className="font-body text-lg text-stone-600 max-w-2xl">
           {isAuthorized
             ? "All training modules complete. You now have full access to the IAS dealer network."
-            : "Complete all five modules to unlock your authorized dealer status, premium pricing, and lead distribution."}
+            : "Complete each module in order to unlock your authorized dealer status, premium pricing, and lead distribution."}
         </p>
       </div>
 
-      {/* Module stepper */}
+      {/* Module stepper with sequential lock */}
       <div className="section-container mb-16">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {MODULES.map((mod, idx) => {
             const isComplete = completed.includes(mod.id);
             const isActive = mod.id === activeId;
+            const isUnlocked = isModuleUnlocked(mod.id);
+            const isJiggling = lockedClickFeedback === mod.id;
+
             return (
               <button
                 key={mod.id}
-                onClick={() => setActiveId(mod.id)}
-                className={`text-left p-5 border transition-all ${
-                  isActive
+                onClick={() => handleModuleClick(mod.id)}
+                disabled={!isUnlocked}
+                className={`text-left p-5 border transition-all relative ${
+                  isJiggling ? "animate-pulse" : ""
+                } ${
+                  !isUnlocked
+                    ? "border-stone-200 bg-stone-50 cursor-not-allowed opacity-60"
+                    : isActive
                     ? "border-gold bg-white"
                     : isComplete
                     ? "border-stone-300 bg-cream-dark"
@@ -463,7 +552,15 @@ export default function TrainingPage() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className={`font-heading text-2xl font-bold ${isActive ? "text-gold" : isComplete ? "text-stone-400" : "text-stone-300"}`}>
+                  <span className={`font-heading text-2xl font-bold ${
+                    !isUnlocked
+                      ? "text-stone-300"
+                      : isActive
+                      ? "text-gold"
+                      : isComplete
+                      ? "text-stone-400"
+                      : "text-stone-300"
+                  }`}>
                     0{idx + 1}
                   </span>
                   {isComplete && (
@@ -472,11 +569,22 @@ export default function TrainingPage() {
                       <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
+                  {!isUnlocked && !isComplete && (
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="text-stone-400">
+                      <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                  )}
                 </div>
-                <p className={`font-body text-sm font-semibold mb-1 ${isComplete ? "text-stone-500" : "text-ink"}`}>
+                <p className={`font-body text-sm font-semibold mb-1 ${
+                  !isUnlocked ? "text-stone-400" : isComplete ? "text-stone-500" : "text-ink"
+                }`}>
                   {mod.title}
                 </p>
                 <p className="text-xs text-stone-400">{mod.duration}</p>
+                {isJiggling && (
+                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">Complete previous module first</p>
+                )}
               </button>
             );
           })}
@@ -491,6 +599,7 @@ export default function TrainingPage() {
             <h2 className="font-heading text-4xl font-bold mb-4">{activeModule.title}</h2>
             <p className="font-body text-stone-600 mb-8">{activeModule.description}</p>
 
+            {/* Video */}
             {activeModule.type === "video" && activeModule.videoId && (
               <div className="aspect-video bg-ink mb-8 overflow-hidden">
                 <iframe
@@ -504,8 +613,9 @@ export default function TrainingPage() {
               </div>
             )}
 
+            {/* Documents (Module 2) */}
             {activeModule.type === "documents" && activeModule.documents && (
-              <div className="space-y-4 mb-8">
+              <div className="space-y-5 mb-8">
                 {activeModule.documents.map((doc) => (
                   <DocumentUploadCard
                     key={doc.name}
@@ -518,6 +628,21 @@ export default function TrainingPage() {
                     Upload all required documents above before completing this module.
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Reference docs (Module 4 & 5) */}
+            {activeModule.references && activeModule.references.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-baseline justify-between mb-5">
+                  <h3 className="font-heading text-xl font-bold">Reference Documents</h3>
+                  <p className="text-xs font-body text-stone-500 uppercase tracking-wider">{activeModule.references.length} Files</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {activeModule.references.map((ref) => (
+                    <ReferenceDocCard key={ref.name} doc={ref} />
+                  ))}
+                </div>
               </div>
             )}
 
@@ -551,6 +676,7 @@ export default function TrainingPage() {
               <div className="space-y-3 mb-8">
                 {MODULES.map((mod) => {
                   const isComplete = completed.includes(mod.id);
+                  const unlocked = isModuleUnlocked(mod.id);
                   return (
                     <div key={mod.id} className="flex items-center gap-3 text-sm font-body">
                       {isComplete ? (
@@ -558,10 +684,17 @@ export default function TrainingPage() {
                           <circle cx="10" cy="10" r="10" fill="#B69A5A" />
                           <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                      ) : (
+                      ) : unlocked ? (
                         <div className="w-4 h-4 rounded-full border border-stone-400 flex-shrink-0"></div>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 text-stone-500">
+                          <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
+                        </svg>
                       )}
-                      <span className={isComplete ? "line-through text-stone-400" : ""}>{mod.title}</span>
+                      <span className={isComplete ? "line-through text-stone-400" : !unlocked ? "text-stone-500" : ""}>
+                        {mod.title}
+                      </span>
                     </div>
                   );
                 })}
