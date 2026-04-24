@@ -89,17 +89,17 @@ export default function DashboardPage() {
           </Link>
 
           <Link
-            href="/dealers/tools/brochure"
+            href="/dealers/tools/order-sheets"
             className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold">Marketing</p>
+              <p className="eyebrow text-gold">Catalog</p>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                 <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h3 className="font-heading text-2xl font-bold mb-2">Brochure</h3>
-            <p className="font-body text-sm opacity-80">Interactive product brochure.</p>
+            <h3 className="font-heading text-2xl font-bold mb-2">Order Sheets</h3>
+            <p className="font-body text-sm opacity-80">Full product catalog and order builder.</p>
           </Link>
 
           <a
@@ -172,7 +172,6 @@ export default function DashboardPage() {
         <p className="eyebrow text-stone-400 mb-8">Your Activity</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-          {/* Training progress (REAL) */}
           <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Training Progress</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -187,7 +186,6 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Leads (RENAMED, simplified) */}
           <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Leads</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -202,7 +200,6 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Recent quotes */}
           <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Recent Quotes</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -218,7 +215,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent activity feed */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
             <h3 className="font-heading text-xl font-bold mb-6">Recent Leads</h3>
