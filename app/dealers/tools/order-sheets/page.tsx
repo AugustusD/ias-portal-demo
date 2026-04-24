@@ -87,21 +87,25 @@ export default function OrderSheetsPage() {
         </div>
       </div>
 
-      <div className="section-container pt-10 pb-6">
+      <div className="section-container pt-10 pb-4">
         <p className="eyebrow text-gold mb-2">Order Tool</p>
         <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">Dealer Order Sheets</h1>
-        <p className="font-body text-stone-600 max-w-2xl">
-          Browse the full 2026 product catalog, build orders, and export to Excel or email. For full screen use, click Open in Full Window above.
+        <p className="font-body text-stone-600 max-w-2xl mb-3">
+          Browse the full 2026 product catalog, build orders, and export to Excel or email.
+        </p>
+        <p className="text-xs font-body text-stone-500 italic">
+          Tip: Scroll horizontally within the tool below to access all header controls (Export, Email, Summary, Order), or click "Open in Full Window" for the full-screen experience.
         </p>
       </div>
 
-      <div className="w-full px-4 md:px-6 lg:px-8 pb-24">
-        <div className="border border-stone-200 bg-white overflow-hidden" style={{ height: "1800px" }}>
+      {/* Horizontally scrollable wrapper with wide iframe */}
+      <div className="w-full pb-24">
+        <div className="border-y border-stone-200 bg-white overflow-x-auto" style={{ height: "1800px" }}>
           <iframe
             src={ORDER_SHEETS_URL}
             title="IAS Order Sheets"
-            className="w-full h-full"
-            frameBorder="0"
+            className="h-full block"
+            style={{ width: "1600px", minWidth: "1600px", border: "none" }}
           ></iframe>
         </div>
       </div>
