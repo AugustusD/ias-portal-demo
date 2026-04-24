@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type DealerDocument = {
   name: string;
@@ -72,31 +73,11 @@ const MODULES: Module[] = [
     videoId: "8rBR4K4E9TA",
     type: "video",
     references: [
-      {
-        name: "Infinity Topless Sell Sheet",
-        description: "Product overview for our flagship topless glass system.",
-        url: "/documents/sellsheet_infinity.pdf",
-      },
-      {
-        name: "Glass Component Sell Sheet",
-        description: "Product overview for component glass railings.",
-        url: "/documents/sellsheet_glass.pdf",
-      },
-      {
-        name: "Picket Sell Sheet",
-        description: "Product overview for welded picket systems.",
-        url: "/documents/sellsheet_picket.pdf",
-      },
-      {
-        name: "Custom Railings Sell Sheet",
-        description: "Product overview for custom aluminum railing options.",
-        url: "/documents/sellsheet_custom.pdf",
-      },
-      {
-        name: "Powder Coating Sell Sheet",
-        description: "Our 5-stage AAMA 2604 powder coating process and color options.",
-        url: "/documents/sellsheet_powdercoating.pdf",
-      },
+      { name: "Infinity Topless Sell Sheet", description: "Product overview for our flagship topless glass system.", url: "/documents/sellsheet_infinity.pdf" },
+      { name: "Glass Component Sell Sheet", description: "Product overview for component glass railings.", url: "/documents/sellsheet_glass.pdf" },
+      { name: "Picket Sell Sheet", description: "Product overview for welded picket systems.", url: "/documents/sellsheet_picket.pdf" },
+      { name: "Custom Railings Sell Sheet", description: "Product overview for custom aluminum railing options.", url: "/documents/sellsheet_custom.pdf" },
+      { name: "Powder Coating Sell Sheet", description: "Our 5-stage AAMA 2604 powder coating process and color options.", url: "/documents/sellsheet_powdercoating.pdf" },
     ],
   },
   {
@@ -107,41 +88,13 @@ const MODULES: Module[] = [
     videoId: "8rBR4K4E9TA",
     type: "video",
     references: [
-      {
-        name: "Infinity Fascia Installation Guide",
-        description: "Fascia mount installation reference for Infinity Topless systems.",
-        url: "/documents/InfinityInstallationGuideFascia.pdf",
-      },
-      {
-        name: "Infinity Surface Installation Guide",
-        description: "Surface mount installation reference for Infinity Topless systems.",
-        url: "/documents/InfinityInstallationGuideSurface.pdf",
-      },
-      {
-        name: "Wall Track Installation Guide",
-        description: "Complete wall track application reference.",
-        url: "/documents/InstallationGuideWallTrackComplete.pdf",
-      },
-      {
-        name: "Flex Rail Installation Guide",
-        description: "Flex rail installation reference.",
-        url: "/documents/Installation_Guide-Flex_Rail.pdf",
-      },
-      {
-        name: "Glass Installation Reference",
-        description: "Glass measurement, ordering, and installation.",
-        url: "/documents/installation_glass.pdf",
-      },
-      {
-        name: "Picket Installation Reference",
-        description: "Welded picket installation specifics.",
-        url: "/documents/installation_picket.pdf",
-      },
-      {
-        name: "Stairs Installation Reference",
-        description: "Stair railing installation for sloped applications.",
-        url: "/documents/installation_stairs.pdf",
-      },
+      { name: "Infinity Fascia Installation Guide", description: "Fascia mount installation reference for Infinity Topless systems.", url: "/documents/InfinityInstallationGuideFascia.pdf" },
+      { name: "Infinity Surface Installation Guide", description: "Surface mount installation reference for Infinity Topless systems.", url: "/documents/InfinityInstallationGuideSurface.pdf" },
+      { name: "Wall Track Installation Guide", description: "Complete wall track application reference.", url: "/documents/InstallationGuideWallTrackComplete.pdf" },
+      { name: "Flex Rail Installation Guide", description: "Flex rail installation reference.", url: "/documents/Installation_Guide-Flex_Rail.pdf" },
+      { name: "Glass Installation Reference", description: "Glass measurement, ordering, and installation.", url: "/documents/installation_glass.pdf" },
+      { name: "Picket Installation Reference", description: "Welded picket installation specifics.", url: "/documents/installation_picket.pdf" },
+      { name: "Stairs Installation Reference", description: "Stair railing installation for sloped applications.", url: "/documents/installation_stairs.pdf" },
     ],
   },
   {
@@ -152,16 +105,8 @@ const MODULES: Module[] = [
     videoId: "8rBR4K4E9TA",
     type: "video",
     references: [
-      {
-        name: "Residential Warranty",
-        description: "Full residential warranty terms — 20 year structural, 10 year finish.",
-        url: "/documents/INNOVATIVE-ALUMINUM-RESIDENTIAL-WARRANTY.pdf",
-      },
-      {
-        name: "Commercial Warranty",
-        description: "Commercial warranty terms — 20 year structural, 5 year finish.",
-        url: "/documents/INNOVATIVE-ALUMINUM-COMMERCIAL-WARRANTY.pdf",
-      },
+      { name: "Residential Warranty", description: "Full residential warranty terms — 20 year structural, 10 year finish.", url: "/documents/INNOVATIVE-ALUMINUM-RESIDENTIAL-WARRANTY.pdf" },
+      { name: "Commercial Warranty", description: "Commercial warranty terms — 20 year structural, 5 year finish.", url: "/documents/INNOVATIVE-ALUMINUM-COMMERCIAL-WARRANTY.pdf" },
     ],
   },
 ];
@@ -331,7 +276,7 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
             </svg>
             <div>
               <p className="font-body font-semibold mb-1">Submitted to IAS</p>
-              <p className="font-body text-sm text-stone-600">This document has been shared with our team. We'll be in touch within 1 business day.</p>
+              <p className="font-body text-sm text-stone-600">This document has been shared with our team. We&apos;ll be in touch within 1 business day.</p>
             </div>
           </div>
         </div>
@@ -368,32 +313,51 @@ export default function TrainingPage() {
   const [uploadedDocs, setUploadedDocs] = useState<Set<string>>(new Set());
   const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
 
+  // Load progress on mount — now from Supabase
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/dealers/login"); return; }
-    let parsedDealer: Dealer;
-    try {
-      parsedDealer = JSON.parse(stored);
-      setDealer(parsedDealer);
-    } catch { router.push("/dealers/login"); return; }
+    async function loadProgress() {
+      // 1. Verify the user is logged in via Supabase auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/dealers/login");
+        return;
+      }
 
-    const progressKey = `ias_training_progress_${parsedDealer.email}`;
-    const storedProgress = localStorage.getItem(progressKey);
-    if (storedProgress) {
-      try {
-        const parsed = JSON.parse(storedProgress);
-        setCompleted(parsed);
-        const firstIncomplete = MODULES.find((m) => !parsed.includes(m.id));
+      // 2. Read display name from localStorage (still set by login page for now)
+      const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
+      if (stored) {
+        try { setDealer(JSON.parse(stored)); } catch {
+          setDealer({ name: "Dealer", email: user.email ?? "" });
+        }
+      } else {
+        setDealer({ name: "Dealer", email: user.email ?? "" });
+      }
+
+      // 3. Read training progress from Supabase
+      const { data: progress, error } = await supabase
+        .from("training_progress")
+        .select("module_id")
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Could not load training progress:", error);
+      } else if (progress) {
+        const completedIds = progress.map((p) => p.module_id);
+        setCompleted(completedIds);
+        const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
         if (firstIncomplete) setActiveId(firstIncomplete.id);
-      } catch {}
-    }
+      }
 
-    const docsKey = `ias_uploaded_docs_${parsedDealer.email}`;
-    const storedDocs = localStorage.getItem(docsKey);
-    if (storedDocs) {
-      try { setUploadedDocs(new Set(JSON.parse(storedDocs))); } catch {}
+      // 4. Uploaded docs still in localStorage for now (Storage migration is later)
+      const docsKey = `ias_uploaded_docs_${user.email}`;
+      const storedDocs = localStorage.getItem(docsKey);
+      if (storedDocs) {
+        try { setUploadedDocs(new Set(JSON.parse(storedDocs))); } catch {}
+      }
+
+      setLoading(false);
     }
-    setLoading(false);
+    loadProgress();
   }, [router]);
 
   function isModuleUnlocked(moduleId: string): boolean {
@@ -412,11 +376,25 @@ export default function TrainingPage() {
     setActiveId(moduleId);
   }
 
-  function markComplete(id: string) {
+  // Mark complete — writes to Supabase
+  async function markComplete(id: string) {
     if (!dealer || completed.includes(id)) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/dealers/login"); return; }
+
+    const { error } = await supabase
+      .from("training_progress")
+      .insert({ user_id: user.id, module_id: id });
+
+    if (error) {
+      console.error("Failed to save progress:", error);
+      alert("Couldn't save your progress. Try again.");
+      return;
+    }
+
     const newCompleted = [...completed, id];
     setCompleted(newCompleted);
-    localStorage.setItem(`ias_training_progress_${dealer.email}`, JSON.stringify(newCompleted));
     setJustCompleted(id);
     setTimeout(() => {
       setJustCompleted(null);
@@ -438,15 +416,28 @@ export default function TrainingPage() {
     localStorage.setItem(`ias_uploaded_docs_${dealer.email}`, JSON.stringify(Array.from(newSet)));
   }
 
-  function resetProgress() {
+  // Reset progress — deletes from Supabase
+  async function resetProgress() {
     if (!dealer) return;
-    if (confirm("Reset all training progress? This is for demo purposes.")) {
-      setCompleted([]);
-      setUploadedDocs(new Set());
-      localStorage.removeItem(`ias_training_progress_${dealer.email}`);
-      localStorage.removeItem(`ias_uploaded_docs_${dealer.email}`);
-      setActiveId(MODULES[0].id);
+    if (!confirm("Reset all training progress? This is for demo purposes.")) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("training_progress")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (error) {
+      alert("Couldn't reset progress. Try again.");
+      return;
     }
+
+    setCompleted([]);
+    setUploadedDocs(new Set());
+    localStorage.removeItem(`ias_uploaded_docs_${dealer.email}`);
+    setActiveId(MODULES[0].id);
   }
 
   if (loading || !dealer) {
