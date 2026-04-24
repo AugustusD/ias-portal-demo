@@ -95,7 +95,7 @@ const THEMES: Theme[] = [
     logoutText: "#F9F6F0",
     logoutHoverBg: "#F9F6F0",
     // NEW: grid pattern like Terminal
-    bgPattern: "linear-gradient(rgba(212, 185, 117, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 117, 0.04) 1px, transparent 1px)",
+    bgPattern: "linear-gradient(rgba(212, 185, 117, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 117, 0.08) 1px, transparent 1px)",
   },
   {
     id: "architect",
@@ -151,7 +151,7 @@ const THEMES: Theme[] = [
     logoutBorder: "#FFC857",
     logoutText: "#FFC857",
     logoutHoverBg: "#FFC857",
-    bgPattern: "linear-gradient(rgba(255, 200, 87, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 200, 87, 0.03) 1px, transparent 1px)",
+    bgPattern: "linear-gradient(rgba(255, 200, 87, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 200, 87, 0.07) 1px, transparent 1px)",
   },
 ];
 
@@ -274,9 +274,10 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external }: {
 
   const bg = isHover ? theme.toolHoverBg : theme.toolBg;
   const mainText = isHover ? theme.toolHoverText : theme.toolText;
-  // On hover, eyebrow and arrow use the SAME color as text (so they stay visible)
-  // When not hovering, they use the gold accent
   const accentColor = isHover ? theme.toolHoverText : theme.toolEyebrow;
+
+  // Architect theme: add permanent black border so white-on-white tiles stay visible
+  const border = theme.id === "architect" ? "2px solid #000000" : "none";
 
   const Component: any = external ? "a" : Link;
   const props: any = external ? { href, target: "_blank", rel: "noopener noreferrer" } : { href };
@@ -285,7 +286,7 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external }: {
     <Component
       {...props}
       className="block p-7 transition-colors duration-200 relative"
-      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow }}
+      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow, border }}
       onMouseEnter={() => setIsHover(true)}
       onMouseLeave={() => setIsHover(false)}
     >
