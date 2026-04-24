@@ -3,6 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Demo dealers — emails dealer1@test.com through dealer30@test.com
+// All use the same password for simplicity.
+const DEMO_PASSWORD = "password123";
+
+function isValidDealerEmail(email: string): { valid: boolean; name: string } {
+  const match = email.toLowerCase().match(/^dealer(\d{1,2})@test\.com$/);
+  if (!match) return { valid: false, name: "" };
+  const num = parseInt(match[1], 10);
+  if (num < 1 || num > 30) return { valid: false, name: "" };
+  return { valid: true, name: `Dealer ${num}` };
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -13,9 +25,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    // Hardcoded demo credentials
-    if (email === "dealer@test.com" && password === "password123") {
-      // Simple session: store dealer info in localStorage
+    const check = isValidDealerEmail(email);
+
+    // Also accept the original test credentials
+    if (email === "dealer@test.com" && password === DEMO_PASSWORD) {
       if (typeof window !== "undefined") {
         localStorage.setItem(
           "ias_dealer",
@@ -23,9 +36,21 @@ export default function LoginPage() {
         );
       }
       router.push("/dealers/dashboard");
-    } else {
-      setError("Invalid email or password. Try dealer@test.com / password123");
+      return;
     }
+
+    if (check.valid && password === DEMO_PASSWORD) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "ias_dealer",
+          JSON.stringify({ name: check.name, email: email })
+        );
+      }
+      router.push("/dealers/dashboard");
+      return;
+    }
+
+    setError("Invalid email or password. Try dealer1@test.com (through dealer30) / password123");
   }
 
   return (
@@ -45,7 +70,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"
-              placeholder="dealer@test.com"
+              placeholder="dealer1@test.com"
               required
             />
           </div>
@@ -73,10 +98,15 @@ export default function LoginPage() {
             Sign In
           </button>
 
-          <div className="border-t border-stone-200 pt-6 text-center">
+          <div className="border-t border-stone-200 pt-6 text-center space-y-2">
             <p className="text-sm text-stone-600 font-body">
-              Demo credentials:<br />
-              <span className="font-mono text-ink">dealer@test.com / password123</span>
+              Demo credentials:
+            </p>
+            <p className="font-mono text-sm text-ink">
+              dealer1@test.com  →  dealer30@test.com
+            </p>
+            <p className="font-mono text-sm text-ink">
+              Password: password123
             </p>
           </div>
         </form>
