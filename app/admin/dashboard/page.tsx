@@ -3,252 +3,132 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
-type Admin = { name: string; email: string; role: string };
-
-type DealerStatus = {
-  id: string;
-  companyName: string;
-  contactName: string;
-  location: string;
-  joinedDate: string;
-  onboardingStage: "new" | "forms_pending" | "training" | "authorized";
-  modulesComplete: number;
-  modulesTotal: number;
-  daysSinceLastActivity: number;
-  formsSubmitted: number;
-  formsTotal: number;
-  hasBottleneck: boolean;
-  bottleneckReason?: string;
+type DealerStat = {
+  dealer_id: string;
+  company_name: string;
+  contact_name: string | null;
+  location: string | null;
+  joined_date: string | null;
+  onboarding_stage: "new" | "training" | "forms_pending" | "authorized" | "inactive";
+  modules_complete: number;
+  forms_submitted: number;
+  last_activity_at: string | null;
 };
 
-type ActiveLead = {
+type LeadRow = {
   id: string;
-  customer: string;
-  dealerAssigned: string;
-  dealerLocation: string;
-  projectType: string;
-  estimatedValue: number;
-  daysInStage: number;
-  stage: "new" | "contacted" | "bid_submitted" | "won" | "lost";
-  stalled: boolean;
+  homeowner_name: string | null;
+  project_address: string | null;
+  product_interest: string | null;
+  project_value: number | null;
+  stage: "new" | "accepted" | "bid_submitted" | "won" | "lost";
+  updated_at: string;
+  dealers: { company_name: string; location: string | null } | null;
 };
 
-// Sample data based on Mike's slide deck mockup
-const DEALER_STATUSES: DealerStatus[] = [
-  {
-    id: "d1",
-    companyName: "Aldergrove Rails Ltd.",
-    contactName: "Dealer 1",
-    location: "Aldergrove, BC",
-    joinedDate: "Apr 12, 2026",
-    onboardingStage: "authorized",
-    modulesComplete: 5,
-    modulesTotal: 5,
-    daysSinceLastActivity: 2,
-    formsSubmitted: 2,
-    formsTotal: 2,
-    hasBottleneck: false,
-  },
-  {
-    id: "d2",
-    companyName: "Surrey Decking Co.",
-    contactName: "Dealer 2",
-    location: "Surrey, BC",
-    joinedDate: "Apr 18, 2026",
-    onboardingStage: "training",
-    modulesComplete: 3,
-    modulesTotal: 5,
-    daysSinceLastActivity: 1,
-    formsSubmitted: 2,
-    formsTotal: 2,
-    hasBottleneck: false,
-  },
-  {
-    id: "d3",
-    companyName: "Grand Forks Rail & Glass",
-    contactName: "Derek P.",
-    location: "Grand Forks, BC",
-    joinedDate: "Apr 10, 2026",
-    onboardingStage: "forms_pending",
-    modulesComplete: 1,
-    modulesTotal: 5,
-    daysSinceLastActivity: 9,
-    formsSubmitted: 1,
-    formsTotal: 2,
-    hasBottleneck: true,
-    bottleneckReason: "Credit application pending 9 days",
-  },
-  {
-    id: "d4",
-    companyName: "Alpine Rails Inc.",
-    contactName: "Darren M.",
-    location: "Kelowna, BC",
-    joinedDate: "Apr 3, 2026",
-    onboardingStage: "training",
-    modulesComplete: 2,
-    modulesTotal: 5,
-    daysSinceLastActivity: 12,
-    formsSubmitted: 2,
-    formsTotal: 2,
-    hasBottleneck: true,
-    bottleneckReason: "No training activity in 12 days",
-  },
-  {
-    id: "d5",
-    companyName: "Powell River Railings",
-    contactName: "Dealer 5",
-    location: "Powell River, BC",
-    joinedDate: "Apr 20, 2026",
-    onboardingStage: "new",
-    modulesComplete: 0,
-    modulesTotal: 5,
-    daysSinceLastActivity: 0,
-    formsSubmitted: 0,
-    formsTotal: 2,
-    hasBottleneck: false,
-  },
-  {
-    id: "d6",
-    companyName: "Modern Powell Co.",
-    contactName: "Dealer 6",
-    location: "Powell River, BC",
-    joinedDate: "Apr 8, 2026",
-    onboardingStage: "authorized",
-    modulesComplete: 5,
-    modulesTotal: 5,
-    daysSinceLastActivity: 0,
-    formsSubmitted: 2,
-    formsTotal: 2,
-    hasBottleneck: false,
-  },
-  {
-    id: "d7",
-    companyName: "Langley Railcraft",
-    contactName: "Dealer 7",
-    location: "Langley, BC",
-    joinedDate: "Apr 15, 2026",
-    onboardingStage: "training",
-    modulesComplete: 4,
-    modulesTotal: 5,
-    daysSinceLastActivity: 3,
-    formsSubmitted: 2,
-    formsTotal: 2,
-    hasBottleneck: false,
-  },
-];
-
-const ACTIVE_LEADS: ActiveLead[] = [
-  {
-    id: "l1",
-    customer: "Jim Smith",
-    dealerAssigned: "Surrey Decking Co.",
-    dealerLocation: "Surrey, BC",
-    projectType: "Backyard deck — 80 LF Infinity",
-    estimatedValue: 12000,
-    daysInStage: 2,
-    stage: "new",
-    stalled: false,
-  },
-  {
-    id: "l2",
-    customer: "Sarah Liu",
-    dealerAssigned: "Langley Railcraft",
-    dealerLocation: "Langley, BC",
-    projectType: "Front porch — 32 LF Picket",
-    estimatedValue: 4800,
-    daysInStage: 4,
-    stage: "contacted",
-    stalled: false,
-  },
-  {
-    id: "l3",
-    customer: "Mike Chen",
-    dealerAssigned: "Aldergrove Rails Ltd.",
-    dealerLocation: "Aldergrove, BC",
-    projectType: "Pool surround — 120 LF Infinity",
-    estimatedValue: 18500,
-    daysInStage: 6,
-    stage: "bid_submitted",
-    stalled: false,
-  },
-  {
-    id: "l4",
-    customer: "Heritage Homes",
-    dealerAssigned: "Modern Powell Co.",
-    dealerLocation: "Powell River, BC",
-    projectType: "Multi-family — 840 LF Picket",
-    estimatedValue: 67200,
-    daysInStage: 18,
-    stage: "bid_submitted",
-    stalled: true,
-  },
-  {
-    id: "l5",
-    customer: "Davidson Residence",
-    dealerAssigned: "Grand Forks Rail & Glass",
-    dealerLocation: "Grand Forks, BC",
-    projectType: "Custom deck — 56 LF Glass",
-    estimatedValue: 8400,
-    daysInStage: 22,
-    stage: "new",
-    stalled: true,
-  },
-];
-
-const STAGE_LABELS: Record<DealerStatus["onboardingStage"], string> = {
+const STAGE_LABELS: Record<DealerStat["onboarding_stage"], string> = {
   new: "New",
   forms_pending: "Forms Pending",
   training: "Training",
   authorized: "Authorized",
+  inactive: "Inactive",
 };
 
-const LEAD_STAGE_LABELS: Record<ActiveLead["stage"], string> = {
+const LEAD_STAGE_LABELS: Record<LeadRow["stage"], string> = {
   new: "New",
-  contacted: "Contacted",
+  accepted: "Accepted",
   bid_submitted: "Bid Submitted",
   won: "Won",
   lost: "Lost",
 };
 
+const TOTAL_MODULES = 5;
+const TOTAL_FORMS = 2;
+
+function daysAgo(dateStr: string | null): number {
+  if (!dateStr) return 999;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
-  const [admin, setAdmin] = useState<Admin | null>(null);
+  const [adminName, setAdminName] = useState("Admin");
+  const [dealers, setDealers] = useState<DealerStat[]>([]);
+  const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"onboarding" | "leads">("onboarding");
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("ias_admin") : null;
-    if (!stored) { router.push("/admin/login"); return; }
-    try {
-      setAdmin(JSON.parse(stored));
-    } catch { router.push("/admin/login"); return; }
-    setLoading(false);
+    async function loadData() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push("/admin/login"); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!profile || profile.role !== "admin") {
+        router.push("/admin/login");
+        return;
+      }
+      setAdminName(profile.full_name || "Admin");
+
+      const { data: dealerData } = await supabase
+        .from("dealer_dashboard_stats")
+        .select("*")
+        .order("joined_date", { ascending: false });
+      setDealers((dealerData as DealerStat[]) || []);
+
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("id, homeowner_name, project_address, product_interest, project_value, stage, updated_at, dealers(company_name, location)")
+        .in("stage", ["new", "accepted", "bid_submitted"])
+        .order("updated_at", { ascending: false });
+      setLeads((leadData as unknown as LeadRow[]) || []);
+
+      setLoading(false);
+    }
+    loadData();
   }, [router]);
 
-  function handleLogout() {
-    localStorage.removeItem("ias_admin");
+  async function handleLogout() {
+    await supabase.auth.signOut();
     router.push("/admin/login");
   }
 
-  if (loading || !admin) {
+  if (loading) {
     return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
 
-  // Calculated stats
-  const totalDealers = DEALER_STATUSES.length;
-  const authorizedCount = DEALER_STATUSES.filter((d) => d.onboardingStage === "authorized").length;
-  const inOnboardingCount = DEALER_STATUSES.filter((d) => d.onboardingStage !== "authorized").length;
-  const bottleneckCount = DEALER_STATUSES.filter((d) => d.hasBottleneck).length;
+  const totalDealers = dealers.length;
+  const authorizedCount = dealers.filter((d) => d.onboarding_stage === "authorized").length;
+  const inOnboardingCount = dealers.filter((d) => d.onboarding_stage !== "authorized" && d.onboarding_stage !== "inactive").length;
 
-  const activeLeadsCount = ACTIVE_LEADS.length;
-  const stalledLeadsCount = ACTIVE_LEADS.filter((l) => l.stalled).length;
-  const totalPipelineValue = ACTIVE_LEADS.reduce((sum, l) => sum + l.estimatedValue, 0);
-  const stalledPipelineValue = ACTIVE_LEADS.filter((l) => l.stalled).reduce((sum, l) => sum + l.estimatedValue, 0);
+  // Bottleneck: not authorized + no activity in 7+ days
+  const bottleneckDealers = dealers.filter((d) => {
+    if (d.onboarding_stage === "authorized" || d.onboarding_stage === "inactive") return false;
+    return daysAgo(d.last_activity_at) > 7;
+  });
+  const bottleneckCount = bottleneckDealers.length;
+
+  // Stalled lead: in stage > 14 days
+  const stalledLeads = leads.filter((l) => daysAgo(l.updated_at) > 14);
+  const stalledLeadsCount = stalledLeads.length;
+  const activeLeadsCount = leads.length;
+  const totalPipelineValue = leads.reduce((s, l) => s + (l.project_value || 0), 0);
+  const stalledPipelineValue = stalledLeads.reduce((s, l) => s + (l.project_value || 0), 0);
 
   return (
     <div className="bg-ink min-h-screen text-cream">
-      {/* Admin header */}
       <div className="border-b border-stone-800 bg-ink sticky top-0 z-20">
         <div className="section-container py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
@@ -260,7 +140,7 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-4">
             <p className="text-sm font-body">
               <span className="text-stone-400">Signed in as</span>
-              <span className="ml-2 font-semibold">{admin.name}</span>
+              <span className="ml-2 font-semibold">{adminName}</span>
             </p>
             <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-gold hover:text-gold px-4 py-2 transition-colors">
               Log Out
@@ -270,7 +150,6 @@ export default function AdminDashboard() {
       </div>
 
       <div className="section-container section-padding">
-        {/* Page title */}
         <div className="mb-10">
           <p className="eyebrow text-gold mb-2">Control Tower</p>
           <h2 className="font-heading text-4xl md:text-5xl font-bold mb-2">Ecosystem Overview</h2>
@@ -279,7 +158,6 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* Top-level stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           <div className="bg-stone-900 border border-stone-800 p-5">
             <p className="eyebrow text-stone-500 mb-2">Authorized</p>
@@ -296,54 +174,36 @@ export default function AdminDashboard() {
           <div className="bg-stone-900 border border-stone-800 p-5">
             <p className="eyebrow text-stone-500 mb-2">Active Pipeline</p>
             <p className="text-3xl font-heading font-bold text-cream">${(totalPipelineValue / 1000).toFixed(1)}K</p>
-            <p className="text-xs text-stone-500 font-body mt-1">{activeLeadsCount} active leads</p>
+            <p className="text-xs text-stone-500 font-body mt-1">{activeLeadsCount} active lead{activeLeadsCount === 1 ? "" : "s"}</p>
           </div>
           <div className="bg-stone-900 border border-stone-800 p-5">
             <p className="eyebrow text-stone-500 mb-2">Stalled Value</p>
             <p className="text-3xl font-heading font-bold text-gold">${(stalledPipelineValue / 1000).toFixed(1)}K</p>
-            <p className="text-xs text-red-400 font-body font-semibold uppercase tracking-wider mt-1">{stalledLeadsCount} need attention</p>
+            {stalledLeadsCount > 0 && (
+              <p className="text-xs text-red-400 font-body font-semibold uppercase tracking-wider mt-1">{stalledLeadsCount} need attention</p>
+            )}
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-800">
-          <button
-            onClick={() => setActiveTab("onboarding")}
-            className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${
-              activeTab === "onboarding"
-                ? "border-gold text-cream"
-                : "border-transparent text-stone-500 hover:text-cream"
-            }`}
-          >
+          <button onClick={() => setActiveTab("onboarding")} className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === "onboarding" ? "border-gold text-cream" : "border-transparent text-stone-500 hover:text-cream"}`}>
             Onboarding Monitor ({totalDealers})
           </button>
-          <button
-            onClick={() => setActiveTab("leads")}
-            className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${
-              activeTab === "leads"
-                ? "border-gold text-cream"
-                : "border-transparent text-stone-500 hover:text-cream"
-            }`}
-          >
+          <button onClick={() => setActiveTab("leads")} className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === "leads" ? "border-gold text-cream" : "border-transparent text-stone-500 hover:text-cream"}`}>
             Lead Hopper ({activeLeadsCount})
           </button>
         </div>
 
-        {/* ONBOARDING MONITOR TAB */}
         {activeTab === "onboarding" && (
           <div>
-            {/* Bottleneck alerts row */}
             {bottleneckCount > 0 && (
               <div className="mb-6 p-5 bg-red-950/30 border-l-4 border-red-500">
                 <p className="eyebrow text-red-400 mb-2">Bottleneck Alert</p>
                 <h3 className="font-heading text-lg font-bold mb-2">{bottleneckCount} dealer{bottleneckCount === 1 ? " is" : "s are"} stuck in onboarding.</h3>
-                <p className="font-body text-sm text-stone-300">
-                  Consider reaching out personally or offering a training session. Stalled onboarding often becomes abandoned onboarding.
-                </p>
+                <p className="font-body text-sm text-stone-300">No training activity in over 7 days. Consider reaching out personally or offering a training session.</p>
               </div>
             )}
 
-            {/* Dealer table */}
             <div className="bg-stone-900 border border-stone-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -358,58 +218,62 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {DEALER_STATUSES.map((dealer) => (
-                      <tr key={dealer.id} className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors ${dealer.hasBottleneck ? "bg-red-950/20" : ""}`}>
-                        <td className="py-4 px-4">
-                          <p className="font-body font-semibold text-cream">{dealer.companyName}</p>
-                          <p className="text-xs text-stone-500 font-body">{dealer.location} · Joined {dealer.joinedDate}</p>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
-                            dealer.onboardingStage === "authorized"
-                              ? "bg-green-900 text-green-100"
-                              : dealer.onboardingStage === "training"
-                              ? "bg-amber-900 text-amber-100"
-                              : dealer.onboardingStage === "forms_pending"
-                              ? "bg-red-900 text-red-100"
-                              : "bg-stone-800 text-stone-300"
-                          }`}>
-                            {STAGE_LABELS[dealer.onboardingStage]}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 bg-stone-800 h-1.5 overflow-hidden">
-                              <div className="h-full bg-gold" style={{ width: `${(dealer.modulesComplete / dealer.modulesTotal) * 100}%` }}></div>
-                            </div>
-                            <span className="text-xs font-body text-stone-400">{dealer.modulesComplete}/{dealer.modulesTotal}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-sm font-body">
-                          <span className={dealer.formsSubmitted === dealer.formsTotal ? "text-green-400" : "text-amber-400"}>
-                            {dealer.formsSubmitted}/{dealer.formsTotal}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-sm font-body">
-                          <span className={dealer.daysSinceLastActivity > 7 ? "text-red-400 font-semibold" : "text-stone-300"}>
-                            {dealer.daysSinceLastActivity === 0 ? "Today" : `${dealer.daysSinceLastActivity}d ago`}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          {dealer.hasBottleneck ? (
+                    {dealers.map((d) => {
+                      const days = daysAgo(d.last_activity_at);
+                      const isBottleneck = d.onboarding_stage !== "authorized" && d.onboarding_stage !== "inactive" && days > 7;
+                      return (
+                        <tr key={d.dealer_id} className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors ${isBottleneck ? "bg-red-950/20" : ""}`}>
+                          <td className="py-4 px-4">
+                            <p className="font-body font-semibold text-cream">{d.company_name}</p>
+                            <p className="text-xs text-stone-500 font-body">{d.location || "—"} · Joined {formatDate(d.joined_date)}</p>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
+                              d.onboarding_stage === "authorized" ? "bg-green-900 text-green-100" :
+                              d.onboarding_stage === "training" ? "bg-amber-900 text-amber-100" :
+                              d.onboarding_stage === "forms_pending" ? "bg-red-900 text-red-100" :
+                              "bg-stone-800 text-stone-300"
+                            }`}>
+                              {STAGE_LABELS[d.onboarding_stage]}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
                             <div className="flex items-center gap-2">
-                              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" className="text-red-500 flex-shrink-0">
-                                <path d="M10 2L18 17H2L10 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                                <path d="M10 8V11M10 13.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                              </svg>
-                              <p className="text-xs font-body text-red-400">{dealer.bottleneckReason}</p>
+                              <div className="w-20 bg-stone-800 h-1.5 overflow-hidden">
+                                <div className="h-full bg-gold" style={{ width: `${(d.modules_complete / TOTAL_MODULES) * 100}%` }}></div>
+                              </div>
+                              <span className="text-xs font-body text-stone-400">{d.modules_complete}/{TOTAL_MODULES}</span>
                             </div>
-                          ) : (
-                            <span className="text-xs font-body text-stone-500">On track</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-4 px-4 text-sm font-body">
+                            <span className={d.forms_submitted === TOTAL_FORMS ? "text-green-400" : "text-amber-400"}>
+                              {d.forms_submitted}/{TOTAL_FORMS}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-sm font-body">
+                            <span className={days > 7 && d.onboarding_stage !== "authorized" ? "text-red-400 font-semibold" : "text-stone-300"}>
+                              {!d.last_activity_at ? "Never" : days === 0 ? "Today" : `${days}d ago`}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            {isBottleneck ? (
+                              <div className="flex items-center gap-2">
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" className="text-red-500 flex-shrink-0">
+                                  <path d="M10 2L18 17H2L10 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                                  <path d="M10 8V10.5M10 13.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                                <p className="text-xs font-body text-red-400">Inactive {days}d</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-body text-stone-500">On track</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {dealers.length === 0 && (
+                      <tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No dealers yet.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -417,7 +281,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* LEAD HOPPER TAB */}
         {activeTab === "leads" && (
           <div>
             {stalledLeadsCount > 0 && (
@@ -426,9 +289,7 @@ export default function AdminDashboard() {
                 <h3 className="font-heading text-lg font-bold mb-2">
                   {stalledLeadsCount} lead{stalledLeadsCount === 1 ? " is" : "s are"} stalled — ${stalledPipelineValue.toLocaleString()} at risk.
                 </h3>
-                <p className="font-body text-sm text-stone-300">
-                  Special Ops opportunity: these high-value bids may benefit from targeted presentation support or direct builder outreach.
-                </p>
+                <p className="font-body text-sm text-stone-300">No movement in 14+ days. May benefit from direct support or builder outreach.</p>
               </div>
             )}
 
@@ -446,40 +307,46 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ACTIVE_LEADS.map((lead) => (
-                      <tr key={lead.id} className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors ${lead.stalled ? "bg-gold/5" : ""}`}>
-                        <td className="py-4 px-4">
-                          <p className="font-body font-semibold text-cream">{lead.customer}</p>
-                          {lead.stalled && (
-                            <p className="text-xs text-gold font-body font-semibold uppercase tracking-wider mt-1">Stalled</p>
-                          )}
-                        </td>
-                        <td className="py-4 px-4">
-                          <p className="font-body text-sm text-cream">{lead.dealerAssigned}</p>
-                          <p className="text-xs text-stone-500 font-body">{lead.dealerLocation}</p>
-                        </td>
-                        <td className="py-4 px-4 text-sm font-body text-stone-300">{lead.projectType}</td>
-                        <td className="py-4 px-4">
-                          <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
-                            lead.stage === "new" ? "bg-gold text-ink" :
-                            lead.stage === "contacted" ? "bg-blue-900 text-blue-100" :
-                            lead.stage === "bid_submitted" ? "bg-amber-900 text-amber-100" :
-                            lead.stage === "won" ? "bg-green-900 text-green-100" :
-                            "bg-stone-800 text-stone-300"
-                          }`}>
-                            {LEAD_STAGE_LABELS[lead.stage]}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-sm font-body">
-                          <span className={lead.daysInStage > 14 ? "text-red-400 font-semibold" : lead.stalled ? "text-gold font-semibold" : "text-stone-300"}>
-                            {lead.daysInStage}d
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <span className="font-heading font-bold text-cream">${lead.estimatedValue.toLocaleString()}</span>
-                        </td>
-                      </tr>
-                    ))}
+                    {leads.map((lead) => {
+                      const days = daysAgo(lead.updated_at);
+                      const stalled = days > 14;
+                      return (
+                        <tr key={lead.id} className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors ${stalled ? "bg-gold/5" : ""}`}>
+                          <td className="py-4 px-4">
+                            <p className="font-body font-semibold text-cream">{lead.homeowner_name || "—"}</p>
+                            {stalled && (<p className="text-xs text-gold font-body font-semibold uppercase tracking-wider mt-1">Stalled</p>)}
+                          </td>
+                          <td className="py-4 px-4">
+                            <p className="font-body text-sm text-cream">{lead.dealers?.company_name || "—"}</p>
+                            <p className="text-xs text-stone-500 font-body">{lead.dealers?.location || "—"}</p>
+                          </td>
+                          <td className="py-4 px-4 text-sm font-body text-stone-300">
+                            {lead.product_interest || "—"}{lead.project_address ? ` · ${lead.project_address}` : ""}
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
+                              lead.stage === "new" ? "bg-gold text-ink" :
+                              lead.stage === "accepted" ? "bg-blue-900 text-blue-100" :
+                              lead.stage === "bid_submitted" ? "bg-amber-900 text-amber-100" :
+                              "bg-stone-800 text-stone-300"
+                            }`}>
+                              {LEAD_STAGE_LABELS[lead.stage]}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-sm font-body">
+                            <span className={days > 14 ? "text-red-400 font-semibold" : stalled ? "text-gold font-semibold" : "text-stone-300"}>
+                              {days}d
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <span className="font-heading font-bold text-cream">${(lead.project_value || 0).toLocaleString()}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {leads.length === 0 && (
+                      <tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No active leads.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -487,7 +354,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Footer note */}
         <div className="mt-12 p-6 border border-stone-800 bg-stone-950">
           <div className="flex items-start gap-3">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold flex-shrink-0 mt-0.5" aria-hidden="true">
@@ -496,8 +362,8 @@ export default function AdminDashboard() {
             </svg>
             <div>
               <p className="font-body text-sm text-stone-300 leading-relaxed">
-                <span className="font-semibold text-cream">Demo Preview.</span>{" "}
-                This admin dashboard demonstrates the Phase 2 "Control Tower" concept from the strategic deck. In production, data updates in real-time from the dealer portal, lead management system, and training progress tracking. Bottleneck alerts and stalled lead notifications are triggered automatically based on configurable SLA thresholds.
+                <span className="font-semibold text-cream">Live Data.</span>{" "}
+                This dashboard pulls real-time stats from Supabase. Bottleneck threshold: 7+ days with no training activity. Stalled lead threshold: 14+ days in same stage.
               </p>
             </div>
           </div>
