@@ -4,27 +4,33 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Dealer = {
-  name: string;
-  email: string;
-};
+type Dealer = { name: string; email: string };
+
+const TRAINING_TOTAL = 5;
 
 export default function DashboardPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for logged-in dealer
     const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) {
-      router.push("/dealers/login");
-      return;
-    }
+    if (!stored) { router.push("/dealers/login"); return; }
+    let parsedDealer: Dealer;
     try {
-      setDealer(JSON.parse(stored));
-    } catch {
-      router.push("/dealers/login");
+      parsedDealer = JSON.parse(stored);
+      setDealer(parsedDealer);
+    } catch { router.push("/dealers/login"); return; }
+
+    // Read REAL training progress from same key the training page writes to
+    const progressKey = `ias_training_progress_${parsedDealer.email}`;
+    const storedProgress = localStorage.getItem(progressKey);
+    if (storedProgress) {
+      try {
+        const parsed = JSON.parse(storedProgress);
+        setCompletedCount(Array.isArray(parsed) ? parsed.length : 0);
+      } catch {}
     }
     setLoading(false);
   }, [router]);
@@ -35,12 +41,11 @@ export default function DashboardPage() {
   }
 
   if (loading || !dealer) {
-    return (
-      <div className="section-container section-padding">
-        <p className="text-stone-600">Loading...</p>
-      </div>
-    );
+    return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
+
+  const trainingPercent = (completedCount / TRAINING_TOTAL) * 100;
+  const isAuthorized = completedCount === TRAINING_TOTAL;
 
   return (
     <div className="section-container section-padding">
@@ -53,8 +58,8 @@ export default function DashboardPage() {
           </h1>
           <p className="font-body text-stone-600">
             <span className="inline-flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-yellow-500"></span>
-              Pending Authorization · Complete training to unlock full access
+              <span className={`inline-block w-2 h-2 rounded-full ${isAuthorized ? "bg-green-500" : "bg-yellow-500"}`}></span>
+              {isAuthorized ? "Authorized Dealer · Full access" : `Pending Authorization · ${TRAINING_TOTAL - completedCount} module${TRAINING_TOTAL - completedCount === 1 ? "" : "s"} left`}
             </span>
           </p>
         </div>
@@ -63,72 +68,123 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Quick action tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-        <Link
-          href="/dealers/tools"
-          className="group block p-8 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
-        >
-          <p className="eyebrow text-gold group-hover:text-ink mb-4">01</p>
-          <h2 className="text-2xl font-heading font-bold mb-2">Tools</h2>
-          <p className="font-body text-sm opacity-80">
-            Pricing calculator and order sheets.
-          </p>
-        </Link>
+      {/* ROW 1 — TOOLS */}
+      <div className="mb-10">
+        <div className="flex items-baseline justify-between mb-5">
+          <p className="eyebrow text-stone-400">Tools</p>
+          <p className="text-xs font-body text-stone-400">Open and use any time</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link
+            href="/dealers/tools/calculator"
+            className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <p className="eyebrow text-gold group-hover:text-ink">Pricing</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
+                <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h3 className="font-heading text-2xl font-bold mb-2">Calculator</h3>
+            <p className="font-body text-sm opacity-80">Live pricing for Infinity systems.</p>
+          </Link>
 
-        <Link
-          href="/dealers/training"
-          className="group block p-8 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
-        >
-          <p className="eyebrow text-gold mb-4">02</p>
-          <h2 className="text-2xl font-heading font-bold mb-2">Training</h2>
-          <p className="font-body text-sm text-stone-600 group-hover:text-ink">
-            Become an authorized installer.
-          </p>
-        </Link>
+          <Link
+            href="/dealers/tools/brochure"
+            className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <p className="eyebrow text-gold group-hover:text-ink">Marketing</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
+                <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h3 className="font-heading text-2xl font-bold mb-2">Brochure</h3>
+            <p className="font-body text-sm opacity-80">Interactive product brochure.</p>
+          </Link>
 
-        <Link
-          href="/dealers/leads"
-          className="group block p-8 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
-        >
-          <p className="eyebrow text-gold mb-4">03</p>
-          <h2 className="text-2xl font-heading font-bold mb-2">Leads</h2>
-          <p className="font-body text-sm text-stone-600 group-hover:text-ink">
-            Submit and track customer leads.
-          </p>
-        </Link>
-
-        <a
-          href="https://designer.innovativealuminum.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block p-8 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
-        >
-          <p className="eyebrow text-gold mb-4">04</p>
-          <h2 className="text-2xl font-heading font-bold mb-2">Designer ↗</h2>
-          <p className="font-body text-sm text-stone-600 group-hover:text-ink">
-            3D visualizer and project tool.
-          </p>
-        </a>
+          <a
+            href="https://designer.innovativealuminum.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <p className="eyebrow text-gold group-hover:text-ink">Visualize</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
+                <path d="M11 3H17V9M9 11L17 3M9 17H3V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h3 className="font-heading text-2xl font-bold mb-2">Designer</h3>
+            <p className="font-body text-sm opacity-80">3D project visualizer ↗</p>
+          </a>
+        </div>
       </div>
 
-      {/* Analytics section */}
+      {/* ROW 2 — Navigation */}
+      <div className="mb-16">
+        <p className="eyebrow text-stone-400 mb-5">Your Account</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link
+            href="/dealers/training"
+            className="group block p-6 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <p className="eyebrow text-gold">Program</p>
+              {isAuthorized && (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="10" fill="#B69A5A" />
+                  <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+            <h3 className="font-heading text-xl font-bold mb-2">Training</h3>
+            <p className="font-body text-sm text-stone-600 group-hover:text-ink">
+              {completedCount} of {TRAINING_TOTAL} modules complete
+            </p>
+          </Link>
+
+          <Link
+            href="/dealers/leads"
+            className="group block p-6 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
+          >
+            <p className="eyebrow text-gold mb-3">Pipeline</p>
+            <h3 className="font-heading text-xl font-bold mb-2">Leads</h3>
+            <p className="font-body text-sm text-stone-600 group-hover:text-ink">
+              Submit and track customer leads.
+            </p>
+          </Link>
+
+          <Link
+            href="/dealers/resources"
+            className="group block p-6 bg-cream-dark hover:bg-gold transition-colors border border-stone-200"
+          >
+            <p className="eyebrow text-gold mb-3">Library</p>
+            <h3 className="font-heading text-xl font-bold mb-2">Resources</h3>
+            <p className="font-body text-sm text-stone-600 group-hover:text-ink">
+              Installation guides and documents.
+            </p>
+          </Link>
+        </div>
+      </div>
+
+      {/* Analytics */}
       <div className="border-t border-stone-200 pt-16">
         <p className="eyebrow text-stone-400 mb-8">Your Activity</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-          {/* Training progress */}
+          {/* Training progress (REAL) */}
           <div className="bg-white border border-stone-200 p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Training Progress</h3>
             <div className="flex items-end gap-2 mb-4">
-              <span className="text-5xl font-heading font-bold">2</span>
-              <span className="text-stone-400 mb-2">of 5 modules</span>
+              <span className="text-5xl font-heading font-bold">{completedCount}</span>
+              <span className="text-stone-400 mb-2">of {TRAINING_TOTAL} modules</span>
             </div>
             <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden mb-4">
-              <div className="h-full bg-gold" style={{ width: "40%" }}></div>
+              <div className="h-full bg-gold transition-all duration-700" style={{ width: `${trainingPercent}%` }}></div>
             </div>
             <Link href="/dealers/training" className="text-sm font-body font-semibold text-gold hover:text-gold-hover uppercase tracking-wider">
-              Continue Training →
+              {isAuthorized ? "Review Training →" : "Continue Training →"}
             </Link>
           </div>
 
@@ -158,7 +214,7 @@ export default function DashboardPage() {
             <div className="text-sm font-body text-stone-600 mb-4">
               Total value: <span className="font-semibold text-ink">$84,250</span>
             </div>
-            <Link href="/dealers/tools" className="text-sm font-body font-semibold text-gold hover:text-gold-hover uppercase tracking-wider">
+            <Link href="/dealers/tools/calculator" className="text-sm font-body font-semibold text-gold hover:text-gold-hover uppercase tracking-wider">
               New Quote →
             </Link>
           </div>
@@ -166,7 +222,6 @@ export default function DashboardPage() {
 
         {/* Recent activity feed */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent leads */}
           <div>
             <h3 className="font-heading text-xl font-bold mb-6">Recent Leads</h3>
             <div className="space-y-4">
@@ -189,7 +244,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Announcements */}
           <div>
             <h3 className="font-heading text-xl font-bold mb-6">News &amp; Announcements</h3>
             <div className="space-y-4">

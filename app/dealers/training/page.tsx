@@ -133,19 +133,14 @@ const MODULES: Module[] = [
 
 type Dealer = { name: string; email: string };
 
-// ─────────────────────────────────────────────────────────────────
 // SLIDE TO COMPLETE
-// ─────────────────────────────────────────────────────────────────
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  function handleStart() {
-    if (completed) return;
-    setIsDragging(true);
-  }
+  function handleStart() { if (completed) return; setIsDragging(true); }
 
   function handleMove(clientX: number) {
     if (!isDragging || completed || !containerRef.current) return;
@@ -162,11 +157,7 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
     }
   }
 
-  function handleEnd() {
-    if (completed) return;
-    setIsDragging(false);
-    setPosition(0);
-  }
+  function handleEnd() { if (completed) return; setIsDragging(false); setPosition(0); }
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) { handleMove(e.clientX); }
@@ -216,9 +207,7 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// DOCUMENT UPLOAD CARD (download template + upload completed)
-// ─────────────────────────────────────────────────────────────────
+// DOCUMENT UPLOAD CARD with Download + View
 function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUploaded: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -233,16 +222,11 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
   function handleUpload() {
     if (!file) return;
     setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
-      setUploaded(true);
-      onUploaded();
-    }, 1500);
+    setTimeout(() => { setUploading(false); setUploaded(true); onUploaded(); }, 1500);
   }
 
   return (
     <div className="bg-white border border-stone-200">
-      {/* Header */}
       <div className="p-6 border-b border-stone-200">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div>
@@ -266,21 +250,17 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
         )}
       </div>
 
-      {/* Action area: download + upload */}
       {!uploaded ? (
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200">
-          {/* LEFT: Download template */}
+          {/* LEFT: Download + View template */}
           <div className="p-6 bg-cream-dark">
             <p className="eyebrow text-stone-500 mb-3">Step 1</p>
-            <h4 className="font-heading text-base font-bold mb-2">Download Template</h4>
-            <p className="font-body text-xs text-stone-600 mb-4">Get the blank form to fill out.</p>
-            <a
-              href={doc.templateUrl}
-              download
-              className="btn-outline-dark text-xs px-6 inline-block"
-            >
-              Download PDF
-            </a>
+            <h4 className="font-heading text-base font-bold mb-2">Get Template</h4>
+            <p className="font-body text-xs text-stone-600 mb-4">Download or view the blank form.</p>
+            <div className="flex gap-2">
+              <a href={doc.templateUrl} download className="btn-gold text-xs px-4 py-2 flex-1 text-center">Download</a>
+              <a href={doc.templateUrl} target="_blank" rel="noopener noreferrer" className="btn-outline-dark text-xs px-4 py-2 flex-1 text-center">View</a>
+            </div>
           </div>
 
           {/* RIGHT: Upload completed */}
@@ -304,11 +284,7 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
                 <p className="text-xs font-body text-stone-600 truncate">
                   Selected: <span className="text-ink font-semibold">{file.name}</span>
                 </p>
-                <button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="btn-gold text-xs px-6 w-full"
-                >
+                <button onClick={handleUpload} disabled={uploading} className="btn-gold text-xs px-6 w-full">
                   {uploading ? "Sending..." : "Submit to IAS"}
                 </button>
               </div>
@@ -333,34 +309,25 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// REFERENCE DOC CARD
-// ─────────────────────────────────────────────────────────────────
+// REFERENCE DOC CARD with Download + View
 function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
   return (
-    <a
-      href={doc.url}
-      download
-      className="group block p-5 bg-white border border-stone-200 hover:border-gold transition-colors"
-    >
-      <div className="flex items-start justify-between gap-4">
+    <div className="block p-5 bg-white border border-stone-200 hover:border-gold transition-colors">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <div className="min-w-0">
           <p className="eyebrow text-stone-400 mb-2">PDF</p>
           <h4 className="font-heading text-base font-bold mb-1">{doc.name}</h4>
           <p className="font-body text-xs text-stone-600">{doc.description}</p>
         </div>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 text-stone-400 group-hover:text-gold transition-colors">
-          <path d="M10 4V14M10 14L6 10M10 14L14 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M4 16H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
       </div>
-    </a>
+      <div className="flex gap-2">
+        <a href={doc.url} download className="btn-gold text-xs px-4 py-2 flex-1 text-center">Download</a>
+        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="btn-outline-dark text-xs px-4 py-2 flex-1 text-center">View</a>
+      </div>
+    </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// MAIN PAGE
-// ─────────────────────────────────────────────────────────────────
 export default function TrainingPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
@@ -399,8 +366,6 @@ export default function TrainingPage() {
     setLoading(false);
   }, [router]);
 
-  // Determine if a module is unlocked: module 0 always unlocked,
-  // module N unlocked if module N-1 is in completed array.
   function isModuleUnlocked(moduleId: string): boolean {
     const idx = MODULES.findIndex((m) => m.id === moduleId);
     if (idx === 0) return true;
@@ -421,8 +386,7 @@ export default function TrainingPage() {
     if (!dealer || completed.includes(id)) return;
     const newCompleted = [...completed, id];
     setCompleted(newCompleted);
-    const progressKey = `ias_training_progress_${dealer.email}`;
-    localStorage.setItem(progressKey, JSON.stringify(newCompleted));
+    localStorage.setItem(`ias_training_progress_${dealer.email}`, JSON.stringify(newCompleted));
     setJustCompleted(id);
     setTimeout(() => {
       setJustCompleted(null);
@@ -465,7 +429,6 @@ export default function TrainingPage() {
   const progressPercent = (completedCount / totalCount) * 100;
   const isAuthorized = completedCount === totalCount;
 
-  // For documents module: check if all REQUIRED docs uploaded
   const activeRequiredDocs = activeModule.documents?.filter((d) => d.required) || [];
   const allRequiredUploaded =
     activeModule.type === "documents"
@@ -474,7 +437,6 @@ export default function TrainingPage() {
 
   return (
     <div className="bg-cream">
-      {/* Confetti */}
       {justCompleted && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
           <div className="bg-gold text-ink px-12 py-8 shadow-2xl animate-pulse">
@@ -484,7 +446,6 @@ export default function TrainingPage() {
         </div>
       )}
 
-      {/* Sticky progress header */}
       <div className="sticky top-0 z-30 bg-cream border-b border-stone-200">
         <div className="section-container py-5">
           <div className="flex items-center justify-between mb-3">
@@ -512,7 +473,6 @@ export default function TrainingPage() {
         </div>
       </div>
 
-      {/* Header */}
       <div className="section-container pt-16 pb-12">
         <p className="eyebrow text-gold mb-4">Authorized Dealer Program</p>
         <h1 className="text-5xl md:text-6xl font-heading font-bold mb-4 max-w-3xl">
@@ -525,7 +485,6 @@ export default function TrainingPage() {
         </p>
       </div>
 
-      {/* Module stepper with sequential lock */}
       <div className="section-container mb-16">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {MODULES.map((mod, idx) => {
@@ -539,9 +498,7 @@ export default function TrainingPage() {
                 key={mod.id}
                 onClick={() => handleModuleClick(mod.id)}
                 disabled={!isUnlocked}
-                className={`text-left p-5 border transition-all relative ${
-                  isJiggling ? "animate-pulse" : ""
-                } ${
+                className={`text-left p-5 border transition-all relative ${isJiggling ? "animate-pulse" : ""} ${
                   !isUnlocked
                     ? "border-stone-200 bg-stone-50 cursor-not-allowed opacity-60"
                     : isActive
@@ -553,13 +510,7 @@ export default function TrainingPage() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className={`font-heading text-2xl font-bold ${
-                    !isUnlocked
-                      ? "text-stone-300"
-                      : isActive
-                      ? "text-gold"
-                      : isComplete
-                      ? "text-stone-400"
-                      : "text-stone-300"
+                    !isUnlocked ? "text-stone-300" : isActive ? "text-gold" : isComplete ? "text-stone-400" : "text-stone-300"
                   }`}>
                     0{idx + 1}
                   </span>
@@ -591,7 +542,6 @@ export default function TrainingPage() {
         </div>
       </div>
 
-      {/* Active module */}
       <div id="active-module" className="section-container pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
@@ -599,7 +549,6 @@ export default function TrainingPage() {
             <h2 className="font-heading text-4xl font-bold mb-4">{activeModule.title}</h2>
             <p className="font-body text-stone-600 mb-8">{activeModule.description}</p>
 
-            {/* Video */}
             {activeModule.type === "video" && activeModule.videoId && (
               <div className="aspect-video bg-ink mb-8 overflow-hidden">
                 <iframe
@@ -613,7 +562,6 @@ export default function TrainingPage() {
               </div>
             )}
 
-            {/* Documents (Module 2) */}
             {activeModule.type === "documents" && activeModule.documents && (
               <div className="space-y-5 mb-8">
                 {activeModule.documents.map((doc) => (
@@ -631,7 +579,6 @@ export default function TrainingPage() {
               </div>
             )}
 
-            {/* Reference docs (Module 4 & 5) */}
             {activeModule.references && activeModule.references.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-baseline justify-between mb-5">
@@ -646,7 +593,6 @@ export default function TrainingPage() {
               </div>
             )}
 
-            {/* Slide to complete */}
             <div className="max-w-md">
               {completed.includes(activeModule.id) ? (
                 <div className="flex items-center gap-3 text-stone-600">
@@ -666,7 +612,6 @@ export default function TrainingPage() {
             </div>
           </div>
 
-          {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-ink text-cream p-8 sticky top-32">
               <p className="eyebrow text-gold mb-4">Your Status</p>
