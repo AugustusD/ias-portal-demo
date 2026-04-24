@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import NewLeadModal from "./NewLeadModal";
 
 type DealerStat = {
   dealer_id: string;
@@ -64,6 +65,8 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"onboarding" | "leads">("onboarding");
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -98,7 +101,7 @@ export default function AdminDashboard() {
       setLoading(false);
     }
     loadData();
-  }, [router]);
+  }, [router, refreshKey]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -113,14 +116,12 @@ export default function AdminDashboard() {
   const authorizedCount = dealers.filter((d) => d.onboarding_stage === "authorized").length;
   const inOnboardingCount = dealers.filter((d) => d.onboarding_stage !== "authorized" && d.onboarding_stage !== "inactive").length;
 
-  // Bottleneck: not authorized + no activity in 7+ days
   const bottleneckDealers = dealers.filter((d) => {
     if (d.onboarding_stage === "authorized" || d.onboarding_stage === "inactive") return false;
     return daysAgo(d.last_activity_at) > 7;
   });
   const bottleneckCount = bottleneckDealers.length;
 
-  // Stalled lead: in stage > 14 days
   const stalledLeads = leads.filter((l) => daysAgo(l.updated_at) > 14);
   const stalledLeadsCount = stalledLeads.length;
   const activeLeadsCount = leads.length;
@@ -283,6 +284,15 @@ export default function AdminDashboard() {
 
         {activeTab === "leads" && (
           <div>
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setNewLeadOpen(true)}
+                className="text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors"
+              >
+                + New Lead
+              </button>
+            </div>
+
             {stalledLeadsCount > 0 && (
               <div className="mb-6 p-5 bg-gold/10 border-l-4 border-gold">
                 <p className="eyebrow text-gold mb-2">Stalled Lead Alert</p>
@@ -369,6 +379,13 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      <NewLeadModal
+        open={newLeadOpen}
+        onClose={() => setNewLeadOpen(false)}
+        onCreated={() => setRefreshKey((k) => k + 1)}
+        dealers={dealers.map((d) => ({ dealer_id: d.dealer_id, company_name: d.company_name }))}
+      />
     </div>
   );
 }
