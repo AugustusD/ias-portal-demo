@@ -9,17 +9,20 @@ type Dealer = { name: string; email: string };
 type ResourceDoc = {
   name: string;
   description: string;
-  category: "onboarding" | "installation" | "reference";
+  category: "onboarding" | "installation" | "reference" | "brochures" | "branding";
   url: string;
-  tags: string[]; // helps with search
+  fileType: "PDF" | "PNG";
+  tags: string[];
 };
 
 const RESOURCES: ResourceDoc[] = [
+  // ONBOARDING
   {
     name: "New Customer Form",
     description: "Initial dealer application form. Complete and return to get started with IAS.",
     category: "onboarding",
     url: "/documents/new-customer-form.pdf",
+    fileType: "PDF",
     tags: ["customer form", "dealer", "application", "signup", "new"],
   },
   {
@@ -27,13 +30,17 @@ const RESOURCES: ResourceDoc[] = [
     description: "Apply for net-30 terms with IAS. Required for credit-based purchasing.",
     category: "onboarding",
     url: "/documents/credit-application.pdf",
+    fileType: "PDF",
     tags: ["credit", "net-30", "terms", "application", "finance"],
   },
+
+  // INSTALLATION
   {
     name: "Infinity Fascia Installation Guide",
     description: "Step-by-step installation guide for fascia mount Infinity Topless railing systems.",
     category: "installation",
     url: "/documents/InfinityInstallationGuideFascia.pdf",
+    fileType: "PDF",
     tags: ["infinity", "fascia", "topless", "glass", "install"],
   },
   {
@@ -41,6 +48,7 @@ const RESOURCES: ResourceDoc[] = [
     description: "Step-by-step installation guide for surface mount Infinity Topless railing systems.",
     category: "installation",
     url: "/documents/InfinityInstallationGuideSurface.pdf",
+    fileType: "PDF",
     tags: ["infinity", "surface", "topless", "glass", "install"],
   },
   {
@@ -48,6 +56,7 @@ const RESOURCES: ResourceDoc[] = [
     description: "Complete wall track installation reference for all applicable systems.",
     category: "installation",
     url: "/documents/InstallationGuideWallTrackComplete.pdf",
+    fileType: "PDF",
     tags: ["wall track", "mount", "install"],
   },
   {
@@ -55,13 +64,17 @@ const RESOURCES: ResourceDoc[] = [
     description: "Installation reference for flex rail applications.",
     category: "installation",
     url: "/documents/Installation_Guide-Flex_Rail.pdf",
+    fileType: "PDF",
     tags: ["flex rail", "install", "rail"],
   },
+
+  // REFERENCE
   {
     name: "Glass Installation Reference",
     description: "Glass measurement, ordering, and installation guide.",
     category: "reference",
     url: "/documents/installation_glass.pdf",
+    fileType: "PDF",
     tags: ["glass", "measurement", "install", "component"],
   },
   {
@@ -69,6 +82,7 @@ const RESOURCES: ResourceDoc[] = [
     description: "Picket railing installation specifics for welded and modular picket systems.",
     category: "reference",
     url: "/documents/installation_picket.pdf",
+    fileType: "PDF",
     tags: ["picket", "welded", "install", "rail"],
   },
   {
@@ -76,7 +90,76 @@ const RESOURCES: ResourceDoc[] = [
     description: "Stair railing installation guide for sloped applications.",
     category: "reference",
     url: "/documents/installation_stairs.pdf",
+    fileType: "PDF",
     tags: ["stairs", "sloped", "install", "rail"],
+  },
+
+  // BROCHURES
+  {
+    name: "Infinity Topless Sell Sheet",
+    description: "Product sell sheet for Infinity Topless Glass railing systems. Share with customers.",
+    category: "brochures",
+    url: "/documents/sellsheet_infinity.pdf",
+    fileType: "PDF",
+    tags: ["infinity", "topless", "glass", "sell sheet", "marketing", "sales"],
+  },
+  {
+    name: "Glass Component Sell Sheet",
+    description: "Product sell sheet for Glass Component railing systems. Share with customers.",
+    category: "brochures",
+    url: "/documents/sellsheet_glass.pdf",
+    fileType: "PDF",
+    tags: ["glass", "component", "sell sheet", "marketing", "sales"],
+  },
+  {
+    name: "Picket Sell Sheet",
+    description: "Product sell sheet for Picket railing systems. Share with customers.",
+    category: "brochures",
+    url: "/documents/sellsheet_picket.pdf",
+    fileType: "PDF",
+    tags: ["picket", "sell sheet", "marketing", "sales"],
+  },
+  {
+    name: "Custom Railings Sell Sheet",
+    description: "Product sell sheet for custom aluminum railing options. Share with customers.",
+    category: "brochures",
+    url: "/documents/sellsheet_custom.pdf",
+    fileType: "PDF",
+    tags: ["custom", "sell sheet", "marketing", "sales"],
+  },
+  {
+    name: "Powder Coating Sell Sheet",
+    description: "Technical sell sheet covering our 5-stage AAMA 2604 powder coating process and color options.",
+    category: "brochures",
+    url: "/documents/sellsheet_powdercoating.pdf",
+    fileType: "PDF",
+    tags: ["powder coating", "finish", "colors", "aama", "sell sheet"],
+  },
+  {
+    name: "Complete Brochure Collection",
+    description: "All-in-one brochure set covering every IAS railing system — email-sized for easy sharing.",
+    category: "brochures",
+    url: "/documents/Innovative_Brochures_All - email sized.pdf",
+    fileType: "PDF",
+    tags: ["brochure", "all", "complete", "email", "marketing", "sales"],
+  },
+
+  // BRANDING
+  {
+    name: "Infinity Logo (Black)",
+    description: "Official Infinity logo without slogan, black version. For marketing materials and co-branding.",
+    category: "branding",
+    url: "/documents/Infinity No Slogan - Blk.png",
+    fileType: "PNG",
+    tags: ["infinity", "logo", "branding", "black", "identity"],
+  },
+  {
+    name: "IAS Logo (Gold)",
+    description: "Official Innovative Aluminum Systems logo in gold. Primary brand mark for co-branded materials.",
+    category: "branding",
+    url: "/documents/IAS newgold.png",
+    fileType: "PNG",
+    tags: ["ias", "innovative", "logo", "gold", "branding", "identity"],
   },
 ];
 
@@ -84,6 +167,8 @@ const CATEGORY_LABELS: Record<ResourceDoc["category"], string> = {
   onboarding: "Onboarding",
   installation: "Installation",
   reference: "Reference",
+  brochures: "Brochures",
+  branding: "Branding",
 };
 
 export default function DealerResourcesPage() {
@@ -102,16 +187,13 @@ export default function DealerResourcesPage() {
     setLoading(false);
   }, [router]);
 
-  // Filter by category + search
   const filteredResources = useMemo(() => {
     let result = RESOURCES;
 
-    // Category filter
     if (activeCategory !== "all") {
       result = result.filter((r) => r.category === activeCategory);
     }
 
-    // Search filter (name, description, tags)
     const query = searchQuery.trim().toLowerCase();
     if (query) {
       result = result.filter((r) => {
@@ -127,12 +209,13 @@ export default function DealerResourcesPage() {
     return result;
   }, [activeCategory, searchQuery]);
 
-  // Category counts (for tab labels)
   const categoryCounts = useMemo(() => ({
     all: RESOURCES.length,
     onboarding: RESOURCES.filter((r) => r.category === "onboarding").length,
     installation: RESOURCES.filter((r) => r.category === "installation").length,
     reference: RESOURCES.filter((r) => r.category === "reference").length,
+    brochures: RESOURCES.filter((r) => r.category === "brochures").length,
+    branding: RESOURCES.filter((r) => r.category === "branding").length,
   }), []);
 
   if (loading || !dealer) {
@@ -152,26 +235,18 @@ export default function DealerResourcesPage() {
       </div>
 
       <div className="section-container pt-12 pb-24">
-        {/* Page header */}
         <div className="mb-10">
           <p className="eyebrow text-gold mb-3">Library</p>
           <h1 className="text-4xl md:text-5xl font-heading font-bold mb-3">Dealer Resources</h1>
           <p className="font-body text-stone-600 max-w-2xl">
-            Onboarding forms, installation guides, and reference documents. Download or view any document below.
+            Onboarding forms, installation guides, sell sheets, brochures, and brand assets. Download or view any document below.
           </p>
         </div>
 
-        {/* Search bar */}
+        {/* Search */}
         <div className="mb-6">
           <div className="relative max-w-xl">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
-              aria-hidden="true"
-            >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" aria-hidden="true">
               <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="2" />
               <path d="M14 14L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
@@ -179,7 +254,7 @@ export default function DealerResourcesPage() {
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search resources (e.g., fascia, credit, glass)..."
+              placeholder="Search resources (e.g., fascia, infinity, sell sheet, logo)..."
               className="w-full pl-12 pr-4 py-3 bg-white border border-stone-300 font-body text-sm placeholder-stone-400 focus:outline-none focus:border-gold transition-colors"
             />
             {searchQuery && (
@@ -200,6 +275,8 @@ export default function DealerResourcesPage() {
             { id: "onboarding" as const, label: `Onboarding (${categoryCounts.onboarding})` },
             { id: "installation" as const, label: `Installation (${categoryCounts.installation})` },
             { id: "reference" as const, label: `Reference (${categoryCounts.reference})` },
+            { id: "brochures" as const, label: `Brochures (${categoryCounts.brochures})` },
+            { id: "branding" as const, label: `Branding (${categoryCounts.branding})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -215,7 +292,6 @@ export default function DealerResourcesPage() {
           ))}
         </div>
 
-        {/* Results count when searching */}
         {searchQuery && (
           <p className="font-body text-sm text-stone-600 mb-4">
             {filteredResources.length === 0
@@ -224,7 +300,6 @@ export default function DealerResourcesPage() {
           </p>
         )}
 
-        {/* Resource grid */}
         {filteredResources.length === 0 ? (
           <div className="bg-white border border-stone-200 p-12 text-center">
             <p className="font-body text-stone-500 mb-2">No resources found.</p>
@@ -238,7 +313,7 @@ export default function DealerResourcesPage() {
                 className="block p-6 bg-white border border-stone-200 hover:border-gold transition-colors"
               >
                 <div className="mb-4">
-                  <p className="eyebrow text-stone-400 mb-2">{CATEGORY_LABELS[doc.category]} · PDF</p>
+                  <p className="eyebrow text-stone-400 mb-2">{CATEGORY_LABELS[doc.category]} · {doc.fileType}</p>
                   <h3 className="font-heading text-lg font-bold mb-2">{doc.name}</h3>
                   <p className="font-body text-sm text-stone-600">{doc.description}</p>
                 </div>

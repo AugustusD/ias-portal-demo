@@ -8,7 +8,7 @@ type Dealer = { name: string; email: string };
 
 const TRAINING_TOTAL = 5;
 
-// ---------- Animated counter hook ----------
+// Animated counter hook
 function useCountUp(target: number, duration: number = 1200, enabled: boolean = true): number {
   const [value, setValue] = useState(0);
 
@@ -22,7 +22,6 @@ function useCountUp(target: number, duration: number = 1200, enabled: boolean = 
     function tick(now: number) {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // Ease-out cubic for natural deceleration
       const eased = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(target * eased));
       if (progress < 1) {
@@ -37,13 +36,12 @@ function useCountUp(target: number, duration: number = 1200, enabled: boolean = 
   return value;
 }
 
-// ---------- Hexagon Authorized Partner badge ----------
+// Hexagon Authorized Partner badge
 function AuthorizedBadge({ authorized, progress }: { authorized: boolean; progress: number }) {
   const fillPercent = authorized ? 100 : progress * 100;
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: 96, height: 108 }}>
-      {/* Background hexagon (empty state) */}
       <svg width="96" height="108" viewBox="0 0 96 108" className="absolute inset-0">
         <defs>
           <linearGradient id="badgeFill" x1="0%" y1="100%" x2="0%" y2="0%">
@@ -54,14 +52,12 @@ function AuthorizedBadge({ authorized, progress }: { authorized: boolean; progre
             <polygon points="48,4 88,28 88,80 48,104 8,80 8,28" />
           </clipPath>
         </defs>
-        {/* Outer frame hexagon */}
         <polygon
           points="48,4 88,28 88,80 48,104 8,80 8,28"
           fill="none"
           stroke={authorized ? "#B69A5A" : "#D6D3CE"}
           strokeWidth="2"
         />
-        {/* Fill hexagon (animates based on progress) */}
         <g clipPath="url(#hexClip)">
           <rect
             x="0"
@@ -72,7 +68,6 @@ function AuthorizedBadge({ authorized, progress }: { authorized: boolean; progre
             style={{ transition: "all 1s ease-out" }}
           />
         </g>
-        {/* Inner hexagon outline (subtle) */}
         <polygon
           points="48,14 78,32 78,76 48,94 18,76 18,32"
           fill="none"
@@ -82,7 +77,6 @@ function AuthorizedBadge({ authorized, progress }: { authorized: boolean; progre
         />
       </svg>
 
-      {/* Center icon */}
       <div className="relative z-10 flex flex-col items-center justify-center">
         {authorized ? (
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
@@ -124,7 +118,6 @@ export default function DashboardPage() {
       } catch {}
     }
     setLoading(false);
-    // Trigger animations after mount — small delay feels more intentional
     setTimeout(() => setAnimationsReady(true), 150);
   }, [router]);
 
@@ -133,7 +126,6 @@ export default function DashboardPage() {
     router.push("/dealers/login");
   }
 
-  // Animated counter values
   const trainingAnimated = useCountUp(completedCount, 900, animationsReady);
   const leadsAnimated = useCountUp(3, 1000, animationsReady);
   const quotesAnimated = useCountUp(7, 1100, animationsReady);
@@ -148,11 +140,10 @@ export default function DashboardPage() {
 
   return (
     <div className="section-container section-padding">
-      {/* HERO / WELCOME - with hexagon badge + progress bar */}
+      {/* HERO */}
       <div className="mb-12">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 mb-6">
           <div className="flex-1 flex items-start gap-6">
-            {/* Hexagon Badge */}
             <div className="hidden sm:block flex-shrink-0 pt-1">
               <AuthorizedBadge authorized={isAuthorized} progress={trainingPercent / 100} />
               <p className="text-[10px] font-body font-bold uppercase tracking-widest text-center mt-2 text-stone-500">
@@ -176,7 +167,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Progress bar hero — only shown if not yet authorized */}
         {!isAuthorized && (
           <div className="border-t border-stone-200 pt-6">
             <div className="flex items-center justify-between mb-3">
@@ -210,17 +200,17 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* TOOLS */}
+      {/* TOOLS — full gold swap on hover (reverted per user preference) */}
       <div className="mb-10">
         <div className="flex items-baseline justify-between mb-5">
           <p className="eyebrow text-stone-400">Tools</p>
           <p className="text-xs font-body text-stone-400">Open and use any time</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dealers/tools/calculator" className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200">
+          <Link href="/dealers/tools/calculator" className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors duration-200">
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold">Pricing</p>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+              <p className="eyebrow text-gold group-hover:text-ink">Pricing</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
                 <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
@@ -228,10 +218,10 @@ export default function DashboardPage() {
             <p className="font-body text-sm opacity-80">Live pricing for Infinity systems.</p>
           </Link>
 
-          <Link href="/dealers/tools/order-sheets" className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200">
+          <Link href="/dealers/tools/order-sheets" className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors duration-200">
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold">Catalog</p>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+              <p className="eyebrow text-gold group-hover:text-ink">Catalog</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
                 <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
@@ -239,10 +229,10 @@ export default function DashboardPage() {
             <p className="font-body text-sm opacity-80">Full product catalog and order builder.</p>
           </Link>
 
-          <a href="https://designer.innovativealuminum.com" target="_blank" rel="noopener noreferrer" className="group block p-7 bg-ink text-cream border-b-2 border-ink hover:border-gold hover:-translate-y-0.5 transition-all duration-200">
+          <a href="https://designer.innovativealuminum.com" target="_blank" rel="noopener noreferrer" className="group block p-7 bg-ink text-cream hover:bg-gold hover:text-ink transition-colors duration-200">
             <div className="flex items-start justify-between mb-4">
-              <p className="eyebrow text-gold">Visualize</p>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+              <p className="eyebrow text-gold group-hover:text-ink">Visualize</p>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold group-hover:text-ink">
                 <path d="M11 3H17V9M9 11L17 3M9 17H3V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
@@ -252,46 +242,45 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ACCOUNT */}
+      {/* ACCOUNT — full gold swap on hover (reverted per user preference) */}
       <div className="mb-16">
         <p className="eyebrow text-stone-400 mb-5">Your Account</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dealers/training" className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200">
+          <Link href="/dealers/training" className="group block p-6 bg-cream-dark hover:bg-gold transition-colors duration-200">
             <div className="flex items-start justify-between mb-3">
-              <p className="eyebrow text-gold">Program</p>
+              <p className="eyebrow text-gold group-hover:text-ink">Program</p>
               {isAuthorized && (
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="10" fill="#B69A5A" />
+                  <circle cx="10" cy="10" r="10" fill="#B69A5A" className="group-hover:fill-ink" />
                   <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
             </div>
             <h3 className="font-heading text-xl font-bold mb-2">Training</h3>
-            <p className="font-body text-sm text-stone-600">
+            <p className="font-body text-sm text-stone-600 group-hover:text-ink/80">
               {completedCount} of {TRAINING_TOTAL} modules complete
             </p>
           </Link>
 
-          <Link href="/dealers/leads" className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200">
-            <p className="eyebrow text-gold mb-3">Pipeline</p>
+          <Link href="/dealers/leads" className="group block p-6 bg-cream-dark hover:bg-gold transition-colors duration-200">
+            <p className="eyebrow text-gold group-hover:text-ink mb-3">Pipeline</p>
             <h3 className="font-heading text-xl font-bold mb-2">Leads</h3>
-            <p className="font-body text-sm text-stone-600">Customer leads from IAS.</p>
+            <p className="font-body text-sm text-stone-600 group-hover:text-ink/80">Customer leads from IAS.</p>
           </Link>
 
-          <Link href="/dealers/resources" className="group block p-6 bg-cream-dark border-b-2 border-stone-200 hover:border-gold hover:-translate-y-0.5 transition-all duration-200">
-            <p className="eyebrow text-gold mb-3">Library</p>
+          <Link href="/dealers/resources" className="group block p-6 bg-cream-dark hover:bg-gold transition-colors duration-200">
+            <p className="eyebrow text-gold group-hover:text-ink mb-3">Library</p>
             <h3 className="font-heading text-xl font-bold mb-2">Dealer Resources</h3>
-            <p className="font-body text-sm text-stone-600">Installation guides and documents.</p>
+            <p className="font-body text-sm text-stone-600 group-hover:text-ink/80">Installation guides and documents.</p>
           </Link>
         </div>
       </div>
 
-      {/* Analytics — with animated counters */}
+      {/* Analytics */}
       <div className="border-t border-stone-200 pt-16">
         <p className="eyebrow text-stone-400 mb-8">Your Activity</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-          {/* Training Progress */}
           <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Training Progress</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -306,7 +295,6 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Leads */}
           <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Leads</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -319,7 +307,6 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Recent Quotes */}
           <div className="bg-white border border-stone-200 hover:border-stone-400 transition-colors p-8">
             <h3 className="font-heading text-xl font-bold mb-4">Recent Quotes</h3>
             <div className="flex items-end gap-2 mb-4">
@@ -335,7 +322,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent activity feed */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
             <h3 className="font-heading text-xl font-bold mb-6">Recent Leads</h3>

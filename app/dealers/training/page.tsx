@@ -439,7 +439,7 @@ export default function TrainingPage() {
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
           <div className="bg-gold text-ink px-12 py-8 shadow-2xl animate-pulse">
             <p className="eyebrow mb-2">Module Complete</p>
-            <p className="font-heading text-3xl font-bold">Great work, {dealer.name.split(" ")[0]}.</p>
+            <p className="font-heading text-3xl font-bold">Great work.</p>
           </div>
         </div>
       )}
