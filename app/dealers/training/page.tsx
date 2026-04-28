@@ -5,16 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type DealerDocument = {
-  name: string;
-  description: string;
-  required: boolean;
-  templateUrl: string;
-  uploadSubtext: string;
-  instructions: string;
-  dbField: "credit_app" | "customer_form";
-};
-
 type ReferenceDoc = {
   name: string;
   description: string;
@@ -27,8 +17,7 @@ type Module = {
   description: string;
   duration: string;
   videoId?: string;
-  type: "video" | "documents";
-  documents?: DealerDocument[];
+  type: "video" | "form";
   references?: ReferenceDoc[];
 };
 
@@ -43,30 +32,10 @@ const MODULES: Module[] = [
   },
   {
     id: "dealer-setup",
-    title: "Complete Your Dealer Setup",
-    description: "Submit the required forms to finalize your authorized dealer status with IAS.",
-    duration: "10 min",
-    type: "documents",
-    documents: [
-      {
-        name: "New Customer Form",
-        description: "Tell us about your business so we can set up your account properly.",
-        required: true,
-        templateUrl: "/documents/new-customer-form.pdf",
-        uploadSubtext: "Send your signed Customer Form to IAS.",
-        instructions: "Download the form, fill it out using Adobe Acrobat (free) or print and complete by hand, then upload the signed file back here.",
-        dbField: "customer_form",
-      },
-      {
-        name: "Credit Application",
-        description: "Optional. Apply for net-30 terms with IAS.",
-        required: false,
-        templateUrl: "/documents/credit-application.pdf",
-        uploadSubtext: "Send your signed Credit Application to IAS.",
-        instructions: "Only complete this if you want to apply for credit terms. Bank information is encrypted in transit and only shared with our credit team.",
-        dbField: "credit_app",
-      },
-    ],
+    title: "Tell us about your business",
+    description: "Submit the new customer form so IAS can finalize your dealer account.",
+    duration: "5 min",
+    type: "form",
   },
   {
     id: "products",
@@ -86,7 +55,7 @@ const MODULES: Module[] = [
   {
     id: "installation",
     title: "Installation Fundamentals",
-    description: "Core principles across all IAS railing systems: mounting types, post spacing, engineering requirements, and code compliance for the full product family.",
+    description: "Core principles across all IAS railing systems: mounting types, post spacing, engineering requirements, and code compliance.",
     duration: "15 min",
     videoId: "8rBR4K4E9TA",
     type: "video",
@@ -103,7 +72,7 @@ const MODULES: Module[] = [
   {
     id: "warranty",
     title: "Warranty, Claims & Customer Support",
-    description: "Understand the 20-year structural warranty, when dealers must register warranties, how to handle claims, and how warranty registration unlocks homeowner rewards and long-term business.",
+    description: "Understand the 20-year structural warranty, when dealers must register warranties, and how warranty registration unlocks homeowner rewards and long-term business.",
     duration: "8 min",
     videoId: "8rBR4K4E9TA",
     type: "video",
@@ -114,7 +83,8 @@ const MODULES: Module[] = [
   },
 ];
 
-type Dealer = { name: string; email: string };
+const GUEST_PROGRESS_KEY = "ias_guest_onboarding_progress";
+const GUEST_FORM_KEY = "ias_guest_customer_form_submitted";
 
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -189,138 +159,47 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   );
 }
 
-function DocumentUploadCard({
-  doc,
-  dealerId,
-  initiallyUploaded,
-  onUploaded,
+function CustomerForm({
+  initiallySubmitted,
+  onSubmitted,
 }: {
-  doc: DealerDocument;
-  dealerId: string;
-  initiallyUploaded: boolean;
-  onUploaded: () => void;
+  initiallySubmitted: boolean;
+  onSubmitted: () => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(initiallyUploaded);
-  const [error, setError] = useState("");
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [submitted, setSubmitted] = useState(initiallySubmitted);
+  const [submitting, setSubmitting] = useState(false);
+  const [data, setData] = useState({
+    companyName: "",
+    contactName: "",
+    email: "",
+    phone: "",
+    streetAddress: "",
+    city: "",
+    province: "",
+    postalCode: "",
+    yearsInBusiness: "",
+    website: "",
+    notes: "",
+  });
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (f) setFile(f);
-    setError("");
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    setData({ ...data, [e.target.name]: e.target.value });
   }
 
-  async function handleUpload() {
-    if (!file || !dealerId) return;
-    setUploading(true);
-    setError("");
-
-    const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
-    const path = `${dealerId}/${doc.dbField}-${Date.now()}.${ext}`;
-
-    // 1. Upload file to private-documents bucket
-    const { error: uploadErr } = await supabase.storage
-      .from("private-documents")
-      .upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
-      });
-
-    if (uploadErr) {
-      setError(`Upload failed: ${uploadErr.message}`);
-      setUploading(false);
-      return;
-    }
-
-    // 2. Update dealer row with the path + timestamp
-    const updates: Record<string, unknown> = {
-      [`${doc.dbField}_path`]: path,
-      [`${doc.dbField}_uploaded_at`]: new Date().toISOString(),
-    };
-    const { error: dbErr } = await supabase.from("dealers").update(updates).eq("id", dealerId);
-
-    if (dbErr) {
-      setError(`File uploaded but record failed: ${dbErr.message}`);
-      setUploading(false);
-      return;
-    }
-
-    setUploading(false);
-    setUploaded(true);
-    onUploaded();
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    // Fake submit — wait briefly then mark complete
+    await new Promise((r) => setTimeout(r, 800));
+    setSubmitting(false);
+    setSubmitted(true);
+    onSubmitted();
   }
 
-  return (
-    <div className="bg-white border border-stone-200">
-      <div className="p-6 border-b border-stone-200">
-        <div className="flex items-start justify-between gap-4 mb-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-heading text-lg font-bold">{doc.name}</h3>
-              {doc.required && (
-                <span className="text-xs uppercase tracking-wider bg-gold text-ink px-2 py-0.5 font-bold">Required</span>
-              )}
-            </div>
-            <p className="font-body text-sm text-stone-600">{doc.description}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowInstructions(!showInstructions)}
-          className="text-xs font-body uppercase tracking-wider text-gold hover:text-gold-hover"
-        >
-          {showInstructions ? "− Hide" : "+ View"} Instructions
-        </button>
-        {showInstructions && (
-          <p className="font-body text-sm text-stone-600 mt-3 leading-relaxed">{doc.instructions}</p>
-        )}
-      </div>
-
-      {!uploaded ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200">
-          <div className="p-6 bg-cream-dark">
-            <p className="eyebrow text-stone-500 mb-3">Step 1</p>
-            <h4 className="font-heading text-base font-bold mb-2">Get Template</h4>
-            <p className="font-body text-xs text-stone-600 mb-4">Download or view the blank form.</p>
-            <div className="flex gap-2">
-              <a href={doc.templateUrl} download className="btn-gold text-xs px-4 py-2 flex-1 text-center">Download</a>
-              <a href={doc.templateUrl} target="_blank" rel="noopener noreferrer" className="btn-outline-dark text-xs px-4 py-2 flex-1 text-center">View</a>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <p className="eyebrow text-stone-500 mb-3">Step 2</p>
-            <h4 className="font-heading text-base font-bold mb-2">Upload File</h4>
-            <p className="font-body text-xs text-stone-600 mb-4">{doc.uploadSubtext}</p>
-
-            <label className="block mb-3">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                onChange={handleFileChange}
-                disabled={uploading}
-                className="block w-full text-xs font-body text-stone-600 file:mr-3 file:py-1.5 file:px-3 file:border file:border-stone-300 file:bg-cream file:text-ink file:font-body file:font-semibold file:text-xs file:uppercase file:tracking-wider hover:file:bg-cream-dark file:cursor-pointer cursor-pointer"
-              />
-            </label>
-
-            {file && (
-              <div className="space-y-2">
-                <p className="text-xs font-body text-stone-600 truncate">
-                  Selected: <span className="text-ink font-semibold">{file.name}</span>
-                </p>
-                <button onClick={handleUpload} disabled={uploading} className="btn-gold text-xs px-6 w-full">
-                  {uploading ? "Uploading..." : "Submit to IAS"}
-                </button>
-              </div>
-            )}
-
-            {error && <p className="mt-3 text-xs text-red-600 font-body">{error}</p>}
-          </div>
-        </div>
-      ) : (
-        <div className="p-6 bg-cream-dark border-t-2 border-gold">
+  if (submitted) {
+    return (
+      <div className="bg-white border border-stone-200">
+        <div className="p-6 bg-cream-dark border-l-4 border-gold">
           <div className="flex items-start gap-3">
             <svg width="24" height="24" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 mt-0.5">
               <circle cx="10" cy="10" r="10" fill="#B69A5A" />
@@ -328,11 +207,168 @@ function DocumentUploadCard({
             </svg>
             <div>
               <p className="font-body font-semibold mb-1">Submitted to IAS</p>
-              <p className="font-body text-sm text-stone-600">This document has been securely sent. We&apos;ll be in touch within 1 business day.</p>
+              <p className="font-body text-sm text-stone-600">Your business info has been sent. We&apos;ll review and follow up within 1 business day.</p>
             </div>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-stone-200">
+      <div className="p-6 border-b border-stone-200">
+        <h3 className="font-heading text-lg font-bold mb-1">New Customer Form</h3>
+        <p className="font-body text-sm text-stone-600">Tell us about your business so we can set up your account properly.</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Company / Business Name *</label>
+            <input
+              name="companyName"
+              type="text"
+              required
+              value={data.companyName}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Contact Person *</label>
+            <input
+              name="contactName"
+              type="text"
+              required
+              value={data.contactName}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Email *</label>
+            <input
+              name="email"
+              type="email"
+              required
+              value={data.email}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Phone *</label>
+            <input
+              name="phone"
+              type="tel"
+              required
+              value={data.phone}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="eyebrow text-stone-600 block mb-1">Street Address *</label>
+          <input
+            name="streetAddress"
+            type="text"
+            required
+            value={data.streetAddress}
+            onChange={handleChange}
+            className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">City *</label>
+            <input
+              name="city"
+              type="text"
+              required
+              value={data.city}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Province *</label>
+            <input
+              name="province"
+              type="text"
+              required
+              value={data.province}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Postal Code *</label>
+            <input
+              name="postalCode"
+              type="text"
+              required
+              value={data.postalCode}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Years in Business</label>
+            <input
+              name="yearsInBusiness"
+              type="number"
+              value={data.yearsInBusiness}
+              onChange={handleChange}
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Website (optional)</label>
+            <input
+              name="website"
+              type="url"
+              value={data.website}
+              onChange={handleChange}
+              placeholder="https://"
+              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
+          <textarea
+            name="notes"
+            value={data.notes}
+            onChange={handleChange}
+            rows={3}
+            className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
+          />
+        </div>
+
+        <div className="pt-4 border-t border-stone-200">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-gold w-full md:w-auto px-8"
+          >
+            {submitting ? "Submitting..." : "Submit to IAS"}
+          </button>
+          <p className="font-body text-xs text-stone-500 mt-2">
+            By submitting, you confirm the information above is accurate. IAS will be in touch within 1 business day.
+          </p>
+        </div>
+      </form>
     </div>
   );
 }
@@ -355,65 +391,56 @@ function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
   );
 }
 
-export default function TrainingPage() {
+export default function OnboardingPage() {
   const router = useRouter();
-  const [dealer, setDealer] = useState<Dealer | null>(null);
-  const [dealerId, setDealerId] = useState<string>("");
+  const [isGuest, setIsGuest] = useState(true);
+  const [dealerName, setDealerName] = useState("");
   const [completed, setCompleted] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string>(MODULES[0].id);
   const [loading, setLoading] = useState(true);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
-  const [uploadedDocs, setUploadedDocs] = useState<Set<string>>(new Set());
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProgress() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/dealers/login"); return; }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, dealer_id")
-        .eq("id", user.id)
-        .single();
-
-      setDealer({
-        name: profile?.full_name ?? "Dealer",
-        email: user.email ?? "",
-      });
-
-      if (!profile?.dealer_id) {
+      if (!user) {
+        // Guest mode: read from localStorage
+        setIsGuest(true);
+        const stored = typeof window !== "undefined" ? localStorage.getItem(GUEST_PROGRESS_KEY) : null;
+        const guestCompleted = stored ? JSON.parse(stored) : [];
+        setCompleted(guestCompleted);
+        const formStored = typeof window !== "undefined" ? localStorage.getItem(GUEST_FORM_KEY) : null;
+        setFormSubmitted(formStored === "true");
+        const firstIncomplete = MODULES.find((m) => !guestCompleted.includes(m.id));
+        if (firstIncomplete) setActiveId(firstIncomplete.id);
         setLoading(false);
         return;
       }
-      setDealerId(profile.dealer_id);
+
+      // Logged-in mode
+      setIsGuest(false);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+      setDealerName(profile?.full_name || "Dealer");
 
       const { data: progress } = await supabase
         .from("training_progress")
         .select("module_id")
         .eq("user_id", user.id);
+      const completedIds = (progress || []).map((p) => p.module_id);
+      setCompleted(completedIds);
+      const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
+      if (firstIncomplete) setActiveId(firstIncomplete.id);
 
-      if (progress) {
-        const completedIds = progress.map((p) => p.module_id);
-        setCompleted(completedIds);
-        const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
-        if (firstIncomplete) setActiveId(firstIncomplete.id);
-      }
-
-      const { data: dealerData } = await supabase
-        .from("dealers")
-        .select("credit_app_path, credit_app_admin_override, customer_form_path, customer_form_admin_override")
-        .eq("id", profile.dealer_id)
-        .single();
-
-      const uploadedSet = new Set<string>();
-      if (dealerData?.credit_app_path || dealerData?.credit_app_admin_override) {
-        uploadedSet.add("Credit Application");
-      }
-      if (dealerData?.customer_form_path || dealerData?.customer_form_admin_override) {
-        uploadedSet.add("New Customer Form");
-      }
-      setUploadedDocs(uploadedSet);
+      // For logged-in users, treat the form as submitted if we have a flag in localStorage too
+      const formStored = typeof window !== "undefined" ? localStorage.getItem(GUEST_FORM_KEY) : null;
+      setFormSubmitted(formStored === "true");
 
       setLoading(false);
     }
@@ -437,21 +464,25 @@ export default function TrainingPage() {
   }
 
   async function markComplete(id: string) {
-    if (!dealer || completed.includes(id)) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/dealers/login"); return; }
+    if (completed.includes(id)) return;
 
-    const { error } = await supabase
-      .from("training_progress")
-      .insert({ user_id: user.id, module_id: id });
-
-    if (error) {
-      alert("Couldn't save your progress. Try again.");
-      return;
+    if (isGuest) {
+      const newCompleted = [...completed, id];
+      setCompleted(newCompleted);
+      localStorage.setItem(GUEST_PROGRESS_KEY, JSON.stringify(newCompleted));
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from("training_progress")
+        .insert({ user_id: user.id, module_id: id });
+      if (error) {
+        alert("Couldn't save your progress. Try again.");
+        return;
+      }
+      setCompleted([...completed, id]);
     }
 
-    const newCompleted = [...completed, id];
-    setCompleted(newCompleted);
     setJustCompleted(id);
     setTimeout(() => {
       setJustCompleted(null);
@@ -465,29 +496,12 @@ export default function TrainingPage() {
     }, 2000);
   }
 
-  function handleDocUploaded(docName: string) {
-    setUploadedDocs((prev) => {
-      const next = new Set(prev);
-      next.add(docName);
-      return next;
-    });
+  function handleFormSubmitted() {
+    setFormSubmitted(true);
+    localStorage.setItem(GUEST_FORM_KEY, "true");
   }
 
-  async function resetProgress() {
-    if (!dealer) return;
-    if (!confirm("Reset training progress? Uploaded documents will NOT be deleted.")) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase.from("training_progress").delete().eq("user_id", user.id);
-    if (error) { alert("Couldn't reset progress. Try again."); return; }
-
-    setCompleted([]);
-    setActiveId(MODULES[0].id);
-  }
-
-  if (loading || !dealer) {
+  if (loading) {
     return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
 
@@ -495,12 +509,12 @@ export default function TrainingPage() {
   const completedCount = completed.length;
   const totalCount = MODULES.length;
   const progressPercent = (completedCount / totalCount) * 100;
-  const isAuthorized = completedCount === totalCount;
+  const isAuthorized = !isGuest && completedCount === totalCount;
 
-  const activeRequiredDocs = activeModule.documents?.filter((d) => d.required) || [];
-  const allRequiredUploaded =
-    activeModule.type === "documents"
-      ? activeRequiredDocs.every((d) => uploadedDocs.has(d.name))
+  // Module 2 (form module) is unlocked once form is submitted
+  const canCompleteActive =
+    activeModule.type === "form"
+      ? formSubmitted
       : true;
 
   return (
@@ -520,7 +534,7 @@ export default function TrainingPage() {
             <div className="flex items-center gap-4">
               <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
               <span className="text-stone-300">/</span>
-              <p className="eyebrow text-stone-600">Training</p>
+              <p className="eyebrow text-stone-600">Onboarding</p>
             </div>
             <div className="flex items-center gap-6">
               <p className="text-sm font-body">
@@ -533,199 +547,10 @@ export default function TrainingPage() {
                   Authorized
                 </span>
               )}
-            </div>
-          </div>
-          <div className="w-full bg-stone-200 h-1 overflow-hidden">
-            <div className="h-full bg-gold transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="section-container pt-16 pb-12">
-        <p className="eyebrow text-gold mb-4">Authorized Dealer Program</p>
-        <h1 className="text-5xl md:text-6xl font-heading font-bold mb-4 max-w-3xl">
-          {isAuthorized ? "You're authorized." : "Become an authorized dealer."}
-        </h1>
-        <p className="font-body text-lg text-stone-600 max-w-2xl">
-          {isAuthorized
-            ? "All training modules complete. You now have full access to the IAS dealer network."
-            : "Complete each module in order to unlock your authorized dealer status, premium pricing, and lead distribution."}
-        </p>
-      </div>
-
-      <div className="section-container mb-16">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {MODULES.map((mod, idx) => {
-            const isComplete = completed.includes(mod.id);
-            const isActive = mod.id === activeId;
-            const isUnlocked = isModuleUnlocked(mod.id);
-            const isJiggling = lockedClickFeedback === mod.id;
-
-            return (
-              <button
-                key={mod.id}
-                onClick={() => handleModuleClick(mod.id)}
-                disabled={!isUnlocked}
-                className={`text-left p-5 border transition-all relative ${isJiggling ? "animate-pulse" : ""} ${
-                  !isUnlocked
-                    ? "border-stone-200 bg-stone-50 cursor-not-allowed opacity-60"
-                    : isActive
-                    ? "border-gold bg-white"
-                    : isComplete
-                    ? "border-stone-300 bg-cream-dark"
-                    : "border-stone-200 bg-white hover:border-stone-400"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`font-heading text-2xl font-bold ${
-                    !isUnlocked ? "text-stone-300" : isActive ? "text-gold" : isComplete ? "text-stone-400" : "text-stone-300"
-                  }`}>
-                    0{idx + 1}
-                  </span>
-                  {isComplete && (
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="10" fill="#B69A5A" />
-                      <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                  {!isUnlocked && !isComplete && (
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="text-stone-400">
-                      <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
-                  )}
-                </div>
-                <p className={`font-body text-sm font-semibold mb-1 ${
-                  !isUnlocked ? "text-stone-400" : isComplete ? "text-stone-500" : "text-ink"
-                }`}>
-                  {mod.title}
-                </p>
-                <p className="text-xs text-stone-400">{mod.duration}</p>
-                {isJiggling && (
-                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">Complete previous module first</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div id="active-module" className="section-container pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2">
-            <p className="eyebrow text-gold mb-3">Module {MODULES.findIndex((m) => m.id === activeModule.id) + 1} of {totalCount}</p>
-            <h2 className="font-heading text-4xl font-bold mb-4">{activeModule.title}</h2>
-            <p className="font-body text-stone-600 mb-8">{activeModule.description}</p>
-
-            {activeModule.type === "video" && activeModule.videoId && (
-              <div className="aspect-video bg-ink mb-8 overflow-hidden">
-                <iframe
-                  src={`https://www.youtube.com/embed/${activeModule.videoId}`}
-                  title={activeModule.title}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-            )}
-
-            {activeModule.type === "documents" && activeModule.documents && (
-              <div className="space-y-5 mb-8">
-                {activeModule.documents.map((doc) => (
-                  <DocumentUploadCard
-                    key={doc.name}
-                    doc={doc}
-                    dealerId={dealerId}
-                    initiallyUploaded={uploadedDocs.has(doc.name)}
-                    onUploaded={() => handleDocUploaded(doc.name)}
-                  />
-                ))}
-                {!allRequiredUploaded && (
-                  <p className="text-sm font-body text-stone-500 italic pt-2">
-                    Upload all required documents above before completing this module.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {activeModule.references && activeModule.references.length > 0 && (
-              <div className="mb-8">
-                <div className="flex items-baseline justify-between mb-5">
-                  <h3 className="font-heading text-xl font-bold">Reference Documents</h3>
-                  <p className="text-xs font-body text-stone-500 uppercase tracking-wider">{activeModule.references.length} Files</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activeModule.references.map((ref) => (
-                    <ReferenceDocCard key={ref.name} doc={ref} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="max-w-md">
-              {completed.includes(activeModule.id) ? (
-                <div className="flex items-center gap-3 text-stone-600">
-                  <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="10" r="10" fill="#B69A5A" />
-                    <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="font-body font-semibold">Module complete</span>
-                </div>
-              ) : allRequiredUploaded ? (
-                <SlideToComplete onComplete={() => markComplete(activeModule.id)} />
-              ) : (
-                <div className="bg-stone-100 border border-stone-300 h-14 flex items-center justify-center">
-                  <span className="font-body text-sm text-stone-400 uppercase tracking-widest">Upload documents to unlock</span>
-                </div>
+              {isGuest && (
+                <Link href="/dealers/login" className="text-xs font-body uppercase tracking-wider text-gold hover:text-gold-hover">Sign in →</Link>
               )}
             </div>
           </div>
-
-          <div className="lg:col-span-1">
-            <div className="bg-ink text-cream p-8 sticky top-32">
-              <p className="eyebrow text-gold mb-4">Your Status</p>
-              <p className="font-heading text-3xl font-bold mb-6">
-                {isAuthorized ? "Authorized Dealer" : "In Training"}
-              </p>
-              <div className="space-y-3 mb-8">
-                {MODULES.map((mod) => {
-                  const isComplete = completed.includes(mod.id);
-                  const unlocked = isModuleUnlocked(mod.id);
-                  return (
-                    <div key={mod.id} className="flex items-center gap-3 text-sm font-body">
-                      {isComplete ? (
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0">
-                          <circle cx="10" cy="10" r="10" fill="#B69A5A" />
-                          <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      ) : unlocked ? (
-                        <div className="w-4 h-4 rounded-full border border-stone-400 flex-shrink-0"></div>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 text-stone-500">
-                          <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
-                        </svg>
-                      )}
-                      <span className={isComplete ? "line-through text-stone-400" : !unlocked ? "text-stone-500" : ""}>
-                        {mod.title}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="border-t border-stone-700 pt-6">
-                <button
-                  onClick={resetProgress}
-                  className="text-xs font-body uppercase tracking-wider text-stone-400 hover:text-gold transition-colors"
-                >
-                  Reset Progress (Demo)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+          <div className="w-full bg-stone-200 h-1 overflow-hidden">
+            <div className="h-full bg-gold transition-all duration-1000 ease-out" style={{ width: 
