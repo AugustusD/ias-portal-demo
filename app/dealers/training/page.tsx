@@ -12,6 +12,7 @@ type DealerDocument = {
   templateUrl: string;
   uploadSubtext: string;
   instructions: string;
+  dbField: "credit_app" | "customer_form";
 };
 
 type ReferenceDoc = {
@@ -54,6 +55,7 @@ const MODULES: Module[] = [
         templateUrl: "/documents/new-customer-form.pdf",
         uploadSubtext: "Send your signed Customer Form to IAS.",
         instructions: "Download the form, fill it out using Adobe Acrobat (free) or print and complete by hand, then upload the signed file back here.",
+        dbField: "customer_form",
       },
       {
         name: "Credit Application",
@@ -62,6 +64,7 @@ const MODULES: Module[] = [
         templateUrl: "/documents/credit-application.pdf",
         uploadSubtext: "Send your signed Credit Application to IAS.",
         instructions: "Only complete this if you want to apply for credit terms. Bank information is encrypted in transit and only shared with our credit team.",
+        dbField: "credit_app",
       },
     ],
   },
@@ -186,21 +189,68 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   );
 }
 
-function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUploaded: () => void }) {
+function DocumentUploadCard({
+  doc,
+  dealerId,
+  initiallyUploaded,
+  onUploaded,
+}: {
+  doc: DealerDocument;
+  dealerId: string;
+  initiallyUploaded: boolean;
+  onUploaded: () => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
+  const [uploaded, setUploaded] = useState(initiallyUploaded);
+  const [error, setError] = useState("");
   const [showInstructions, setShowInstructions] = useState(false);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (f) setFile(f);
+    setError("");
   }
 
-  function handleUpload() {
-    if (!file) return;
+  async function handleUpload() {
+    if (!file || !dealerId) return;
     setUploading(true);
-    setTimeout(() => { setUploading(false); setUploaded(true); onUploaded(); }, 1500);
+    setError("");
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+    const path = `${dealerId}/${doc.dbField}-${Date.now()}.${ext}`;
+
+    // 1. Upload file to private-documents bucket
+    const { error: uploadErr } = await supabase.storage
+      .from("private-documents")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadErr) {
+      setError(`Upload failed: ${uploadErr.message}`);
+      setUploading(false);
+      return;
+    }
+
+    // 2. Update dealer row with the path + timestamp
+    const updates: Record<string, unknown> = {
+      [`${doc.dbField}_path`]: path,
+      [`${doc.dbField}_uploaded_at`]: new Date().toISOString(),
+    };
+    const { error: dbErr } = await supabase.from("dealers").update(updates).eq("id", dealerId);
+
+    if (dbErr) {
+      setError(`File uploaded but record failed: ${dbErr.message}`);
+      setUploading(false);
+      return;
+    }
+
+    setUploading(false);
+    setUploaded(true);
+    onUploaded();
   }
 
   return (
@@ -261,10 +311,12 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
                   Selected: <span className="text-ink font-semibold">{file.name}</span>
                 </p>
                 <button onClick={handleUpload} disabled={uploading} className="btn-gold text-xs px-6 w-full">
-                  {uploading ? "Sending..." : "Submit to IAS"}
+                  {uploading ? "Uploading..." : "Submit to IAS"}
                 </button>
               </div>
             )}
+
+            {error && <p className="mt-3 text-xs text-red-600 font-body">{error}</p>}
           </div>
         </div>
       ) : (
@@ -276,7 +328,7 @@ function DocumentUploadCard({ doc, onUploaded }: { doc: DealerDocument; onUpload
             </svg>
             <div>
               <p className="font-body font-semibold mb-1">Submitted to IAS</p>
-              <p className="font-body text-sm text-stone-600">This document has been shared with our team. We&apos;ll be in touch within 1 business day.</p>
+              <p className="font-body text-sm text-stone-600">This document has been securely sent. We&apos;ll be in touch within 1 business day.</p>
             </div>
           </div>
         </div>
@@ -306,6 +358,7 @@ function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
 export default function TrainingPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
+  const [dealerId, setDealerId] = useState<string>("");
   const [completed, setCompleted] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string>(MODULES[0].id);
   const [loading, setLoading] = useState(true);
@@ -313,47 +366,54 @@ export default function TrainingPage() {
   const [uploadedDocs, setUploadedDocs] = useState<Set<string>>(new Set());
   const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
 
-  // Load progress on mount — now from Supabase
   useEffect(() => {
     async function loadProgress() {
-      // 1. Verify the user is logged in via Supabase auth
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/dealers/login");
+      if (!user) { router.push("/dealers/login"); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, dealer_id")
+        .eq("id", user.id)
+        .single();
+
+      setDealer({
+        name: profile?.full_name ?? "Dealer",
+        email: user.email ?? "",
+      });
+
+      if (!profile?.dealer_id) {
+        setLoading(false);
         return;
       }
+      setDealerId(profile.dealer_id);
 
-      // 2. Read display name from localStorage (still set by login page for now)
-      const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-      if (stored) {
-        try { setDealer(JSON.parse(stored)); } catch {
-          setDealer({ name: "Dealer", email: user.email ?? "" });
-        }
-      } else {
-        setDealer({ name: "Dealer", email: user.email ?? "" });
-      }
-
-      // 3. Read training progress from Supabase
-      const { data: progress, error } = await supabase
+      const { data: progress } = await supabase
         .from("training_progress")
         .select("module_id")
         .eq("user_id", user.id);
 
-      if (error) {
-        console.error("Could not load training progress:", error);
-      } else if (progress) {
+      if (progress) {
         const completedIds = progress.map((p) => p.module_id);
         setCompleted(completedIds);
         const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
         if (firstIncomplete) setActiveId(firstIncomplete.id);
       }
 
-      // 4. Uploaded docs still in localStorage for now (Storage migration is later)
-      const docsKey = `ias_uploaded_docs_${user.email}`;
-      const storedDocs = localStorage.getItem(docsKey);
-      if (storedDocs) {
-        try { setUploadedDocs(new Set(JSON.parse(storedDocs))); } catch {}
+      const { data: dealerData } = await supabase
+        .from("dealers")
+        .select("credit_app_path, credit_app_admin_override, customer_form_path, customer_form_admin_override")
+        .eq("id", profile.dealer_id)
+        .single();
+
+      const uploadedSet = new Set<string>();
+      if (dealerData?.credit_app_path || dealerData?.credit_app_admin_override) {
+        uploadedSet.add("Credit Application");
       }
+      if (dealerData?.customer_form_path || dealerData?.customer_form_admin_override) {
+        uploadedSet.add("New Customer Form");
+      }
+      setUploadedDocs(uploadedSet);
 
       setLoading(false);
     }
@@ -376,10 +436,8 @@ export default function TrainingPage() {
     setActiveId(moduleId);
   }
 
-  // Mark complete — writes to Supabase
   async function markComplete(id: string) {
     if (!dealer || completed.includes(id)) return;
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/dealers/login"); return; }
 
@@ -388,7 +446,6 @@ export default function TrainingPage() {
       .insert({ user_id: user.id, module_id: id });
 
     if (error) {
-      console.error("Failed to save progress:", error);
       alert("Couldn't save your progress. Try again.");
       return;
     }
@@ -409,34 +466,24 @@ export default function TrainingPage() {
   }
 
   function handleDocUploaded(docName: string) {
-    if (!dealer) return;
-    const newSet = new Set(uploadedDocs);
-    newSet.add(docName);
-    setUploadedDocs(newSet);
-    localStorage.setItem(`ias_uploaded_docs_${dealer.email}`, JSON.stringify(Array.from(newSet)));
+    setUploadedDocs((prev) => {
+      const next = new Set(prev);
+      next.add(docName);
+      return next;
+    });
   }
 
-  // Reset progress — deletes from Supabase
   async function resetProgress() {
     if (!dealer) return;
-    if (!confirm("Reset all training progress? This is for demo purposes.")) return;
+    if (!confirm("Reset training progress? Uploaded documents will NOT be deleted.")) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase
-      .from("training_progress")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (error) {
-      alert("Couldn't reset progress. Try again.");
-      return;
-    }
+    const { error } = await supabase.from("training_progress").delete().eq("user_id", user.id);
+    if (error) { alert("Couldn't reset progress. Try again."); return; }
 
     setCompleted([]);
-    setUploadedDocs(new Set());
-    localStorage.removeItem(`ias_uploaded_docs_${dealer.email}`);
     setActiveId(MODULES[0].id);
   }
 
@@ -589,6 +636,8 @@ export default function TrainingPage() {
                   <DocumentUploadCard
                     key={doc.name}
                     doc={doc}
+                    dealerId={dealerId}
+                    initiallyUploaded={uploadedDocs.has(doc.name)}
                     onUploaded={() => handleDocUploaded(doc.name)}
                   />
                 ))}
