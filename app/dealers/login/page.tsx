@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -10,6 +10,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // If already logged in, redirect to the right dashboard
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setCheckingSession(false);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+      if (profile?.role === "admin") {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/dealers/dashboard");
+      }
+    }
+    checkSession();
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,6 +77,14 @@ export default function LoginPage() {
     } else {
       router.push("/dealers/dashboard");
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="section-container section-padding">
+        <p className="text-stone-600">Loading...</p>
+      </div>
+    );
   }
 
   return (
