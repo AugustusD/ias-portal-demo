@@ -553,4 +553,186 @@ export default function OnboardingPage() {
             </div>
           </div>
           <div className="w-full bg-stone-200 h-1 overflow-hidden">
-            <div className="h-full bg-gold transition-all duration-1000 ease-out" style={{ width: 
+            <div className="h-full bg-gold transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="section-container pt-16 pb-12">
+        <p className="eyebrow text-gold mb-4">Authorized Dealer Program</p>
+        <h1 className="text-5xl md:text-6xl font-heading font-bold mb-4 max-w-3xl">
+          {isAuthorized ? "You're authorized." : "Become an authorized dealer."}
+        </h1>
+        <p className="font-body text-lg text-stone-600 max-w-2xl">
+          {isAuthorized
+            ? "All onboarding modules complete. You now have full access to the IAS dealer network."
+            : isGuest
+            ? "Walk through these five modules to learn about IAS and prepare to become an authorized dealer. You can complete them as a guest — sign in later to save your progress."
+            : "Complete each module in order to unlock your authorized dealer status, premium pricing, and lead distribution."}
+        </p>
+      </div>
+
+      <div className="section-container mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {MODULES.map((mod, idx) => {
+            const isComplete = completed.includes(mod.id);
+            const isActive = mod.id === activeId;
+            const isUnlocked = isModuleUnlocked(mod.id);
+            const isJiggling = lockedClickFeedback === mod.id;
+
+            return (
+              <button
+                key={mod.id}
+                onClick={() => handleModuleClick(mod.id)}
+                disabled={!isUnlocked}
+                className={`text-left p-5 border transition-all relative ${isJiggling ? "animate-pulse" : ""} ${
+                  !isUnlocked
+                    ? "border-stone-200 bg-stone-50 cursor-not-allowed opacity-60"
+                    : isActive
+                    ? "border-gold bg-white"
+                    : isComplete
+                    ? "border-stone-300 bg-cream-dark"
+                    : "border-stone-200 bg-white hover:border-stone-400"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`font-heading text-2xl font-bold ${
+                    !isUnlocked ? "text-stone-300" : isActive ? "text-gold" : isComplete ? "text-stone-400" : "text-stone-300"
+                  }`}>
+                    0{idx + 1}
+                  </span>
+                  {isComplete && (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <circle cx="10" cy="10" r="10" fill="#B69A5A" />
+                      <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                  {!isUnlocked && !isComplete && (
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="text-stone-400">
+                      <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                  )}
+                </div>
+                <p className={`font-body text-sm font-semibold mb-1 ${
+                  !isUnlocked ? "text-stone-400" : isComplete ? "text-stone-500" : "text-ink"
+                }`}>
+                  {mod.title}
+                </p>
+                <p className="text-xs text-stone-400">{mod.duration}</p>
+                {isJiggling && (
+                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">Complete previous module first</p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div id="active-module" className="section-container pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2">
+            <p className="eyebrow text-gold mb-3">Module {MODULES.findIndex((m) => m.id === activeModule.id) + 1} of {totalCount}</p>
+            <h2 className="font-heading text-4xl font-bold mb-4">{activeModule.title}</h2>
+            <p className="font-body text-stone-600 mb-8">{activeModule.description}</p>
+
+            {activeModule.type === "video" && activeModule.videoId && (
+              <div className="aspect-video bg-ink mb-8 overflow-hidden">
+                <iframe
+                  src={`https://www.youtube.com/embed/${activeModule.videoId}`}
+                  title={activeModule.title}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            )}
+
+            {activeModule.type === "form" && (
+              <div className="mb-8">
+                <CustomerForm
+                  initiallySubmitted={formSubmitted}
+                  onSubmitted={handleFormSubmitted}
+                />
+              </div>
+            )}
+
+            {activeModule.references && activeModule.references.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-baseline justify-between mb-5">
+                  <h3 className="font-heading text-xl font-bold">Reference Documents</h3>
+                  <p className="text-xs font-body text-stone-500 uppercase tracking-wider">{activeModule.references.length} Files</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {activeModule.references.map((ref) => (
+                    <ReferenceDocCard key={ref.name} doc={ref} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="max-w-md">
+              {completed.includes(activeModule.id) ? (
+                <div className="flex items-center gap-3 text-stone-600">
+                  <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="10" fill="#B69A5A" />
+                    <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="font-body font-semibold">Module complete</span>
+                </div>
+              ) : canCompleteActive ? (
+                <SlideToComplete onComplete={() => markComplete(activeModule.id)} />
+              ) : (
+                <div className="bg-stone-100 border border-stone-300 h-14 flex items-center justify-center">
+                  <span className="font-body text-sm text-stone-400 uppercase tracking-widest">Submit the form to unlock</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-1">
+            <div className="bg-ink text-cream p-8 sticky top-32">
+              <p className="eyebrow text-gold mb-4">Your Status</p>
+              <p className="font-heading text-3xl font-bold mb-6">
+                {isAuthorized ? "Authorized Dealer" : isGuest ? "Guest" : "In Onboarding"}
+              </p>
+              <div className="space-y-3 mb-8">
+                {MODULES.map((mod) => {
+                  const isComplete = completed.includes(mod.id);
+                  const unlocked = isModuleUnlocked(mod.id);
+                  return (
+                    <div key={mod.id} className="flex items-center gap-3 text-sm font-body">
+                      {isComplete ? (
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0">
+                          <circle cx="10" cy="10" r="10" fill="#B69A5A" />
+                          <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : unlocked ? (
+                        <div className="w-4 h-4 rounded-full border border-stone-400 flex-shrink-0"></div>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 text-stone-500">
+                          <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
+                        </svg>
+                      )}
+                      <span className={isComplete ? "line-through text-stone-400" : !unlocked ? "text-stone-500" : ""}>
+                        {mod.title}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {isGuest && (
+                <div className="border-t border-stone-700 pt-6">
+                  <p className="font-body text-sm text-cream/70 mb-3">Sign in to save your progress and access dealer tools.</p>
+                  <Link href="/dealers/login" className="btn-gold text-xs px-5 py-2.5 inline-block">Sign In</Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
