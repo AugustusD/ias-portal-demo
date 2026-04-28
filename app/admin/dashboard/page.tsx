@@ -139,6 +139,9 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/admin/reviews" className="text-xs font-body uppercase tracking-wider text-stone-400 hover:text-gold transition-colors">
+              Reviews →
+            </Link>
             <p className="text-sm font-body">
               <span className="text-stone-400">Signed in as</span>
               <span className="ml-2 font-semibold">{adminName}</span>
