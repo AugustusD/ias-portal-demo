@@ -67,6 +67,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"onboarding" | "leads">("onboarding");
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pendingReviews, setPendingReviews] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -97,6 +98,17 @@ export default function AdminDashboard() {
         .in("stage", ["new", "accepted", "bid_submitted"])
         .order("updated_at", { ascending: false });
       setLeads((leadData as unknown as LeadRow[]) || []);
+
+      // Count pending document reviews
+      const { data: pendingDealers } = await supabase
+        .from("dealers")
+        .select("customer_form_path, customer_form_admin_override, credit_app_path, credit_app_admin_override");
+      let pendingCount = 0;
+      (pendingDealers || []).forEach((d) => {
+        if (d.customer_form_path && !d.customer_form_admin_override) pendingCount++;
+        if (d.credit_app_path && !d.credit_app_admin_override) pendingCount++;
+      });
+      setPendingReviews(pendingCount);
 
       setLoading(false);
     }
@@ -139,8 +151,16 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/admin/reviews" className="text-xs font-body uppercase tracking-wider text-stone-400 hover:text-gold transition-colors">
-              Reviews →
+            <Link
+              href="/admin/reviews"
+              className="relative inline-flex items-center gap-2 text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors"
+            >
+              Reviews
+              {pendingReviews > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 bg-red-600 text-white text-xs font-bold rounded-full">
+                  {pendingReviews}
+                </span>
+              )}
             </Link>
             <p className="text-sm font-body">
               <span className="text-stone-400">Signed in as</span>
@@ -155,10 +175,9 @@ export default function AdminDashboard() {
 
       <div className="section-container section-padding">
         <div className="mb-10">
-          <p className="eyebrow text-gold mb-2">Control Tower</p>
-          <h2 className="font-heading text-4xl md:text-5xl font-bold mb-2">Ecosystem Overview</h2>
+          <h2 className="font-heading text-4xl md:text-5xl font-bold mb-2">Dashboard</h2>
           <p className="font-body text-stone-400 max-w-2xl">
-            Real-time visibility into dealer onboarding, active leads, and pipeline health. Identify bottlenecks and stalled deals before they become problems.
+            Live view of dealer onboarding, lead pipeline, and pending document reviews.
           </p>
         </div>
 
@@ -366,21 +385,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-
-        <div className="mt-12 p-6 border border-stone-800 bg-stone-950">
-          <div className="flex items-start gap-3">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-gold flex-shrink-0 mt-0.5" aria-hidden="true">
-              <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10 6V10.5M10 13V13.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <div>
-              <p className="font-body text-sm text-stone-300 leading-relaxed">
-                <span className="font-semibold text-cream">Live Data.</span>{" "}
-                This dashboard pulls real-time stats from Supabase. Bottleneck threshold: 7+ days with no training activity. Stalled lead threshold: 14+ days in same stage.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
       <NewLeadModal
