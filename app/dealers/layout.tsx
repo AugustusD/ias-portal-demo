@@ -1,66 +1,51 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+
+const GUEST_ALLOWED = [
+  "/dealers/login",
+  "/dealers/dashboard",
+  "/dealers/training",
+];
 
 export default function DealersLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [checking, setChecking] = useState(true)
+  const router = useRouter();
+  const pathname = usePathname();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // The login page must not be auth-gated (would create an infinite redirect loop)
-    if (pathname === '/dealers/login') {
-      setChecking(false)
-      return
-    }
-
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession()
+      if (GUEST_ALLOWED.includes(pathname)) {
+        setChecking(false);
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.replace('/dealers/login')
-        return
+        router.replace("/dealers/login");
+        return;
       }
-      setChecking(false)
+      setChecking(false);
     }
+    checkAuth();
 
-    checkAuth()
-
-    // Watch for sign-out events anywhere in the app and redirect
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        router.replace('/dealers/login')
+      if (event === "SIGNED_OUT" && !GUEST_ALLOWED.includes(pathname)) {
+        router.replace("/dealers/login");
       }
-    })
+    });
 
-    return () => subscription.unsubscribe()
-  }, [pathname, router])
+    return () => subscription.unsubscribe();
+  }, [pathname, router]);
 
   if (checking) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#F9F6F0',
-          color: '#0A0908',
-          fontFamily: 'Titillium Web, sans-serif',
-          fontSize: '14px',
-          letterSpacing: '0.05em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Loading…
-      </div>
-    )
+    return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }
