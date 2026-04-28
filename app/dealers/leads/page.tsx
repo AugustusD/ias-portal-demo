@@ -3,10 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-type Dealer = { name: string; email: string };
+import { supabase } from "@/lib/supabase";
 
 type LeadStatus = "new" | "accepted" | "bid_submitted" | "won" | "lost";
+
+type Warranty = {
+  type: "residential" | "commercial";
+  systemType: string;
+  installationDate: string;
+  ownerName: string;
+  ownerAddress: string;
+  buildingAddress?: string;
+  nearOcean: boolean;
+  workmanshipYears: number;
+  photosUploaded: number;
+  attestation: boolean;
+  signature: string;
+  registeredDate: string;
+};
 
 type Lead = {
   id: string;
@@ -19,103 +33,18 @@ type Lead = {
   description: string;
   receivedDate: string;
   status: LeadStatus;
-  bidSubmitted?: boolean;
   scopeOfWork?: string;
   linealFootage?: string;
   projectValue?: string;
   orderNumber?: string;
-  completed?: boolean;
-  warrantyRegistered?: boolean;
   lostReason?: string;
-  wereHigher?: string;
   notes?: string;
   acceptedDate?: string;
   bidDate?: string;
   closedDate?: string;
-  // Warranty fields (from actual IAS warranty PDF)
-  warranty?: {
-    type: "residential" | "commercial";
-    systemType: string;
-    installationDate: string;
-    ownerName: string;
-    ownerAddress: string;
-    buildingAddress?: string;
-    nearOcean: boolean;
-    workmanshipYears: number;
-    photosUploaded: number;
-    attestation: boolean;
-    signature: string;
-    registeredDate: string;
-  };
+  warrantyRegistered?: boolean;
+  warranty?: Warranty;
 };
-
-const SAMPLE_LEADS: Lead[] = [
-  {
-    id: "lead_001",
-    customer: "Jim Smith",
-    email: "jim.smith@example.com",
-    phone: "(604) 555-0142",
-    address: "1247 Maple Drive, Surrey, BC V3R 2K8",
-    projectType: "Backyard deck railing — Infinity Topless Glass",
-    estimatedSize: "~80 lineal feet",
-    description: "Homeowner replacing old wood railing on rear deck. Two-story home, deck is 12ft above ground. Looking for unobstructed mountain view, prefers black frame.",
-    receivedDate: "Apr 22, 2026",
-    status: "new",
-  },
-  {
-    id: "lead_002",
-    customer: "Sarah Liu",
-    email: "sarah.liu@example.com",
-    phone: "(604) 555-0288",
-    address: "892 Oak Avenue, Langley, BC V2Y 1H4",
-    projectType: "Front porch railing — Picket",
-    estimatedSize: "~32 lineal feet",
-    description: "New construction. Wants picket style to match heritage home aesthetic. White finish requested. Stairs included.",
-    receivedDate: "Apr 20, 2026",
-    status: "accepted",
-    acceptedDate: "Apr 21, 2026",
-  },
-  {
-    id: "lead_003",
-    customer: "Mike Chen",
-    email: "mike.chen@example.com",
-    phone: "(604) 555-0419",
-    address: "445 Pacific Boulevard, Vancouver, BC V6Z 3A3",
-    projectType: "Pool surround — Infinity Topless Glass",
-    estimatedSize: "~120 lineal feet",
-    description: "Pool safety code compliance required. Custom L-shape around pool with stair access. Quote needed for July install.",
-    receivedDate: "Apr 18, 2026",
-    status: "bid_submitted",
-    acceptedDate: "Apr 19, 2026",
-    bidDate: "Apr 22, 2026",
-    bidSubmitted: true,
-    scopeOfWork: "120 LF Infinity Topless Glass with Black frame, includes 2 stair sections, fascia mount",
-    linealFootage: "120",
-    projectValue: "18500",
-  },
-  {
-    id: "lead_004",
-    customer: "Heritage Homes Construction",
-    email: "projects@heritagehomes.ca",
-    phone: "(604) 555-0750",
-    address: "Multi-family complex — Burnaby, BC",
-    projectType: "Multi-family balcony railing — Picket",
-    estimatedSize: "~840 lineal feet across 12 units",
-    description: "Builder doing 12-unit townhouse complex. Needs balcony railings for each unit. Repeat builder, has done 3 previous projects with our dealer network.",
-    receivedDate: "Apr 5, 2026",
-    status: "won",
-    acceptedDate: "Apr 5, 2026",
-    bidDate: "Apr 8, 2026",
-    closedDate: "Apr 15, 2026",
-    bidSubmitted: true,
-    scopeOfWork: "840 LF Picket railing across 12 units, white finish, includes installation",
-    linealFootage: "840",
-    projectValue: "67200",
-    orderNumber: "ORD-2026-0418",
-    completed: false,
-    warrantyRegistered: false,
-  },
-];
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string; description: string }> = {
   new: { label: "New", color: "text-ink", bg: "bg-gold", description: "New lead from IAS. Respond within 2 business days." },
@@ -125,11 +54,15 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: stri
   lost: { label: "Lost", color: "text-stone-700", bg: "bg-stone-200", description: "Project went to another bidder." },
 };
 
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 function getDaysAgo(dateStr: string): number {
-  const date = new Date(dateStr);
-  const now = new Date("2026-04-24");
-  const diffMs = now.getTime() - date.getTime();
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (!dateStr) return 0;
+  const ms = Date.now() - new Date(dateStr).getTime();
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
 function isOverdue(lead: Lead): boolean {
@@ -137,7 +70,6 @@ function isOverdue(lead: Lead): boolean {
   return getDaysAgo(lead.receivedDate) > 2;
 }
 
-// Detect warranty type from project description
 function suggestWarrantyType(lead: Lead): "residential" | "commercial" {
   const text = (lead.projectType + " " + lead.description).toLowerCase();
   if (text.includes("multi-family") || text.includes("condo") || text.includes("townhouse") ||
@@ -147,7 +79,6 @@ function suggestWarrantyType(lead: Lead): "residential" | "commercial" {
   return "residential";
 }
 
-// Detect system type
 function suggestSystemType(lead: Lead): string {
   const text = lead.projectType.toLowerCase();
   if (text.includes("infinity")) return "Infinity Topless Glass";
@@ -156,43 +87,111 @@ function suggestSystemType(lead: Lead): string {
   return "Custom";
 }
 
-// ---------- WARRANTY REGISTRATION MULTI-STEP FLOW ----------
+// Convert a Supabase row into the Lead shape the UI expects
+type DbLead = {
+  id: string;
+  homeowner_name: string | null;
+  homeowner_email: string | null;
+  homeowner_phone: string | null;
+  project_address: string | null;
+  product_interest: string | null;
+  description: string | null;
+  estimated_size: string | null;
+  received_at: string;
+  stage: LeadStatus;
+  scope_of_work: string | null;
+  lineal_footage: number | null;
+  project_value: number | null;
+  order_number: string | null;
+  lost_reason: string | null;
+  notes: string | null;
+  accepted_at: string | null;
+  bid_submitted_at: string | null;
+  closed_at: string | null;
+  warranty_registered_at: string | null;
+  warranty_classification: "residential" | "commercial" | null;
+  warranty_system_type: string | null;
+  warranty_install_date: string | null;
+  warranty_building_owner_name: string | null;
+  warranty_ocean_proximity_miles: number | null;
+  warranty_dealer_workmanship_years: number | null;
+  warranty_signed_by_name: string | null;
+  warranty_signed_at: string | null;
+  warranty_photo_paths: string[] | null;
+};
+
+function dbToLead(r: DbLead): Lead {
+  const warranty: Warranty | undefined = r.warranty_registered_at
+    ? {
+        type: (r.warranty_classification || "residential") as "residential" | "commercial",
+        systemType: r.warranty_system_type || "Custom",
+        installationDate: r.warranty_install_date || "",
+        ownerName: r.warranty_building_owner_name || r.homeowner_name || "",
+        ownerAddress: r.project_address || "",
+        nearOcean: (r.warranty_ocean_proximity_miles || 99) <= 5,
+        workmanshipYears: r.warranty_dealer_workmanship_years || 1,
+        photosUploaded: (r.warranty_photo_paths || []).length,
+        attestation: true,
+        signature: r.warranty_signed_by_name || "",
+        registeredDate: formatDate(r.warranty_registered_at),
+      }
+    : undefined;
+
+  return {
+    id: r.id,
+    customer: r.homeowner_name || "Unnamed",
+    email: r.homeowner_email || "",
+    phone: r.homeowner_phone || "",
+    address: r.project_address || "",
+    projectType: r.product_interest || "—",
+    estimatedSize: r.estimated_size || "",
+    description: r.description || "",
+    receivedDate: r.received_at,
+    status: r.stage,
+    scopeOfWork: r.scope_of_work || undefined,
+    linealFootage: r.lineal_footage != null ? String(r.lineal_footage) : undefined,
+    projectValue: r.project_value != null ? String(r.project_value) : undefined,
+    orderNumber: r.order_number || undefined,
+    lostReason: r.lost_reason || undefined,
+    notes: r.notes || undefined,
+    acceptedDate: r.accepted_at || undefined,
+    bidDate: r.bid_submitted_at || undefined,
+    closedDate: r.closed_at || undefined,
+    warrantyRegistered: !!r.warranty_registered_at,
+    warranty,
+  };
+}
+
 function WarrantyRegistrationFlow({
   lead,
-  dealer,
+  dealerName,
   onComplete,
   onCancel,
 }: {
   lead: Lead;
-  dealer: Dealer;
-  onComplete: (warranty: NonNullable<Lead["warranty"]>) => void;
+  dealerName: string;
+  onComplete: (warranty: Warranty) => void;
   onCancel: () => void;
 }) {
   const [step, setStep] = useState(1);
   const totalSteps = 4;
 
-  // Step 1 — Classification
   const [warrantyType, setWarrantyType] = useState<"residential" | "commercial">(suggestWarrantyType(lead));
   const [systemType, setSystemType] = useState(suggestSystemType(lead));
 
-  // Step 2 — Installation details
   const today = new Date().toISOString().split("T")[0];
   const [installationDate, setInstallationDate] = useState(today);
   const [ownerName, setOwnerName] = useState(lead.customer);
   const [ownerAddress, setOwnerAddress] = useState(lead.address);
   const [buildingAddress, setBuildingAddress] = useState("");
   const [nearOcean, setNearOcean] = useState(false);
-
-  // Step 3 — Workmanship
   const [workmanshipYears, setWorkmanshipYears] = useState(2);
-
-  // Step 4 — Photos & Attestation
   const [photosUploaded, setPhotosUploaded] = useState(0);
   const [attestation, setAttestation] = useState(false);
-  const [signature, setSignature] = useState(dealer.name);
+  const [signature, setSignature] = useState(dealerName);
 
   function handleSubmit() {
-    const warranty = {
+    onComplete({
       type: warrantyType,
       systemType,
       installationDate,
@@ -205,22 +204,16 @@ function WarrantyRegistrationFlow({
       attestation,
       signature,
       registeredDate: new Date().toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" }),
-    };
-    onComplete(warranty);
+    });
   }
 
-  // Calculate finish warranty based on type + ocean proximity
   function getFinishWarrantyYears(): number {
-    if (warrantyType === "residential") {
-      return nearOcean ? 5 : 10;
-    } else {
-      return nearOcean ? 1 : 5;
-    }
+    if (warrantyType === "residential") return nearOcean ? 5 : 10;
+    return nearOcean ? 1 : 5;
   }
 
   const isInfinity = systemType === "Infinity Topless Glass";
 
-  // Validation per step
   function canAdvance(): boolean {
     if (step === 1) return !!warrantyType && !!systemType;
     if (step === 2) return !!installationDate && !!ownerName.trim() && !!ownerAddress.trim();
@@ -232,184 +225,102 @@ function WarrantyRegistrationFlow({
   return (
     <div className="fixed inset-0 z-[60] bg-ink/80 flex items-start justify-center overflow-y-auto p-4 md:p-8">
       <div className="bg-cream w-full max-w-2xl my-8 shadow-2xl">
-        {/* Header */}
         <div className="sticky top-0 bg-cream border-b border-stone-200 px-6 md:px-8 py-5 flex items-center justify-between z-10">
           <div>
             <p className="eyebrow text-gold mb-1">Warranty Registration</p>
             <h3 className="font-heading text-xl font-bold">Step {step} of {totalSteps}</h3>
           </div>
-          <button onClick={onCancel} className="text-stone-500 hover:text-ink text-2xl leading-none" aria-label="Close">×</button>
+          <button onClick={onCancel} className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
         </div>
 
-        {/* Progress bar */}
         <div className="w-full h-1 bg-stone-200">
           <div className="h-full bg-gold transition-all duration-500" style={{ width: `${(step / totalSteps) * 100}%` }}></div>
         </div>
 
         <div className="px-6 md:px-8 py-6">
-          {/* STEP 1 — Classification */}
           {step === 1 && (
             <div>
               <p className="eyebrow text-stone-500 mb-2">Project Classification</p>
               <h2 className="font-heading text-2xl font-bold mb-3">What type of installation is this?</h2>
-              <p className="font-body text-sm text-stone-600 mb-6">
-                Warranty coverage differs between residential and commercial projects. Review carefully — this determines the finish warranty terms.
-              </p>
+              <p className="font-body text-sm text-stone-600 mb-6">Warranty coverage differs between residential and commercial projects.</p>
 
               <p className="eyebrow text-stone-600 mb-2">Warranty Type</p>
               <div className="space-y-2 mb-6">
                 <label className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${warrantyType === "residential" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
-                  <input
-                    type="radio"
-                    name="warrantyType"
-                    checked={warrantyType === "residential"}
-                    onChange={() => setWarrantyType("residential")}
-                    className="mt-1"
-                  />
+                  <input type="radio" name="warrantyType" checked={warrantyType === "residential"} onChange={() => setWarrantyType("residential")} className="mt-1" />
                   <div>
                     <p className="font-body font-semibold">Residential</p>
-                    <p className="font-body text-xs text-stone-600 mt-1">Single-family detached housing or detached duplex housing.</p>
+                    <p className="font-body text-xs text-stone-600 mt-1">Single-family detached or detached duplex.</p>
                     <p className="font-body text-xs text-stone-500 mt-1">20-year structural · 10-year finish (5yr if within 5mi of ocean)</p>
                   </div>
                 </label>
-
                 <label className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${warrantyType === "commercial" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
-                  <input
-                    type="radio"
-                    name="warrantyType"
-                    checked={warrantyType === "commercial"}
-                    onChange={() => setWarrantyType("commercial")}
-                    className="mt-1"
-                  />
+                  <input type="radio" name="warrantyType" checked={warrantyType === "commercial"} onChange={() => setWarrantyType("commercial")} className="mt-1" />
                   <div>
                     <p className="font-body font-semibold">Commercial</p>
-                    <p className="font-body text-xs text-stone-600 mt-1">Multi-family (more than duplex): condominiums, townhomes, apartments, and commercial locations.</p>
+                    <p className="font-body text-xs text-stone-600 mt-1">Multi-family: condos, townhomes, apartments, commercial.</p>
                     <p className="font-body text-xs text-stone-500 mt-1">20-year structural · 5-year finish (1yr if within 5mi of ocean)</p>
                   </div>
                 </label>
               </div>
 
               <p className="eyebrow text-stone-600 mb-2">System Type</p>
-              <select
-                value={systemType}
-                onChange={(e) => setSystemType(e.target.value)}
-                className="w-full border border-stone-300 px-4 py-3 font-body bg-white mb-2"
-              >
+              <select value={systemType} onChange={(e) => setSystemType(e.target.value)} className="w-full border border-stone-300 px-4 py-3 font-body bg-white mb-2">
                 <option>Infinity Topless Glass</option>
                 <option>Glass Component</option>
                 <option>Picket</option>
                 <option>Custom</option>
               </select>
-              {isInfinity && (
-                <p className="font-body text-xs text-gold mt-2">
-                  ★ Infinity installation — eligible for premium glass shelf bracket gift.
-                </p>
-              )}
+              {isInfinity && (<p className="font-body text-xs text-gold mt-2">★ Infinity installation — eligible for premium glass shelf bracket gift.</p>)}
             </div>
           )}
 
-          {/* STEP 2 — Installation details */}
           {step === 2 && (
             <div>
               <p className="eyebrow text-stone-500 mb-2">Installation Details</p>
               <h2 className="font-heading text-2xl font-bold mb-3">Confirm installation and ownership info</h2>
-              <p className="font-body text-sm text-stone-600 mb-6">
-                These fields match the official IAS warranty form. The building owner information becomes part of our direct-to-homeowner records.
-              </p>
+              <p className="font-body text-sm text-stone-600 mb-6">These fields match the official IAS warranty form.</p>
 
               <div className="space-y-4">
                 <div>
                   <label className="eyebrow text-stone-600 block mb-1">Date of Installation</label>
-                  <input
-                    type="date"
-                    value={installationDate}
-                    onChange={(e) => setInstallationDate(e.target.value)}
-                    className="w-full border border-stone-300 px-4 py-3 font-body bg-white"
-                  />
+                  <input type="date" value={installationDate} onChange={(e) => setInstallationDate(e.target.value)} className="w-full border border-stone-300 px-4 py-3 font-body bg-white" />
                 </div>
-
                 <div>
-                  <label className="eyebrow text-stone-600 block mb-1">Building Owner's Name</label>
-                  <input
-                    type="text"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="Homeowner name"
-                    className="w-full border border-stone-300 px-4 py-3 font-body bg-white"
-                  />
+                  <label className="eyebrow text-stone-600 block mb-1">Building Owner&apos;s Name</label>
+                  <input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} className="w-full border border-stone-300 px-4 py-3 font-body bg-white" />
                 </div>
-
                 <div>
-                  <label className="eyebrow text-stone-600 block mb-1">Building Owner's Address</label>
-                  <input
-                    type="text"
-                    value={ownerAddress}
-                    onChange={(e) => setOwnerAddress(e.target.value)}
-                    placeholder="Street, city, province/state, postal code"
-                    className="w-full border border-stone-300 px-4 py-3 font-body bg-white"
-                  />
+                  <label className="eyebrow text-stone-600 block mb-1">Building Owner&apos;s Address</label>
+                  <input type="text" value={ownerAddress} onChange={(e) => setOwnerAddress(e.target.value)} className="w-full border border-stone-300 px-4 py-3 font-body bg-white" />
                 </div>
-
                 <div>
                   <label className="eyebrow text-stone-600 block mb-1">Building Address (if different)</label>
-                  <input
-                    type="text"
-                    value={buildingAddress}
-                    onChange={(e) => setBuildingAddress(e.target.value)}
-                    placeholder="Leave blank if same as above"
-                    className="w-full border border-stone-300 px-4 py-3 font-body bg-white"
-                  />
+                  <input type="text" value={buildingAddress} onChange={(e) => setBuildingAddress(e.target.value)} placeholder="Leave blank if same as above" className="w-full border border-stone-300 px-4 py-3 font-body bg-white" />
                 </div>
-
                 <label className="flex items-start gap-3 p-4 bg-white border border-stone-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={nearOcean}
-                    onChange={(e) => setNearOcean(e.target.checked)}
-                    className="mt-1"
-                  />
+                  <input type="checkbox" checked={nearOcean} onChange={(e) => setNearOcean(e.target.checked)} className="mt-1" />
                   <div>
                     <p className="font-body text-sm font-semibold">Installation is within 5 miles of ocean / saltwater</p>
-                    <p className="font-body text-xs text-stone-600 mt-1">
-                      Affects finish warranty per IAS terms. Within 5mi of ocean reduces finish coverage to{" "}
-                      {warrantyType === "residential" ? "5 years" : "1 year"}.
-                    </p>
+                    <p className="font-body text-xs text-stone-600 mt-1">Reduces finish coverage to {warrantyType === "residential" ? "5 years" : "1 year"}.</p>
                   </div>
                 </label>
               </div>
             </div>
           )}
 
-          {/* STEP 3 — Workmanship */}
           {step === 3 && (
             <div>
               <p className="eyebrow text-stone-500 mb-2">Your Workmanship Guarantee</p>
               <h2 className="font-heading text-2xl font-bold mb-3">How long do you guarantee the installation?</h2>
-              <p className="font-body text-sm text-stone-600 mb-4">
-                Per Section 13 of the IAS warranty, the Installation Company is responsible for workmanship. IAS covers the materials — you cover the install quality. You set the period.
-              </p>
-
-              <div className="p-4 bg-gold/5 border-l-4 border-gold mb-6">
-                <p className="font-body text-sm text-ink leading-relaxed">
-                  <span className="font-semibold">Section 13 (from warranty document):</span> "The Installation Company guarantees that the work has been performed in accordance with the most current standards and specifications set out by the Manufacturer and is responsible for any workmanship related problems for a period of <span className="underline">____ years</span>."
-                </p>
-              </div>
+              <p className="font-body text-sm text-stone-600 mb-4">Per Section 13 of the IAS warranty, the Installation Company is responsible for workmanship. You set the period.</p>
 
               <label className="eyebrow text-stone-600 block mb-2">Workmanship Warranty Period</label>
               <div className="flex items-center gap-3 mb-2">
-                <input
-                  type="number"
-                  min="1"
-                  max="25"
-                  value={workmanshipYears}
-                  onChange={(e) => setWorkmanshipYears(parseInt(e.target.value) || 1)}
-                  className="w-24 border border-stone-300 px-4 py-3 font-body bg-white text-center text-lg font-bold"
-                />
+                <input type="number" min="1" max="25" value={workmanshipYears} onChange={(e) => setWorkmanshipYears(parseInt(e.target.value) || 1)} className="w-24 border border-stone-300 px-4 py-3 font-body bg-white text-center text-lg font-bold" />
                 <span className="font-body text-stone-600">years</span>
               </div>
-              <p className="font-body text-xs text-stone-500 mb-6">
-                Most dealers guarantee 1–3 years. You can offer additional written warranty terms beyond the IAS form.
-              </p>
+              <p className="font-body text-xs text-stone-500 mb-6">Most dealers guarantee 1–3 years.</p>
 
               <div className="p-5 bg-ink text-cream">
                 <p className="eyebrow text-gold mb-3">Warranty Summary Preview</p>
@@ -424,94 +335,54 @@ function WarrantyRegistrationFlow({
             </div>
           )}
 
-          {/* STEP 4 — Photos & Attestation */}
           {step === 4 && (
             <div>
               <p className="eyebrow text-stone-500 mb-2">Photos & Sign-off</p>
               <h2 className="font-heading text-2xl font-bold mb-3">Upload photos and confirm installation</h2>
-              <p className="font-body text-sm text-stone-600 mb-6">
-                Installation photos become part of our marketing library (with homeowner consent) and strengthen warranty claims.
-              </p>
+              <p className="font-body text-sm text-stone-600 mb-6">Installation photos become part of our marketing library.</p>
 
               <div className="mb-6">
                 <label className="eyebrow text-stone-600 block mb-2">Installation Photos (optional, recommended)</label>
                 <div className="border-2 border-dashed border-stone-300 bg-white p-6 text-center">
-                  <p className="font-body text-sm text-stone-600 mb-3">
-                    Upload 1–3 photos of the completed installation.
-                  </p>
-                  <button
-                    onClick={() => setPhotosUploaded(Math.min(3, photosUploaded + 1))}
-                    disabled={photosUploaded >= 3}
-                    className="btn-outline-dark text-xs px-5 py-2 disabled:opacity-40"
-                  >
+                  <p className="font-body text-sm text-stone-600 mb-3">Upload 1–3 photos.</p>
+                  <button onClick={() => setPhotosUploaded(Math.min(3, photosUploaded + 1))} disabled={photosUploaded >= 3} className="btn-outline-dark text-xs px-5 py-2 disabled:opacity-40">
                     {photosUploaded === 0 ? "Select Photos" : `${photosUploaded} photo${photosUploaded === 1 ? "" : "s"} selected (add more)`}
                   </button>
                   {photosUploaded > 0 && (
                     <div className="flex gap-2 mt-4 justify-center">
                       {Array.from({ length: photosUploaded }).map((_, i) => (
-                        <div key={i} className="w-16 h-16 bg-stone-200 border border-stone-300 flex items-center justify-center text-stone-500 text-xs">
-                          IMG {i + 1}
-                        </div>
+                        <div key={i} className="w-16 h-16 bg-stone-200 border border-stone-300 flex items-center justify-center text-stone-500 text-xs">IMG {i + 1}</div>
                       ))}
                     </div>
                   )}
                 </div>
+                <p className="font-body text-xs text-stone-500 mt-2">Note: actual file upload to storage will be wired in next iteration.</p>
               </div>
 
               <div className="mb-6 p-4 bg-stone-100 border border-stone-200">
                 <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={attestation}
-                    onChange={(e) => setAttestation(e.target.checked)}
-                    className="mt-1 flex-shrink-0"
-                  />
+                  <input type="checkbox" checked={attestation} onChange={(e) => setAttestation(e.target.checked)} className="mt-1 flex-shrink-0" />
                   <p className="font-body text-sm text-ink leading-relaxed">
-                    <span className="font-semibold">I attest</span> that this installation has been performed in accordance with the most current standards and specifications set out by Innovative Aluminum Systems, Inc. I confirm the information provided is accurate and the Installation Company listed is responsible for workmanship as described.
+                    <span className="font-semibold">I attest</span> that this installation has been performed in accordance with the most current standards and specifications set out by Innovative Aluminum Systems, Inc.
                   </p>
                 </label>
               </div>
 
               <div>
                 <label className="eyebrow text-stone-600 block mb-1">Installation Company Representative Signature</label>
-                <input
-                  type="text"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Type your full name to sign"
-                  className="w-full border border-stone-300 px-4 py-3 font-body bg-white italic"
-                  style={{ fontFamily: "cursive" }}
-                />
-                <p className="font-body text-xs text-stone-500 mt-1">Typed signature of Installation Company Rep (per warranty form)</p>
+                <input type="text" value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="Type your full name to sign" className="w-full border border-stone-300 px-4 py-3 font-body bg-white italic" style={{ fontFamily: "cursive" }} />
               </div>
             </div>
           )}
 
-          {/* Step navigation */}
           <div className="flex items-center justify-between pt-6 mt-6 border-t border-stone-200">
-            <button
-              onClick={() => step > 1 ? setStep(step - 1) : onCancel()}
-              className="text-xs font-body font-bold uppercase tracking-widest px-4 py-2 text-stone-600 hover:text-ink transition-colors"
-            >
+            <button onClick={() => step > 1 ? setStep(step - 1) : onCancel()} className="text-xs font-body font-bold uppercase tracking-widest px-4 py-2 text-stone-600 hover:text-ink transition-colors">
               {step === 1 ? "Cancel" : "← Back"}
             </button>
-
             {step < totalSteps ? (
-              <button
-                onClick={() => setStep(step + 1)}
-                disabled={!canAdvance()}
-                className="btn-gold text-xs px-6 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Next →
-              </button>
+              <button onClick={() => setStep(step + 1)} disabled={!canAdvance()} className="btn-gold text-xs px-6 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
             ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={!canAdvance()}
-                className="btn-gold text-xs px-6 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Register Warranty
-              </button>
+              <button onClick={handleSubmit} disabled={!canAdvance()} className="btn-gold text-xs px-6 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed">Register Warranty</button>
             )}
           </div>
         </div>
@@ -520,21 +391,22 @@ function WarrantyRegistrationFlow({
   );
 }
 
-// ---------- LEAD DETAIL MODAL ----------
 function LeadDetailModal({
   lead,
-  dealer,
+  dealerName,
   onClose,
-  onUpdate,
+  onChanged,
 }: {
   lead: Lead;
-  dealer: Dealer;
+  dealerName: string;
   onClose: () => void;
-  onUpdate: (updatedLead: Lead) => void;
+  onChanged: () => void;
 }) {
   const [actionMode, setActionMode] = useState<"none" | "submit_bid" | "won" | "lost">("none");
   const [showWarrantyFlow, setShowWarrantyFlow] = useState(false);
   const [showWarrantySuccess, setShowWarrantySuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     scopeOfWork: lead.scopeOfWork || "",
@@ -542,62 +414,79 @@ function LeadDetailModal({
     projectValue: lead.projectValue || "",
     orderNumber: lead.orderNumber || "",
     lostReason: lead.lostReason || "Price — we were higher",
-    wereHigher: lead.wereHigher || "",
     notes: lead.notes || "",
   });
 
-  function handleAccept() {
-    onUpdate({ ...lead, status: "accepted", acceptedDate: "Apr 24, 2026" });
+  async function saveUpdate(updates: Record<string, unknown>) {
+    setSaving(true);
+    setError("");
+    const { error: updErr } = await supabase
+      .from("leads")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", lead.id);
+    setSaving(false);
+    if (updErr) {
+      setError(updErr.message);
+      return false;
+    }
+    onChanged();
+    return true;
   }
 
-  function handleSubmitBid() {
-    onUpdate({
-      ...lead,
-      status: "bid_submitted",
-      bidSubmitted: true,
-      bidDate: "Apr 24, 2026",
-      scopeOfWork: formData.scopeOfWork,
-      linealFootage: formData.linealFootage,
-      projectValue: formData.projectValue,
+  async function handleAccept() {
+    await saveUpdate({ stage: "accepted", accepted_at: new Date().toISOString() });
+  }
+
+  async function handleSubmitBid() {
+    const ok = await saveUpdate({
+      stage: "bid_submitted",
+      bid_submitted_at: new Date().toISOString(),
+      scope_of_work: formData.scopeOfWork,
+      lineal_footage: formData.linealFootage ? parseFloat(formData.linealFootage) : null,
+      project_value: formData.projectValue ? parseFloat(formData.projectValue) : null,
     });
-    setActionMode("none");
+    if (ok) setActionMode("none");
   }
 
-  function handleMarkWon() {
-    onUpdate({
-      ...lead,
-      status: "won",
-      closedDate: "Apr 24, 2026",
-      orderNumber: formData.orderNumber,
-      scopeOfWork: formData.scopeOfWork || lead.scopeOfWork,
-      linealFootage: formData.linealFootage || lead.linealFootage,
-      projectValue: formData.projectValue || lead.projectValue,
+  async function handleMarkWon() {
+    const ok = await saveUpdate({
+      stage: "won",
+      closed_at: new Date().toISOString(),
+      order_number: formData.orderNumber,
+      scope_of_work: formData.scopeOfWork || lead.scopeOfWork || null,
+      lineal_footage: formData.linealFootage ? parseFloat(formData.linealFootage) : (lead.linealFootage ? parseFloat(lead.linealFootage) : null),
+      project_value: formData.projectValue ? parseFloat(formData.projectValue) : (lead.projectValue ? parseFloat(lead.projectValue) : null),
       notes: formData.notes,
     });
-    setActionMode("none");
+    if (ok) setActionMode("none");
   }
 
-  function handleMarkLost() {
-    onUpdate({
-      ...lead,
-      status: "lost",
-      closedDate: "Apr 24, 2026",
-      lostReason: formData.lostReason,
-      wereHigher: formData.wereHigher,
+  async function handleMarkLost() {
+    const ok = await saveUpdate({
+      stage: "lost",
+      closed_at: new Date().toISOString(),
+      lost_reason: formData.lostReason,
       notes: formData.notes,
     });
-    setActionMode("none");
+    if (ok) setActionMode("none");
   }
 
-  function handleWarrantyComplete(warranty: NonNullable<Lead["warranty"]>) {
-    onUpdate({
-      ...lead,
-      completed: true,
-      warrantyRegistered: true,
-      warranty,
+  async function handleWarrantyComplete(w: Warranty) {
+    const ok = await saveUpdate({
+      warranty_registered_at: new Date().toISOString(),
+      warranty_classification: w.type,
+      warranty_system_type: w.systemType,
+      warranty_install_date: w.installationDate,
+      warranty_building_owner_name: w.ownerName,
+      warranty_ocean_proximity_miles: w.nearOcean ? 1 : 99,
+      warranty_dealer_workmanship_years: w.workmanshipYears,
+      warranty_signed_by_name: w.signature,
+      warranty_signed_at: new Date().toISOString(),
     });
-    setShowWarrantyFlow(false);
-    setShowWarrantySuccess(true);
+    if (ok) {
+      setShowWarrantyFlow(false);
+      setShowWarrantySuccess(true);
+    }
   }
 
   const statusConfig = STATUS_CONFIG[lead.status];
@@ -610,12 +499,8 @@ function LeadDetailModal({
           <div className="sticky top-0 bg-cream border-b border-stone-200 px-6 md:px-8 py-5 flex items-center justify-between z-10">
             <div className="flex items-center gap-3 flex-wrap">
               <p className="eyebrow text-stone-500">Lead Detail</p>
-              <span className={`text-xs uppercase tracking-wider px-3 py-1 font-bold ${statusConfig.bg} ${statusConfig.color}`}>
-                {statusConfig.label}
-              </span>
-              {overdue && (
-                <span className="text-xs uppercase tracking-wider px-3 py-1 font-bold bg-red-600 text-white">Overdue</span>
-              )}
+              <span className={`text-xs uppercase tracking-wider px-3 py-1 font-bold ${statusConfig.bg} ${statusConfig.color}`}>{statusConfig.label}</span>
+              {overdue && <span className="text-xs uppercase tracking-wider px-3 py-1 font-bold bg-red-600 text-white">Overdue</span>}
             </div>
             <button onClick={onClose} className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
           </div>
@@ -629,12 +514,12 @@ function LeadDetailModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pb-6 border-b border-stone-200">
               <div>
                 <p className="eyebrow text-stone-500 mb-2">Contact</p>
-                <p className="font-body text-sm">{lead.email}</p>
-                <p className="font-body text-sm">{lead.phone}</p>
+                <p className="font-body text-sm">{lead.email || "—"}</p>
+                <p className="font-body text-sm">{lead.phone || "—"}</p>
               </div>
               <div>
                 <p className="eyebrow text-stone-500 mb-2">Received</p>
-                <p className="font-body text-sm">{lead.receivedDate}</p>
+                <p className="font-body text-sm">{formatDate(lead.receivedDate)}</p>
                 <p className="font-body text-xs text-stone-500">{getDaysAgo(lead.receivedDate)} days ago</p>
               </div>
             </div>
@@ -642,36 +527,35 @@ function LeadDetailModal({
             <div className="mb-6 pb-6 border-b border-stone-200">
               <p className="eyebrow text-stone-500 mb-2">Project</p>
               <p className="font-body font-semibold mb-1">{lead.projectType}</p>
-              <p className="font-body text-sm text-stone-600 mb-3">{lead.estimatedSize}</p>
-              <p className="font-body text-sm text-stone-600 leading-relaxed">{lead.description}</p>
+              {lead.estimatedSize && <p className="font-body text-sm text-stone-600 mb-3">{lead.estimatedSize}</p>}
+              {lead.description && <p className="font-body text-sm text-stone-600 leading-relaxed">{lead.description}</p>}
             </div>
 
             <div className="mb-6 pb-6 border-b border-stone-200">
               <p className="eyebrow text-stone-500 mb-3">Timeline</p>
               <div className="space-y-2 text-sm font-body">
-                <div className="flex justify-between"><span className="text-stone-600">Received from IAS</span><span className="font-semibold">{lead.receivedDate}</span></div>
-                {lead.acceptedDate && <div className="flex justify-between"><span className="text-stone-600">Accepted</span><span className="font-semibold">{lead.acceptedDate}</span></div>}
-                {lead.bidDate && <div className="flex justify-between"><span className="text-stone-600">Bid submitted</span><span className="font-semibold">{lead.bidDate}</span></div>}
-                {lead.closedDate && <div className="flex justify-between"><span className="text-stone-600">Closed ({lead.status})</span><span className="font-semibold">{lead.closedDate}</span></div>}
+                <div className="flex justify-between"><span className="text-stone-600">Received from IAS</span><span className="font-semibold">{formatDate(lead.receivedDate)}</span></div>
+                {lead.acceptedDate && <div className="flex justify-between"><span className="text-stone-600">Accepted</span><span className="font-semibold">{formatDate(lead.acceptedDate)}</span></div>}
+                {lead.bidDate && <div className="flex justify-between"><span className="text-stone-600">Bid submitted</span><span className="font-semibold">{formatDate(lead.bidDate)}</span></div>}
+                {lead.closedDate && <div className="flex justify-between"><span className="text-stone-600">Closed ({lead.status})</span><span className="font-semibold">{formatDate(lead.closedDate)}</span></div>}
                 {lead.warranty && <div className="flex justify-between"><span className="text-stone-600">Warranty registered</span><span className="font-semibold text-gold">{lead.warranty.registeredDate}</span></div>}
               </div>
             </div>
 
-            {(lead.scopeOfWork || lead.projectValue || lead.lostReason) && (
+            {(lead.scopeOfWork || lead.projectValue || lead.lostReason || lead.notes) && (
               <div className="mb-6 pb-6 border-b border-stone-200">
                 <p className="eyebrow text-stone-500 mb-3">Outcome Details</p>
                 <div className="space-y-2 text-sm font-body">
-                  {lead.scopeOfWork && <div><span className="text-stone-600">Scope of work: </span><span className="font-semibold">{lead.scopeOfWork}</span></div>}
+                  {lead.scopeOfWork && <div><span className="text-stone-600">Scope: </span><span className="font-semibold">{lead.scopeOfWork}</span></div>}
                   {lead.linealFootage && <div><span className="text-stone-600">Lineal footage: </span><span className="font-semibold">{lead.linealFootage} LF</span></div>}
                   {lead.projectValue && <div><span className="text-stone-600">Project value: </span><span className="font-semibold">${parseInt(lead.projectValue).toLocaleString()}</span></div>}
                   {lead.orderNumber && <div><span className="text-stone-600">Order #: </span><span className="font-semibold">{lead.orderNumber}</span></div>}
                   {lead.lostReason && <div><span className="text-stone-600">Reason lost: </span><span className="font-semibold">{lead.lostReason}</span></div>}
-                  {lead.wereHigher && <div><span className="text-stone-600">Notes: </span><span className="font-semibold">{lead.wereHigher}</span></div>}
+                  {lead.notes && <div><span className="text-stone-600">Notes: </span><span className="font-semibold">{lead.notes}</span></div>}
                 </div>
               </div>
             )}
 
-            {/* Warranty details if registered */}
             {lead.warranty && (
               <div className="mb-6 pb-6 border-b border-stone-200">
                 <p className="eyebrow text-gold mb-3">Warranty — Registered</p>
@@ -681,28 +565,22 @@ function LeadDetailModal({
                     <div className="flex justify-between"><span className="text-stone-600">System</span><span className="font-semibold">{lead.warranty.systemType}</span></div>
                     <div className="flex justify-between"><span className="text-stone-600">Installed</span><span className="font-semibold">{lead.warranty.installationDate}</span></div>
                     <div className="flex justify-between"><span className="text-stone-600">IAS Structural</span><span className="font-semibold">20 years</span></div>
-                    <div className="flex justify-between"><span className="text-stone-600">IAS Finish</span><span className="font-semibold">
-                      {lead.warranty.type === "residential" ? (lead.warranty.nearOcean ? "5" : "10") : (lead.warranty.nearOcean ? "1" : "5")} years
-                    </span></div>
+                    <div className="flex justify-between"><span className="text-stone-600">IAS Finish</span><span className="font-semibold">{lead.warranty.type === "residential" ? (lead.warranty.nearOcean ? "5" : "10") : (lead.warranty.nearOcean ? "1" : "5")} years</span></div>
                     <div className="flex justify-between"><span className="text-stone-600">Your Workmanship</span><span className="font-semibold">{lead.warranty.workmanshipYears} years</span></div>
                     <div className="flex justify-between"><span className="text-stone-600">Signed by</span><span className="font-semibold italic">{lead.warranty.signature}</span></div>
-                    <div className="flex justify-between"><span className="text-stone-600">Photos</span><span className="font-semibold">{lead.warranty.photosUploaded}</span></div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Warranty registration prompt for WON, not-yet-registered */}
             {lead.status === "won" && !lead.warrantyRegistered && actionMode === "none" && (
               <div className="mb-6 p-5 bg-gold/15 border-l-4 border-gold">
                 <p className="eyebrow text-gold mb-2">Phase 3 · Lifecycle Value</p>
                 <h4 className="font-heading text-lg font-bold mb-2">Project complete? Register the warranty.</h4>
                 <p className="font-body text-sm text-stone-700 mb-3">
-                  Digital version of the official IAS warranty form. Completes the closed loop — the homeowner receives their $50 Starbucks gift card and joins our maintenance reminder system. {suggestSystemType(lead) === "Infinity Topless Glass" && "Infinity installations also qualify for a premium glass shelf bracket gift."}
+                  Digital version of the official IAS warranty form. Closes the loop — homeowner receives $50 Starbucks gift card and joins our maintenance reminder system.
                 </p>
-                <button onClick={() => setShowWarrantyFlow(true)} className="btn-gold text-xs px-5 py-2.5">
-                  Start Warranty Registration →
-                </button>
+                <button onClick={() => setShowWarrantyFlow(true)} className="btn-gold text-xs px-5 py-2.5">Start Warranty Registration →</button>
               </div>
             )}
 
@@ -712,20 +590,20 @@ function LeadDetailModal({
                 <div className="space-y-4">
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Scope of Work</label>
-                    <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} placeholder="e.g., 80 LF Infinity Topless Glass with Black frame, fascia mount" className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={3} />
+                    <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={3} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="eyebrow text-stone-600 block mb-1">Lineal Footage</label>
-                      <input type="text" value={formData.linealFootage} onChange={(e) => setFormData({ ...formData, linealFootage: e.target.value })} placeholder="80" className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                      <input type="text" value={formData.linealFootage} onChange={(e) => setFormData({ ...formData, linealFootage: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
                     </div>
                     <div>
                       <label className="eyebrow text-stone-600 block mb-1">Quote Amount ($)</label>
-                      <input type="text" value={formData.projectValue} onChange={(e) => setFormData({ ...formData, projectValue: e.target.value })} placeholder="12500" className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                      <input type="text" value={formData.projectValue} onChange={(e) => setFormData({ ...formData, projectValue: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button onClick={handleSubmitBid} className="btn-gold text-xs px-5 py-2">Save Bid</button>
+                    <button onClick={handleSubmitBid} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Save Bid"}</button>
                     <button onClick={() => setActionMode("none")} className="btn-outline-dark text-xs px-5 py-2">Cancel</button>
                   </div>
                 </div>
@@ -735,7 +613,6 @@ function LeadDetailModal({
             {actionMode === "won" && (
               <div className="mb-6 p-5 bg-cream-dark">
                 <h4 className="font-heading text-lg font-bold mb-4">Mark as Won</h4>
-                <p className="font-body text-sm text-stone-600 mb-4">Confirm project details. This data helps IAS track performance and identify high-value builders.</p>
                 <div className="space-y-4">
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Final Scope of Work</label>
@@ -753,14 +630,14 @@ function LeadDetailModal({
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">IAS Order Number</label>
-                    <input type="text" value={formData.orderNumber} onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })} placeholder="e.g., ORD-2026-0424" className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                    <input type="text" value={formData.orderNumber} onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
                     <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button onClick={handleMarkWon} className="btn-gold text-xs px-5 py-2">Confirm Won</button>
+                    <button onClick={handleMarkWon} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Confirm Won"}</button>
                     <button onClick={() => setActionMode("none")} className="btn-outline-dark text-xs px-5 py-2">Cancel</button>
                   </div>
                 </div>
@@ -770,36 +647,37 @@ function LeadDetailModal({
             {actionMode === "lost" && (
               <div className="mb-6 p-5 bg-cream-dark">
                 <h4 className="font-heading text-lg font-bold mb-4">Mark as Lost</h4>
-                <p className="font-body text-sm text-stone-600 mb-4">Help IAS understand why so we can improve our offering.</p>
                 <div className="space-y-4">
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Reason</label>
                     <select value={formData.lostReason} onChange={(e) => setFormData({ ...formData, lostReason: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white">
                       <option>Price — we were higher</option>
-                      <option>Timing — couldn't meet deadline</option>
+                      <option>Timing — couldn&apos;t meet deadline</option>
                       <option>Customer went with another dealer</option>
                       <option>Customer chose different material/system</option>
-                      <option>Customer didn't proceed with project</option>
+                      <option>Customer didn&apos;t proceed with project</option>
                       <option>Other</option>
                     </select>
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
-                    <textarea value={formData.wereHigher} onChange={(e) => setFormData({ ...formData, wereHigher: e.target.value })} placeholder="e.g., We bid $14k, they accepted a $12k bid from competitor" className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
+                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button onClick={handleMarkLost} className="btn-gold text-xs px-5 py-2">Confirm Lost</button>
+                    <button onClick={handleMarkLost} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Confirm Lost"}</button>
                     <button onClick={() => setActionMode("none")} className="btn-outline-dark text-xs px-5 py-2">Cancel</button>
                   </div>
                 </div>
               </div>
             )}
 
+            {error && <p className="text-sm text-red-600 font-body mb-4">{error}</p>}
+
             {actionMode === "none" && (
               <div className="flex flex-wrap gap-2">
                 {lead.status === "new" && (
                   <>
-                    <button onClick={handleAccept} className="btn-gold text-xs px-5 py-2.5">Accept Lead</button>
+                    <button onClick={handleAccept} disabled={saving} className="btn-gold text-xs px-5 py-2.5 disabled:opacity-50">{saving ? "Saving…" : "Accept Lead"}</button>
                     <button onClick={() => setActionMode("lost")} className="btn-outline-dark text-xs px-5 py-2.5">Decline / Lost</button>
                   </>
                 )}
@@ -821,17 +699,10 @@ function LeadDetailModal({
         </div>
       </div>
 
-      {/* Warranty registration flow modal */}
       {showWarrantyFlow && (
-        <WarrantyRegistrationFlow
-          lead={lead}
-          dealer={dealer}
-          onComplete={handleWarrantyComplete}
-          onCancel={() => setShowWarrantyFlow(false)}
-        />
+        <WarrantyRegistrationFlow lead={lead} dealerName={dealerName} onComplete={handleWarrantyComplete} onCancel={() => setShowWarrantyFlow(false)} />
       )}
 
-      {/* Warranty success modal */}
       {showWarrantySuccess && lead.warranty && (
         <div className="fixed inset-0 z-[70] bg-ink/80 flex items-center justify-center p-4">
           <div className="bg-cream w-full max-w-xl shadow-2xl">
@@ -843,47 +714,19 @@ function LeadDetailModal({
               </div>
               <p className="eyebrow text-gold mb-2">Warranty Registered</p>
               <h2 className="font-heading text-3xl font-bold mb-3">Closed loop complete.</h2>
-              <p className="font-body text-stone-600 mb-6 leading-relaxed">
-                {lead.warranty.ownerName}'s warranty has been recorded in the IAS direct-to-homeowner database.
-              </p>
+              <p className="font-body text-stone-600 mb-6 leading-relaxed">{lead.warranty.ownerName}&apos;s warranty has been recorded.</p>
             </div>
             <div className="bg-cream-dark px-8 py-6 border-t border-stone-200">
               <p className="eyebrow text-stone-600 mb-4">What happens next</p>
               <div className="space-y-3 text-sm font-body">
-                <div className="flex gap-3 items-start">
-                  <span className="text-gold font-bold">✓</span>
-                  <span>Homeowner receives welcome email + <strong>$50 Starbucks gift card</strong></span>
-                </div>
-                {lead.warranty.systemType === "Infinity Topless Glass" && (
-                  <div className="flex gap-3 items-start">
-                    <span className="text-gold font-bold">✓</span>
-                    <span>Premium <strong>glass shelf bracket gift</strong> scheduled for shipment (Infinity job)</span>
-                  </div>
-                )}
-                <div className="flex gap-3 items-start">
-                  <span className="text-gold font-bold">✓</span>
-                  <span>Added to 3-month maintenance reminder system</span>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <span className="text-gold font-bold">✓</span>
-                  <span>Long-term remarketing enabled (years 1–5+)</span>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <span className="text-gold font-bold">✓</span>
-                  <span>Your workmanship warranty ({lead.warranty.workmanshipYears} years) recorded on file</span>
-                </div>
-                {lead.warranty.photosUploaded > 0 && (
-                  <div className="flex gap-3 items-start">
-                    <span className="text-gold font-bold">✓</span>
-                    <span>{lead.warranty.photosUploaded} installation photo{lead.warranty.photosUploaded === 1 ? "" : "s"} added to marketing library</span>
-                  </div>
-                )}
+                <div className="flex gap-3 items-start"><span className="text-gold font-bold">✓</span><span>Homeowner receives welcome email + <strong>$50 Starbucks gift card</strong></span></div>
+                {lead.warranty.systemType === "Infinity Topless Glass" && <div className="flex gap-3 items-start"><span className="text-gold font-bold">✓</span><span>Premium <strong>glass shelf bracket gift</strong> scheduled</span></div>}
+                <div className="flex gap-3 items-start"><span className="text-gold font-bold">✓</span><span>Added to 3-month maintenance reminder system</span></div>
+                <div className="flex gap-3 items-start"><span className="text-gold font-bold">✓</span><span>Your workmanship warranty ({lead.warranty.workmanshipYears} years) recorded on file</span></div>
               </div>
             </div>
             <div className="p-6 text-center">
-              <button onClick={() => setShowWarrantySuccess(false)} className="btn-gold text-xs px-8 py-3">
-                Done
-              </button>
+              <button onClick={() => { setShowWarrantySuccess(false); onClose(); }} className="btn-gold text-xs px-8 py-3">Done</button>
             </div>
           </div>
         </div>
@@ -894,51 +737,49 @@ function LeadDetailModal({
 
 export default function LeadsPage() {
   const router = useRouter();
-  const [dealer, setDealer] = useState<Dealer | null>(null);
+  const [dealerName, setDealerName] = useState("Dealer");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "closed">("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/dealers/login"); return; }
-    let parsedDealer: Dealer;
-    try {
-      parsedDealer = JSON.parse(stored);
-      setDealer(parsedDealer);
-    } catch { router.push("/dealers/login"); return; }
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push("/dealers/login"); return; }
 
-    const leadsKey = `ias_leads_${parsedDealer.email}`;
-    const storedLeads = localStorage.getItem(leadsKey);
-    if (storedLeads) {
-      try { setLeads(JSON.parse(storedLeads)); } catch { setLeads(SAMPLE_LEADS); }
-    } else {
-      setLeads(SAMPLE_LEADS);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", session.user.id)
+        .single();
+      if (profile?.full_name) setDealerName(profile.full_name);
+
+      const { data: rows } = await supabase
+        .from("leads")
+        .select("*")
+        .order("received_at", { ascending: false });
+
+      setLeads((rows || []).map((r) => dbToLead(r as DbLead)));
+      setLoading(false);
     }
-    setLoading(false);
-  }, [router]);
+    load();
+  }, [router, refreshKey]);
 
-  function persistLeads(updatedLeads: Lead[]) {
-    if (!dealer) return;
-    setLeads(updatedLeads);
-    localStorage.setItem(`ias_leads_${dealer.email}`, JSON.stringify(updatedLeads));
+  function handleLeadChanged() {
+    setRefreshKey((k) => k + 1);
   }
 
-  function handleUpdateLead(updatedLead: Lead) {
-    const newLeads = leads.map((l) => (l.id === updatedLead.id ? updatedLead : l));
-    persistLeads(newLeads);
-    setSelectedLead(updatedLead);
-  }
-
-  function resetLeads() {
-    if (confirm("Reset leads to demo state? This is for demo purposes.")) {
-      persistLeads(SAMPLE_LEADS);
-      setSelectedLead(null);
+  // When a lead changes, also refresh the selected lead's data
+  useEffect(() => {
+    if (selectedLead) {
+      const fresh = leads.find((l) => l.id === selectedLead.id);
+      if (fresh) setSelectedLead(fresh);
     }
-  }
+  }, [leads, selectedLead]);
 
-  if (loading || !dealer) {
+  if (loading) {
     return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
 
@@ -970,7 +811,7 @@ export default function LeadsPage() {
           <p className="eyebrow text-gold mb-3">Pipeline</p>
           <h1 className="text-4xl md:text-5xl font-heading font-bold mb-3">Leads</h1>
           <p className="font-body text-stone-600 max-w-2xl">
-            Customer leads sent to you from IAS. Respond within 2 business days to maintain your authorized status. Capture outcomes so we can support you with stalled bids and high-value builder relationships.
+            Customer leads sent to you from IAS. Respond within 2 business days. Capture outcomes so we can support you with stalled bids and high-value builder relationships.
           </p>
         </div>
 
@@ -988,7 +829,7 @@ export default function LeadsPage() {
           <div className="bg-white border border-stone-200 p-5">
             <p className="eyebrow text-stone-500 mb-2">Won</p>
             <p className="text-3xl font-heading font-bold">{wonCount}</p>
-            <p className="text-xs text-stone-500 font-body mt-1">This year</p>
+            <p className="text-xs text-stone-500 font-body mt-1">All time</p>
           </div>
           <div className="bg-white border border-stone-200 p-5">
             <p className="eyebrow text-stone-500 mb-2">Total Value Won</p>
@@ -1005,11 +846,7 @@ export default function LeadsPage() {
             { id: "active" as const, label: `Active (${activeCount})` },
             { id: "closed" as const, label: `Closed (${leads.filter((l) => ["won", "lost"].includes(l.status)).length})` },
           ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
-              className={`px-5 py-3 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeFilter === tab.id ? "border-gold text-ink" : "border-transparent text-stone-500 hover:text-ink"}`}
-            >
+            <button key={tab.id} onClick={() => setActiveFilter(tab.id)} className={`px-5 py-3 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeFilter === tab.id ? "border-gold text-ink" : "border-transparent text-stone-500 hover:text-ink"}`}>
               {tab.label}
             </button>
           ))}
@@ -1034,12 +871,14 @@ export default function LeadsPage() {
                       </div>
                       <h3 className="font-heading text-lg font-bold mb-1">{lead.customer}</h3>
                       <p className="font-body text-sm text-stone-600 mb-1">{lead.projectType}</p>
-                      <p className="font-body text-xs text-stone-500">{lead.estimatedSize} · {lead.address.split(",").slice(-2).join(",").trim()}</p>
+                      <p className="font-body text-xs text-stone-500">
+                        {lead.estimatedSize && `${lead.estimatedSize} · `}{lead.address.split(",").slice(-2).join(",").trim()}
+                      </p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="text-xs font-body text-stone-500 uppercase tracking-wider">Received</p>
-                        <p className="text-sm font-body font-semibold">{lead.receivedDate}</p>
+                        <p className="text-sm font-body font-semibold">{formatDate(lead.receivedDate)}</p>
                         {lead.projectValue && <p className="text-xs font-body text-stone-500 mt-1">${parseInt(lead.projectValue).toLocaleString()}</p>}
                       </div>
                       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="text-stone-400 flex-shrink-0">
@@ -1057,23 +896,17 @@ export default function LeadsPage() {
           <p className="eyebrow text-gold mb-3">The Closed Loop</p>
           <h3 className="font-heading text-2xl font-bold mb-3">Every won lead unlocks lifecycle value.</h3>
           <p className="font-body text-sm text-cream/80 leading-relaxed max-w-2xl">
-            When you mark a project as Won and register the warranty, the homeowner receives a $50 Starbucks gift card and is added to our maintenance reminder system. Three-month maintenance touchpoints keep the brand top-of-mind, and warranty data fuels long-term remarketing for upgrades, replacements, and new projects.
+            When you mark a project as Won and register the warranty, the homeowner receives a $50 Starbucks gift card and is added to our maintenance reminder system. Three-month maintenance touchpoints keep the brand top-of-mind.
           </p>
-        </div>
-
-        <div className="text-right">
-          <button onClick={resetLeads} className="text-xs font-body uppercase tracking-wider text-stone-400 hover:text-gold transition-colors">
-            Reset Leads (Demo)
-          </button>
         </div>
       </div>
 
-      {selectedLead && dealer && (
+      {selectedLead && (
         <LeadDetailModal
           lead={selectedLead}
-          dealer={dealer}
+          dealerName={dealerName}
           onClose={() => setSelectedLead(null)}
-          onUpdate={handleUpdateLead}
+          onChanged={handleLeadChanged}
         />
       )}
     </div>
