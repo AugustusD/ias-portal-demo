@@ -99,7 +99,6 @@ export default function AdminDashboard() {
         .order("updated_at", { ascending: false });
       setLeads((leadData as unknown as LeadRow[]) || []);
 
-      // Count pending document reviews
       const { data: pendingDealers } = await supabase
         .from("dealers")
         .select("customer_form_path, customer_form_admin_override, credit_app_path, credit_app_admin_override");
@@ -210,7 +209,7 @@ export default function AdminDashboard() {
 
         <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-800">
           <button onClick={() => setActiveTab("onboarding")} className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === "onboarding" ? "border-gold text-cream" : "border-transparent text-stone-500 hover:text-cream"}`}>
-            Onboarding Monitor ({totalDealers})
+            Dealers ({totalDealers})
           </button>
           <button onClick={() => setActiveTab("leads")} className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === "leads" ? "border-gold text-cream" : "border-transparent text-stone-500 hover:text-cream"}`}>
             Lead Hopper ({activeLeadsCount})
@@ -223,7 +222,7 @@ export default function AdminDashboard() {
               <div className="mb-6 p-5 bg-red-950/30 border-l-4 border-red-500">
                 <p className="eyebrow text-red-400 mb-2">Bottleneck Alert</p>
                 <h3 className="font-heading text-lg font-bold mb-2">{bottleneckCount} dealer{bottleneckCount === 1 ? " is" : "s are"} stuck in onboarding.</h3>
-                <p className="font-body text-sm text-stone-300">No training activity in over 7 days. Consider reaching out personally or offering a training session.</p>
+                <p className="font-body text-sm text-stone-300">No training activity in over 7 days. Click a dealer row below to see their info, team, and leads.</p>
               </div>
             )}
 
@@ -245,7 +244,11 @@ export default function AdminDashboard() {
                       const days = daysAgo(d.last_activity_at);
                       const isBottleneck = d.onboarding_stage !== "authorized" && d.onboarding_stage !== "inactive" && days > 7;
                       return (
-                        <tr key={d.dealer_id} className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors ${isBottleneck ? "bg-red-950/20" : ""}`}>
+                        <tr
+                          key={d.dealer_id}
+                          onClick={() => router.push(`/admin/dealers/${d.dealer_id}`)}
+                          className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors cursor-pointer ${isBottleneck ? "bg-red-950/20" : ""}`}
+                        >
                           <td className="py-4 px-4">
                             <p className="font-body font-semibold text-cream">{d.company_name}</p>
                             <p className="text-xs text-stone-500 font-body">{d.location || "—"} · Joined {formatDate(d.joined_date)}</p>
