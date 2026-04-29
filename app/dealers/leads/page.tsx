@@ -25,6 +25,9 @@ type Warranty = {
 type Lead = {
   id: string;
   customer: string;
+  customerType: "homeowner" | "builder" | null;
+  city: string;
+  province: string;
   email: string;
   phone: string;
   address: string;
@@ -71,6 +74,7 @@ function isOverdue(lead: Lead): boolean {
 }
 
 function suggestWarrantyType(lead: Lead): "residential" | "commercial" {
+  if (lead.customerType === "builder") return "commercial";
   const text = (lead.projectType + " " + lead.description).toLowerCase();
   if (text.includes("multi-family") || text.includes("condo") || text.includes("townhouse") ||
       text.includes("apartment") || text.includes("commercial") || text.includes("builder")) {
@@ -87,9 +91,11 @@ function suggestSystemType(lead: Lead): string {
   return "Custom";
 }
 
-// Convert a Supabase row into the Lead shape the UI expects
 type DbLead = {
   id: string;
+  customer_type: "homeowner" | "builder" | null;
+  city: string | null;
+  province: string | null;
   homeowner_name: string | null;
   homeowner_email: string | null;
   homeowner_phone: string | null;
@@ -140,6 +146,9 @@ function dbToLead(r: DbLead): Lead {
   return {
     id: r.id,
     customer: r.homeowner_name || "Unnamed",
+    customerType: r.customer_type,
+    city: r.city || "",
+    province: r.province || "",
     email: r.homeowner_email || "",
     phone: r.homeowner_phone || "",
     address: r.project_address || "",
@@ -182,7 +191,7 @@ function WarrantyRegistrationFlow({
   const today = new Date().toISOString().split("T")[0];
   const [installationDate, setInstallationDate] = useState(today);
   const [ownerName, setOwnerName] = useState(lead.customer);
-  const [ownerAddress, setOwnerAddress] = useState(lead.address);
+  const [ownerAddress, setOwnerAddress] = useState(lead.address || [lead.city, lead.province].filter(Boolean).join(", "));
   const [buildingAddress, setBuildingAddress] = useState("");
   const [nearOcean, setNearOcean] = useState(false);
   const [workmanshipYears, setWorkmanshipYears] = useState(2);
@@ -491,6 +500,7 @@ function LeadDetailModal({
 
   const statusConfig = STATUS_CONFIG[lead.status];
   const overdue = isOverdue(lead);
+  const locationDisplay = [lead.city, lead.province].filter(Boolean).join(", ") || lead.address;
 
   return (
     <>
@@ -500,6 +510,11 @@ function LeadDetailModal({
             <div className="flex items-center gap-3 flex-wrap">
               <p className="eyebrow text-stone-500">Lead Detail</p>
               <span className={`text-xs uppercase tracking-wider px-3 py-1 font-bold ${statusConfig.bg} ${statusConfig.color}`}>{statusConfig.label}</span>
+              {lead.customerType && (
+                <span className="text-xs uppercase tracking-wider px-3 py-1 font-bold bg-stone-200 text-stone-700 capitalize">
+                  {lead.customerType}
+                </span>
+              )}
               {overdue && <span className="text-xs uppercase tracking-wider px-3 py-1 font-bold bg-red-600 text-white">Overdue</span>}
             </div>
             <button onClick={onClose} className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
@@ -508,7 +523,7 @@ function LeadDetailModal({
           <div className="px-6 md:px-8 py-6">
             <div className="mb-6">
               <h2 className="font-heading text-3xl font-bold mb-1">{lead.customer}</h2>
-              <p className="font-body text-stone-600">{lead.address}</p>
+              {locationDisplay && <p className="font-body text-stone-600">{locationDisplay}</p>}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pb-6 border-b border-stone-200">
@@ -524,12 +539,21 @@ function LeadDetailModal({
               </div>
             </div>
 
-            <div className="mb-6 pb-6 border-b border-stone-200">
-              <p className="eyebrow text-stone-500 mb-2">Project</p>
-              <p className="font-body font-semibold mb-1">{lead.projectType}</p>
-              {lead.estimatedSize && <p className="font-body text-sm text-stone-600 mb-3">{lead.estimatedSize}</p>}
-              {lead.description && <p className="font-body text-sm text-stone-600 leading-relaxed">{lead.description}</p>}
-            </div>
+            {(lead.projectType !== "—" || lead.estimatedSize || lead.description) && (
+              <div className="mb-6 pb-6 border-b border-stone-200">
+                <p className="eyebrow text-stone-500 mb-2">Project</p>
+                {lead.projectType !== "—" && <p className="font-body font-semibold mb-1">{lead.projectType}</p>}
+                {lead.estimatedSize && <p className="font-body text-sm text-stone-600 mb-3">{lead.estimatedSize}</p>}
+                {lead.description && <p className="font-body text-sm text-stone-600 leading-relaxed">{lead.description}</p>}
+              </div>
+            )}
+
+            {lead.notes && lead.status === "new" && (
+              <div className="mb-6 pb-6 border-b border-stone-200">
+                <p className="eyebrow text-stone-500 mb-2">Notes from IAS</p>
+                <p className="font-body text-sm text-stone-700 whitespace-pre-wrap leading-relaxed">{lead.notes}</p>
+              </div>
+            )}
 
             <div className="mb-6 pb-6 border-b border-stone-200">
               <p className="eyebrow text-stone-500 mb-3">Timeline</p>
@@ -542,7 +566,7 @@ function LeadDetailModal({
               </div>
             </div>
 
-            {(lead.scopeOfWork || lead.projectValue || lead.lostReason || lead.notes) && (
+            {(lead.scopeOfWork || lead.projectValue || lead.lostReason || (lead.notes && lead.status !== "new")) && (
               <div className="mb-6 pb-6 border-b border-stone-200">
                 <p className="eyebrow text-stone-500 mb-3">Outcome Details</p>
                 <div className="space-y-2 text-sm font-body">
@@ -551,7 +575,7 @@ function LeadDetailModal({
                   {lead.projectValue && <div><span className="text-stone-600">Project value: </span><span className="font-semibold">${parseInt(lead.projectValue).toLocaleString()}</span></div>}
                   {lead.orderNumber && <div><span className="text-stone-600">Order #: </span><span className="font-semibold">{lead.orderNumber}</span></div>}
                   {lead.lostReason && <div><span className="text-stone-600">Reason lost: </span><span className="font-semibold">{lead.lostReason}</span></div>}
-                  {lead.notes && <div><span className="text-stone-600">Notes: </span><span className="font-semibold">{lead.notes}</span></div>}
+                  {lead.notes && lead.status !== "new" && <div><span className="text-stone-600">Notes: </span><span className="font-semibold">{lead.notes}</span></div>}
                 </div>
               </div>
             )}
@@ -771,7 +795,6 @@ export default function LeadsPage() {
     setRefreshKey((k) => k + 1);
   }
 
-  // When a lead changes, also refresh the selected lead's data
   useEffect(() => {
     if (selectedLead) {
       const fresh = leads.find((l) => l.id === selectedLead.id);
@@ -859,27 +882,30 @@ export default function LeadsPage() {
             filteredLeads.map((lead) => {
               const statusConfig = STATUS_CONFIG[lead.status];
               const overdue = isOverdue(lead);
+              const locationDisplay = [lead.city, lead.province].filter(Boolean).join(", ") || lead.address.split(",").slice(-2).join(",").trim();
               return (
                 <button key={lead.id} onClick={() => setSelectedLead(lead)} className="w-full text-left bg-white border border-stone-200 hover:border-gold hover:shadow-md transition-all p-5">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${statusConfig.bg} ${statusConfig.color}`}>{statusConfig.label}</span>
+                        {lead.customerType && (
+                          <span className="text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold bg-stone-200 text-stone-700 capitalize">
+                            {lead.customerType}
+                          </span>
+                        )}
                         {overdue && <span className="text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold bg-red-600 text-white">Overdue</span>}
                         {lead.status === "won" && !lead.warrantyRegistered && <span className="text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold bg-gold/20 text-gold border border-gold">Register Warranty</span>}
                         {lead.warrantyRegistered && <span className="text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold bg-green-100 text-green-900">Warranty ✓</span>}
                       </div>
                       <h3 className="font-heading text-lg font-bold mb-1">{lead.customer}</h3>
-                      <p className="font-body text-sm text-stone-600 mb-1">{lead.projectType}</p>
-                      <p className="font-body text-xs text-stone-500">
-                        {lead.estimatedSize && `${lead.estimatedSize} · `}{lead.address.split(",").slice(-2).join(",").trim()}
-                      </p>
+                      {locationDisplay && <p className="font-body text-sm text-stone-600 mb-1">{locationDisplay}</p>}
+                      {lead.phone && <p className="font-body text-xs text-stone-500">{lead.phone}</p>}
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="text-xs font-body text-stone-500 uppercase tracking-wider">Received</p>
                         <p className="text-sm font-body font-semibold">{formatDate(lead.receivedDate)}</p>
-                        {lead.projectValue && <p className="text-xs font-body text-stone-500 mt-1">${parseInt(lead.projectValue).toLocaleString()}</p>}
                       </div>
                       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="text-stone-400 flex-shrink-0">
                         <path d="M7 5L13 10L7 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
