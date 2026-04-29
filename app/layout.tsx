@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Ubuntu, Titillium_Web } from "next/font/google";
-import Header from "./components/Header";
+import Link from "next/link";
 import "./globals.css";
 
 const ubuntu = Ubuntu({
@@ -30,7 +30,34 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${ubuntu.variable} ${titillium.variable}`}>
       <body>
-        <Header />
+        <header className="border-b border-stone-200 bg-cream">
+          <nav className="section-container flex items-center justify-between py-6">
+            <Link href="/" className="font-heading text-xl font-bold text-ink">
+              IAS
+            </Link>
+            <ul className="hidden md:flex items-center gap-8">
+              <li><Link href="/products" className="nav-link">Products</Link></li>
+              <li><Link href="/dealers/dashboard" className="nav-link">Dealers</Link></li>
+              <li><Link href="/designer-tool" className="nav-link">Designer Tool</Link></li>
+              <li><Link href="/company" className="nav-link">Company</Link></li>
+              <li><Link href="/resources" className="nav-link">Resources</Link></li>
+            </ul>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dealers/dashboard"
+                className="hidden md:inline-flex items-center px-5 py-2.5 text-xs font-body font-bold uppercase tracking-widest border-2 border-ink text-ink hover:bg-ink hover:text-cream transition-colors"
+              >
+                Dealer Portal
+              </Link>
+              <a
+                href="https://innovativealuminum.com/quote"
+                className="btn-gold"
+              >
+                Get a Quote
+              </a>
+            </div>
+          </nav>
+        </header>
         <main className="min-h-screen">{children}</main>
         <footer className="border-t border-stone-200 bg-ink text-cream py-12">
           <div className="section-container text-center">
