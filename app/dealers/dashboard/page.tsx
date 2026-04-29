@@ -545,7 +545,7 @@ export default function DashboardPage() {
                 </h1>
                 <p className="font-body" style={{ color: theme.textSecondary }}>
                   {isGuest
-                    ? "You're browsing as a guest. Start with Onboarding to learn about IAS and how to become an authorized dealer."
+                    ? "You're browsing as a guest. Complete our Onboarding process to create your free account and become an authorized dealer."
                     : isAuthorized
                     ? "Authorized Dealer · Full access to all tools and programs."
                     : `Complete ${TRAINING_TOTAL - completedCount} more module${TRAINING_TOTAL - completedCount === 1 ? "" : "s"} to unlock authorized partner status.`}
