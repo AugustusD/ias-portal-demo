@@ -304,38 +304,7 @@ export default function DealerDetailPage() {
           </div>
         </div>
 
-        {/* Documents */}
-        <div className="mb-10 bg-stone-900 border border-stone-800 p-6">
-          <p className="eyebrow text-gold mb-4">Documents</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-stone-950 border border-stone-800 p-4">
-              <p className="font-body font-semibold text-cream mb-1">Customer Form</p>
-              {dealer.customer_form_path ? (
-                <>
-                  <p className="text-xs text-stone-500 font-body mb-3">Uploaded {formatDate(dealer.customer_form_uploaded_at)}</p>
-                  <button onClick={() => viewDocument(dealer.customer_form_path!)} className="text-xs uppercase tracking-wider px-4 py-2 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">View</button>
-                </>
-              ) : dealer.customer_form_admin_override ? (
-                <p className="text-xs text-green-400 font-body">✓ Approved (no file on record)</p>
-              ) : (
-                <p className="text-xs text-stone-500 font-body">Not submitted</p>
-              )}
-            </div>
-            <div className="bg-stone-950 border border-stone-800 p-4">
-              <p className="font-body font-semibold text-cream mb-1">Credit Application</p>
-              {dealer.credit_app_path ? (
-                <>
-                  <p className="text-xs text-stone-500 font-body mb-3">Uploaded {formatDate(dealer.credit_app_uploaded_at)}</p>
-                  <button onClick={() => viewDocument(dealer.credit_app_path!)} className="text-xs uppercase tracking-wider px-4 py-2 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">View</button>
-                </>
-              ) : dealer.credit_app_admin_override ? (
-                <p className="text-xs text-green-400 font-body">✓ Approved (no file on record)</p>
-              ) : (
-                <p className="text-xs text-stone-500 font-body">Not submitted (optional)</p>
-              )}
-            </div>
-          </div>
-        </div>
+
 
         {/* Team */}
         <div className="mb-10 bg-stone-900 border border-stone-800 overflow-hidden">
