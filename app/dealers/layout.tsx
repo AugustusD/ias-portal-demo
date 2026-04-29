@@ -8,7 +8,12 @@ const GUEST_ALLOWED = [
   "/dealers/login",
   "/dealers/dashboard",
   "/dealers/training",
+  "/dealers/register",
 ];
+
+function isGuestAllowed(pathname: string): boolean {
+  return GUEST_ALLOWED.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
 
 export default function DealersLayout({
   children,
@@ -21,7 +26,7 @@ export default function DealersLayout({
 
   useEffect(() => {
     async function checkAuth() {
-      if (GUEST_ALLOWED.includes(pathname)) {
+      if (isGuestAllowed(pathname)) {
         setChecking(false);
         return;
       }
@@ -35,7 +40,7 @@ export default function DealersLayout({
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT" && !GUEST_ALLOWED.includes(pathname)) {
+      if (event === "SIGNED_OUT" && !isGuestAllowed(pathname)) {
         router.replace("/dealers/login");
       }
     });
