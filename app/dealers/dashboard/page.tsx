@@ -5,224 +5,666 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+type Dealer = { name: string; email: string };
+
+type RecentLead = {
+  homeowner_name: string | null;
+  product_interest: string | null;
+  lineal_footage: number | null;
+  stage: string;
+  received_at: string;
+};
+
+const TRAINING_TOTAL = 5;
+
+type ThemeId = "editorial" | "midnight" | "architect" | "terminal";
+
+type Theme = {
+  id: ThemeId;
+  name: string;
+  description: string;
+  swatch: string;
+  bg: string;
+  bgAlt: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  divider: string;
+  gold: string;
+  goldFill: string;
+  toolBg: string;
+  toolText: string;
+  toolEyebrow: string;
+  toolHoverBg: string;
+  toolHoverText: string;
+  accountBg: string;
+  accountHoverBg: string;
+  accountHoverText: string;
+  cardBg: string;
+  cardBorder: string;
+  cardShadow?: string;
+  logoutBorder: string;
+  logoutText: string;
+  logoutHoverBg: string;
+  bgPattern?: string;
+};
+
+const THEMES: Theme[] = [
+  {
+    id: "editorial",
+    name: "Editorial",
+    description: "Current brand. Warm, premium, magazine-like.",
+    swatch: "#F9F6F0",
+    bg: "#F9F6F0",
+    bgAlt: "#EFEAE0",
+    textPrimary: "#0A0908",
+    textSecondary: "#57534E",
+    textMuted: "#A8A29E",
+    divider: "#E7E5E4",
+    gold: "#B69A5A",
+    goldFill: "#D4B975",
+    toolBg: "#0A0908",
+    toolText: "#F9F6F0",
+    toolEyebrow: "#B69A5A",
+    toolHoverBg: "#B69A5A",
+    toolHoverText: "#0A0908",
+    accountBg: "#EFEAE0",
+    accountHoverBg: "#B69A5A",
+    accountHoverText: "#0A0908",
+    cardBg: "#FFFFFF",
+    cardBorder: "#E7E5E4",
+    logoutBorder: "#0A0908",
+    logoutText: "#0A0908",
+    logoutHoverBg: "#0A0908",
+  },
+  {
+    id: "midnight",
+    name: "Midnight",
+    description: "Dark mode. Rich, warm, gold-forward. Grid pattern.",
+    swatch: "#0A0908",
+    bg: "#0A0908",
+    bgAlt: "#1A1918",
+    textPrimary: "#F9F6F0",
+    textSecondary: "#A8A29E",
+    textMuted: "#57534E",
+    divider: "#2A2928",
+    gold: "#D4B975",
+    goldFill: "#E5CB8A",
+    toolBg: "#1A1918",
+    toolText: "#F9F6F0",
+    toolEyebrow: "#D4B975",
+    toolHoverBg: "#D4B975",
+    toolHoverText: "#0A0908",
+    accountBg: "#1A1918",
+    accountHoverBg: "#D4B975",
+    accountHoverText: "#0A0908",
+    cardBg: "#1A1918",
+    cardBorder: "#2A2928",
+    logoutBorder: "#F9F6F0",
+    logoutText: "#F9F6F0",
+    logoutHoverBg: "#F9F6F0",
+    bgPattern: "linear-gradient(rgba(212, 185, 117, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 185, 117, 0.08) 1px, transparent 1px)",
+  },
+  {
+    id: "architect",
+    name: "Architect",
+    description: "Pure black and white. High-contrast, restrained.",
+    swatch: "#FFFFFF",
+    bg: "#FFFFFF",
+    bgAlt: "#F5F5F5",
+    textPrimary: "#000000",
+    textSecondary: "#333333",
+    textMuted: "#999999",
+    divider: "#000000",
+    gold: "#000000",
+    goldFill: "#000000",
+    toolBg: "#000000",
+    toolText: "#FFFFFF",
+    toolEyebrow: "#FFFFFF",
+    toolHoverBg: "#FFFFFF",
+    toolHoverText: "#000000",
+    accountBg: "#F5F5F5",
+    accountHoverBg: "#000000",
+    accountHoverText: "#FFFFFF",
+    cardBg: "#FFFFFF",
+    cardBorder: "#000000",
+    logoutBorder: "#000000",
+    logoutText: "#000000",
+    logoutHoverBg: "#000000",
+  },
+  {
+    id: "terminal",
+    name: "Terminal",
+    description: "Deep blue-black. Electric gold. High-tech.",
+    swatch: "#050A14",
+    bg: "#050A14",
+    bgAlt: "#0F1828",
+    textPrimary: "#FFFFFF",
+    textSecondary: "#8B9AB4",
+    textMuted: "#4A5872",
+    divider: "#1A2740",
+    gold: "#FFC857",
+    goldFill: "#FFD670",
+    toolBg: "#0F1828",
+    toolText: "#FFFFFF",
+    toolEyebrow: "#FFC857",
+    toolHoverBg: "#FFC857",
+    toolHoverText: "#050A14",
+    accountBg: "#0F1828",
+    accountHoverBg: "#FFC857",
+    accountHoverText: "#050A14",
+    cardBg: "#0F1828",
+    cardBorder: "#1A2740",
+    cardShadow: "0 0 0 1px rgba(255, 200, 87, 0.15), 0 4px 20px rgba(255, 200, 87, 0.08)",
+    logoutBorder: "#FFC857",
+    logoutText: "#FFC857",
+    logoutHoverBg: "#FFC857",
+    bgPattern: "linear-gradient(rgba(255, 200, 87, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 200, 87, 0.07) 1px, transparent 1px)",
+  },
+];
+
+function useCountUp(target: number, duration: number = 1200, enabled: boolean = true): number {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    if (target === 0) { setValue(0); return; }
+    const startTime = performance.now();
+    let rafId: number;
+    function tick(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration, enabled]);
+  return value;
+}
+
+function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean; progress: number; theme: Theme }) {
+  const fillPercent = authorized ? 100 : progress * 100;
+
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: 96, height: 108 }}>
+      <svg width="96" height="108" viewBox="0 0 96 108" className="absolute inset-0">
+        <defs>
+          <linearGradient id="badgeFill" x1="0%" y1="100%" x2="0%" y2="0%">
+            <stop offset="0%" stopColor={theme.gold} />
+            <stop offset="100%" stopColor={theme.goldFill} />
+          </linearGradient>
+          <clipPath id="hexClip">
+            <polygon points="48,4 88,28 88,80 48,104 8,80 8,28" />
+          </clipPath>
+        </defs>
+        <polygon points="48,4 88,28 88,80 48,104 8,80 8,28" fill="none" stroke={authorized ? theme.gold : theme.divider} strokeWidth="2" />
+        <g clipPath="url(#hexClip)">
+          <rect x="0" y={108 - (108 * fillPercent) / 100} width="96" height={(108 * fillPercent) / 100} fill="url(#badgeFill)" style={{ transition: "all 1s ease-out" }} />
+        </g>
+        <polygon points="48,14 78,32 78,76 48,94 18,76 18,32" fill="none" stroke={authorized ? "#FFFFFF" : "transparent"} strokeWidth="1" opacity="0.4" />
+      </svg>
+      <div className="relative z-10 flex flex-col items-center justify-center">
+        {authorized ? (
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path d="M12 21L18 27L28 15" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <svg width="32" height="32" viewBox="0 0 40 40" fill="none" style={{ color: theme.textMuted }}>
+            <rect x="13" y="18" width="14" height="14" rx="1" stroke="currentColor" strokeWidth="2" />
+            <path d="M16 18V14a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id: ThemeId) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="fixed bottom-6 right-6 z-40">
+      <div className="bg-white shadow-2xl border border-stone-200">
+        {expanded && (
+          <div className="px-5 pt-4 pb-2 border-b border-stone-200">
+            <p className="text-[10px] font-body font-bold uppercase tracking-widest text-stone-500 mb-1">Demo Preview</p>
+            <p className="text-xs font-body text-stone-700">Try different color schemes. For Mike &amp; Fred feedback only.</p>
+          </div>
+        )}
+        <div className="flex items-center gap-3 p-3">
+          {THEMES.map((t) => {
+            const isDark = t.id === "midnight" || t.id === "terminal";
+            return (
+              <button
+                key={t.id}
+                onClick={() => { onChange(t.id); setExpanded(true); }}
+                onMouseEnter={() => setExpanded(true)}
+                className={`group relative w-10 h-10 border-2 transition-all flex items-center justify-center ${current === t.id ? "border-stone-900 scale-110" : "border-stone-300 hover:border-stone-500"}`}
+                style={{ background: t.swatch }}
+                title={t.name}
+              >
+                {current === t.id && (
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M5 10L9 14L15 6" stroke={isDark ? "#F9F6F0" : "#0A0908"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+          <button onClick={() => setExpanded(!expanded)} className="text-stone-400 hover:text-stone-700 text-xs font-body uppercase tracking-wider ml-1" title={expanded ? "Collapse" : "Expand"}>
+            {expanded ? "−" : "+"}
+          </button>
+        </div>
+        {expanded && (
+          <div className="px-5 pb-3">
+            <p className="text-xs font-body text-stone-600">
+              <span className="font-semibold text-ink">{THEMES.find(t => t.id === current)?.name}</span>
+              {" — "}
+              {THEMES.find(t => t.id === current)?.description}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopment }: {
+  theme: Theme;
+  href: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  external: boolean;
+  inDevelopment?: boolean;
+}) {
+  const [isHover, setIsHover] = useState(false);
+
+  const bg = isHover ? theme.toolHoverBg : theme.toolBg;
+  const mainText = isHover ? theme.toolHoverText : theme.toolText;
+  const accentColor = isHover ? theme.toolHoverText : theme.toolEyebrow;
+
+  const border = theme.id === "architect" ? "2px solid #000000" : "none";
+
+  const Component: any = external ? "a" : Link;
+  const props: any = external ? { href, target: "_blank", rel: "noopener noreferrer" } : { href };
+
+  return (
+    <Component
+      {...props}
+      className="block p-7 transition-colors duration-200 relative overflow-hidden"
+      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow, border }}
+      onMouseEnter={() => setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <p className="eyebrow" style={{ color: accentColor }}>{eyebrow}</p>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: accentColor }}>
+          <path d={external ? "M11 3H17V9M9 11L17 3M9 17H3V11" : "M5 15L15 5M15 5H7M15 5V13"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <h3 className="font-heading text-2xl font-bold mb-2" style={{ color: mainText }}>{title}</h3>
+      <p className="font-body text-sm" style={{ color: mainText, opacity: 0.8 }}>{subtitle}</p>
+
+      {inDevelopment && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
+          style={{ background: "rgba(10, 9, 8, 0.78)" }}
+        >
+          <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>In Development</p>
+          <p className="font-heading text-lg font-bold text-cream mb-2">Coming soon</p>
+          <p className="text-[10px] font-body uppercase tracking-widest text-cream/60">Peek inside →</p>
+        </div>
+      )}
+    </Component>
+  );
+}
+
+function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck }: {
+  theme: Theme;
+  href: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  showCheck?: boolean;
+}) {
+  const [isHover, setIsHover] = useState(false);
+
+  const bg = isHover ? theme.accountHoverBg : theme.accountBg;
+  const mainText = isHover ? theme.accountHoverText : theme.textPrimary;
+  const secondaryText = isHover ? theme.accountHoverText : theme.textSecondary;
+  const accentColor = isHover ? theme.accountHoverText : theme.gold;
+
+  return (
+    <Link
+      href={href}
+      className="block p-6 transition-colors duration-200"
+      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow }}
+      onMouseEnter={() => setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <p className="eyebrow" style={{ color: accentColor }}>{eyebrow}</p>
+        {showCheck && (
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="10" fill={accentColor} />
+            <path d="M6 10L9 13L14 7" stroke={isHover ? bg : (theme.id === "terminal" ? "#050A14" : "white")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      <h3 className="font-heading text-xl font-bold mb-2" style={{ color: mainText }}>{title}</h3>
+      <p className="font-body text-sm" style={{ color: secondaryText, opacity: isHover ? 0.8 : 1 }}>{subtitle}</p>
+    </Link>
+  );
+}
+
+function formatLeadDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatLeadProject(lead: RecentLead): string {
+  const parts: string[] = [];
+  if (lead.product_interest) parts.push(lead.product_interest);
+  if (lead.lineal_footage) parts.push(`${lead.lineal_footage} LF`);
+  return parts.join(" — ") || "—";
+}
+
+function formatStage(stage: string): string {
+  return stage
+    .split("_")
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(" ");
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [isGuest, setIsGuest] = useState(true);
-  const [dealerName, setDealerName] = useState("");
+  const [dealer, setDealer] = useState<Dealer | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [leadsCount, setLeadsCount] = useState(0);
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [completedModules, setCompletedModules] = useState(0);
-  const [totalModules] = useState(5);
-  const [activeLeadsCount, setActiveLeadsCount] = useState(0);
-  const [authorized, setAuthorized] = useState(false);
+  const [animationsReady, setAnimationsReady] = useState(false);
+  const [themeId, setThemeId] = useState<ThemeId>("editorial");
+  const [logoutHover, setLogoutHover] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        // Guest mode: read onboarding progress from localStorage
-        setIsGuest(true);
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ias_guest_onboarding_progress") : null;
-        if (stored) {
-          try {
-            const progress = JSON.parse(stored);
-            setCompletedModules(Array.isArray(progress) ? progress.length : 0);
-          } catch {
-            setCompletedModules(0);
-          }
-        }
-        setLoading(false);
+      // 1. Auth check
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/dealers/login");
         return;
       }
 
-      // Logged in
-      setIsGuest(false);
+      // 2. Profile (real name + email)
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, dealer_id")
-        .eq("id", session.user.id)
+        .select("full_name, email")
+        .eq("id", user.id)
         .single();
-      setDealerName(profile?.full_name || "Dealer");
 
-      const { data: progress } = await supabase
+      setDealer({
+        name: profile?.full_name ?? "Dealer",
+        email: profile?.email ?? user.email ?? "",
+      });
+
+      // 3. Training progress count
+      const { count: trainingCount } = await supabase
         .from("training_progress")
-        .select("module_id")
-        .eq("user_id", session.user.id);
-      setCompletedModules(progress?.length || 0);
-      setAuthorized((progress?.length || 0) === totalModules);
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
 
+      setCompletedCount(trainingCount ?? 0);
+
+      // 4. Recent leads (RLS scopes to dealer's company automatically)
       const { data: leads } = await supabase
         .from("leads")
-        .select("id, stage")
-        .in("stage", ["new", "accepted", "bid_submitted"]);
-      setActiveLeadsCount(leads?.length || 0);
+        .select("homeowner_name, product_interest, lineal_footage, stage, received_at")
+        .order("received_at", { ascending: false })
+        .limit(3);
+
+      setRecentLeads(leads ?? []);
+
+      // 5. Total lead count
+      const { count: totalLeads } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true });
+
+      setLeadsCount(totalLeads ?? 0);
+
+      // 6. Theme stays in localStorage (UI preference, not data)
+      const savedTheme = localStorage.getItem("ias_dashboard_theme");
+      if (savedTheme && THEMES.find(t => t.id === savedTheme)) {
+        setThemeId(savedTheme as ThemeId);
+      }
 
       setLoading(false);
+      setTimeout(() => setAnimationsReady(true), 150);
     }
     load();
-  }, [router, totalModules]);
+  }, [router]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/dealers/dashboard");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("ias_dealer");
+    }
+    router.push("/dealers/login");
   }
 
-  if (loading) {
+  function handleThemeChange(newThemeId: ThemeId) {
+    setThemeId(newThemeId);
+    localStorage.setItem("ias_dashboard_theme", newThemeId);
+  }
+
+  const trainingAnimated = useCountUp(completedCount, 900, animationsReady);
+  const leadsAnimated = useCountUp(leadsCount, 1000, animationsReady);
+  const quotesAnimated = useCountUp(7, 1100, animationsReady);
+  const quoteValueAnimated = useCountUp(84250, 1400, animationsReady);
+
+  if (loading || !dealer) {
     return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
 
-  const onboardingProgress = (completedModules / totalModules) * 100;
+  const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
+  const trainingPercent = (completedCount / TRAINING_TOTAL) * 100;
+  const isAuthorized = completedCount === TRAINING_TOTAL;
+
+  const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
 
   return (
-    <div className="bg-cream min-h-screen">
-      <div className="sticky top-0 z-30 bg-cream border-b border-stone-200">
-        <div className="section-container py-5 flex items-center justify-between">
-          <div>
-            <p className="eyebrow text-gold">IAS Dealer Portal</p>
-            <p className="font-heading text-lg font-bold">Dashboard</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {isGuest ? (
-              <Link href="/dealers/login" className="btn-gold text-xs px-5 py-2.5">Sign In</Link>
-            ) : (
-              <>
-                <p className="text-sm font-body">
-                  <span className="text-stone-500">Signed in as</span>
-                  <span className="ml-2 font-semibold">{dealerName}</span>
+    <div
+      style={{
+        background: theme.bg,
+        color: theme.textPrimary,
+        transition: "background 0.4s, color 0.4s",
+        backgroundImage: theme.bgPattern,
+        backgroundSize: theme.bgPattern ? "40px 40px" : undefined,
+      }}
+    >
+      <div className="section-container section-padding">
+        {/* HERO */}
+        <div className="mb-12">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 mb-6">
+            <div className="flex-1 flex items-start gap-6">
+              <div className="hidden sm:block flex-shrink-0 pt-1">
+                <AuthorizedBadge authorized={isAuthorized} progress={trainingPercent / 100} theme={theme} />
+                <p className="text-[10px] font-body font-bold uppercase tracking-widest text-center mt-2" style={{ color: theme.textMuted }}>
+                  {isAuthorized ? "Authorized Partner" : "In Training"}
                 </p>
-                <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-300 hover:border-gold hover:text-gold px-4 py-2 transition-colors">
-                  Log Out
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="section-container pt-16 pb-12">
-        {isGuest ? (
-          <>
-            <p className="eyebrow text-gold mb-3">Welcome</p>
-            <h1 className="text-5xl md:text-6xl font-heading font-bold mb-4">
-              You&apos;re browsing as a guest.
-            </h1>
-            <p className="font-body text-lg text-stone-600 max-w-2xl mb-3">
-              Start with the Onboarding modules to learn about IAS, our products, and how to become an authorized dealer.
-            </p>
-            <p className="font-body text-base text-stone-500 max-w-2xl">
-              Already a partner?{" "}
-              <Link href="/dealers/login" className="text-gold underline hover:text-gold-hover">Sign in</Link>{" "}
-              to access your tools, leads, and warranty registration.
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="eyebrow text-gold mb-3">Welcome back</p>
-            <h1 className="text-5xl md:text-6xl font-heading font-bold mb-4">
-              {dealerName}.
-            </h1>
-            {authorized ? (
-              <div className="inline-flex items-center gap-2 bg-ink text-cream px-4 py-1.5 mb-6">
-                <span className="w-2 h-2 rounded-full bg-gold"></span>
-                <span className="text-xs font-body font-bold uppercase tracking-widest">Authorized Partner</span>
               </div>
-            ) : (
-              <p className="font-body text-lg text-stone-600 max-w-2xl mb-6">
-                {completedModules} of {totalModules} onboarding modules complete.{" "}
-                <Link href="/dealers/training" className="text-gold underline">Continue →</Link>
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="section-container pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-          {/* Onboarding tile — gold highlighted, especially prominent for guests */}
-          <Link
-            href="/dealers/training"
-            className={`group relative block p-8 transition-all ${
-              isGuest
-                ? "bg-gold text-ink hover:bg-gold-hover shadow-lg ring-2 ring-gold ring-offset-4 ring-offset-cream"
-                : "bg-white border border-stone-200 hover:border-gold"
-            }`}
-          >
-            {isGuest && (
-              <span className="absolute -top-3 left-6 bg-ink text-gold px-3 py-1 text-xs font-body font-bold uppercase tracking-widest">
-                Start Here →
-              </span>
-            )}
-            <p className={`eyebrow mb-3 ${isGuest ? "text-ink/70" : "text-stone-500"}`}>Module {completedModules + 1} of {totalModules}</p>
-            <h3 className={`font-heading text-2xl font-bold mb-2 ${isGuest ? "text-ink" : "text-ink"}`}>Onboarding</h3>
-            <p className={`font-body text-sm mb-4 ${isGuest ? "text-ink/80" : "text-stone-600"}`}>
-              {isGuest
-                ? "Learn about IAS, our products, and become an authorized dealer."
-                : `${completedModules}/${totalModules} modules complete.`}
-            </p>
-            <div className={`w-full h-1 ${isGuest ? "bg-ink/20" : "bg-stone-200"} overflow-hidden mb-3`}>
-              <div className={`h-full ${isGuest ? "bg-ink" : "bg-gold"}`} style={{ width: `${onboardingProgress}%` }}></div>
+              <div className="flex-1">
+                <p className="eyebrow mb-3" style={{ color: theme.gold }}>Dealer Portal</p>
+                <h1 className="text-4xl md:text-5xl font-heading font-bold mb-2" style={{ color: theme.textPrimary }}>
+                  Welcome back, {dealer.name}.
+                </h1>
+                <p className="font-body" style={{ color: theme.textSecondary }}>
+                  {isAuthorized
+                    ? "Authorized Dealer · Full access to all tools and programs."
+                    : `Complete ${TRAINING_TOTAL - completedCount} more module${TRAINING_TOTAL - completedCount === 1 ? "" : "s"} to unlock authorized partner status.`}
+                </p>
+              </div>
             </div>
-            <p className={`text-xs font-body font-bold uppercase tracking-widest ${isGuest ? "text-ink" : "text-gold"}`}>
-              {completedModules === totalModules ? "✓ All complete" : "Continue →"}
-            </p>
-          </Link>
+            <button
+              onClick={handleLogout}
+              onMouseEnter={() => setLogoutHover(true)}
+              onMouseLeave={() => setLogoutHover(false)}
+              className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors"
+              style={{
+                borderColor: theme.logoutBorder,
+                color: logoutHover ? theme.bg : theme.logoutText,
+                background: logoutHover ? theme.logoutHoverBg : "transparent",
+              }}
+            >
+              Log Out
+            </button>
+          </div>
 
-          {/* Tools tile */}
-          {isGuest ? (
-            <div className="block p-8 bg-stone-100 border border-stone-200 opacity-70 cursor-not-allowed relative">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="absolute top-6 right-6 text-stone-400">
-                <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-              <p className="eyebrow text-stone-400 mb-3">Locked</p>
-              <h3 className="font-heading text-2xl font-bold mb-2 text-stone-500">Tools</h3>
-              <p className="font-body text-sm text-stone-500 mb-4">Calculator, Order Sheets, and Designer.</p>
-              <p className="text-xs font-body font-bold uppercase tracking-widest text-stone-400">Sign in to access</p>
+          {!isAuthorized && (
+            <div className="pt-6" style={{ borderTop: `1px solid ${theme.divider}` }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="eyebrow" style={{ color: theme.textMuted }}>Your Path to Authorized Partner</p>
+                <p className="text-sm font-body font-semibold">
+                  <span style={{ color: theme.textPrimary }}>{completedCount}</span>
+                  <span style={{ color: theme.textMuted }}> / {TRAINING_TOTAL} modules</span>
+                </p>
+              </div>
+              <div className="relative w-full h-2 overflow-hidden" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
+                <div className="absolute inset-y-0 left-0 transition-all duration-1500 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
+              </div>
             </div>
-          ) : (
-            <Link href="/dealers/tools" className="block p-8 bg-white border border-stone-200 hover:border-gold transition-colors">
-              <p className="eyebrow text-stone-500 mb-3">Tools</p>
-              <h3 className="font-heading text-2xl font-bold mb-2">Tools</h3>
-              <p className="font-body text-sm text-stone-600 mb-4">Calculator, Order Sheets, and Designer.</p>
-              <p className="text-xs font-body font-bold uppercase tracking-widest text-gold">Open →</p>
-            </Link>
           )}
 
-          {/* Leads tile */}
-          {isGuest ? (
-            <div className="block p-8 bg-stone-100 border border-stone-200 opacity-70 cursor-not-allowed relative">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="absolute top-6 right-6 text-stone-400">
-                <rect x="5" y="9" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M7 9V6.5C7 4.84 8.34 3.5 10 3.5C11.66 3.5 13 4.84 13 6.5V9" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-              <p className="eyebrow text-stone-400 mb-3">Locked</p>
-              <h3 className="font-heading text-2xl font-bold mb-2 text-stone-500">Leads</h3>
-              <p className="font-body text-sm text-stone-500 mb-4">Customer leads forwarded from IAS.</p>
-              <p className="text-xs font-body font-bold uppercase tracking-widest text-stone-400">Sign in to access</p>
+          {isAuthorized && (
+            <div className="pt-6" style={{ borderTop: `1px solid ${theme.divider}` }}>
+              <div className="flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="10" fill={theme.gold} />
+                  <path d="M6 10L9 13L14 7" stroke={theme.id === "architect" ? "#FFFFFF" : theme.id === "terminal" ? "#050A14" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p className="font-body text-sm font-semibold" style={{ color: theme.textPrimary }}>
+                  All 5 training modules complete. You are a certified Authorized Partner.
+                </p>
+              </div>
             </div>
-          ) : (
-            <Link href="/dealers/leads" className="block p-8 bg-white border border-stone-200 hover:border-gold transition-colors">
-              <p className="eyebrow text-stone-500 mb-3">{activeLeadsCount} active</p>
-              <h3 className="font-heading text-2xl font-bold mb-2">Leads</h3>
-              <p className="font-body text-sm text-stone-600 mb-4">Customer leads forwarded from IAS.</p>
-              <p className="text-xs font-body font-bold uppercase tracking-widest text-gold">View →</p>
-            </Link>
           )}
-
         </div>
 
-        {isGuest && (
-          <div className="mt-12 p-8 bg-ink text-cream">
-            <p className="eyebrow text-gold mb-3">Already an IAS dealer?</p>
-            <h3 className="font-heading text-2xl font-bold mb-2">Sign in to unlock everything.</h3>
-            <p className="font-body text-sm text-cream/80 mb-5 max-w-xl">
-              Tools, lead management, warranty registration, and more — available once you sign in with your dealer credentials.
-            </p>
-            <Link href="/dealers/login" className="btn-gold text-xs px-6 py-3">Sign In</Link>
+        {/* TOOLS */}
+        <div className="mb-10">
+          <div className="flex items-baseline justify-between mb-5">
+            <p className="eyebrow" style={{ color: theme.textMuted }}>Tools</p>
+            <p className="text-xs font-body" style={{ color: theme.textMuted }}>Open and use any time</p>
           </div>
-        )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <ToolTile theme={theme} href="https://designer.innovativealuminum.com" eyebrow="Visualize" title="Designer" subtitle="3D project visualizer ↗" external={true} />
+            <ToolTile theme={theme} href="/dealers/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} inDevelopment={true} />
+            <ToolTile theme={theme} href="/dealers/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} inDevelopment={true} />
+          </div>
+        </div>
+
+        {/* ACCOUNT */}
+        <div className="mb-16">
+          <p className="eyebrow mb-5" style={{ color: theme.textMuted }}>Your Account</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <AccountTile theme={theme} href="/dealers/training" eyebrow="Program" title="Training" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={isAuthorized} />
+            <AccountTile theme={theme} href="/dealers/leads" eyebrow="Pipeline" title="Leads" subtitle={leadsCount === 0 ? "No leads yet" : `${leadsCount} lead${leadsCount === 1 ? "" : "s"} in your pipeline`} />
+            <AccountTile theme={theme} href="/dealers/resources" eyebrow="Library" title="Dealer Resources" subtitle="Installation guides and documents." />
+          </div>
+        </div>
+
+        {/* Analytics */}
+        <div className="pt-16" style={{ borderTop: `1px solid ${theme.divider}` }}>
+          <p className="eyebrow mb-8" style={{ color: theme.textMuted }}>Your Activity</p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+            <div className="p-8 transition-all" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>of {TRAINING_TOTAL} modules</span>
+              </div>
+              <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
+                <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
+              </div>
+              <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                {isAuthorized ? "Review Training →" : "Continue Training →"}
+              </Link>
+            </div>
+
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Leads</h3>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{leadsAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>total</span>
+              </div>
+              <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Leads sent to you from IAS.</div>
+              <Link href="/dealers/leads" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                View Leads →
+              </Link>
+            </div>
+
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Recent Quotes</h3>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{quotesAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>last 30 days</span>
+              </div>
+              <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>
+                Total value: <span className="font-semibold tabular-nums" style={{ color: theme.textPrimary }}>${quoteValueAnimated.toLocaleString()}</span>
+              </div>
+              <Link href="/dealers/tools/calculator" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                New Quote →
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>Recent Leads</h3>
+              {recentLeads.length === 0 ? (
+                <p className="text-sm font-body italic" style={{ color: theme.textMuted }}>
+                  No recent leads. New leads from IAS will appear here.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {recentLeads.map((lead, i) => (
+                    <div key={i} className="flex justify-between items-center pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                      <div>
+                        <p className="font-body font-semibold" style={{ color: theme.textPrimary }}>{lead.homeowner_name ?? "—"}</p>
+                        <p className="text-sm" style={{ color: theme.textSecondary }}>{formatLeadProject(lead)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: theme.gold }}>{formatStage(lead.stage)}</p>
+                        <p className="text-xs" style={{ color: theme.textMuted }}>{formatLeadDate(lead.received_at)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>News &amp; Announcements</h3>
+              <div className="space-y-4">
+                <div className="pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                  <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: theme.gold }}>New Product</p>
+                  <p className="font-body font-semibold mb-1" style={{ color: theme.textPrimary }}>Infinity Topless 2026 pricing now live</p>
+                  <p className="text-sm" style={{ color: theme.textSecondary }}>Updated US/Canada pricing reflects tariff adjustments. Calculator updated.</p>
+                </div>
+                <div className="pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                  <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: theme.gold }}>Training</p>
+                  <p className="font-body font-semibold mb-1" style={{ color: theme.textPrimary }}>New installation video — Fascia mount</p>
+                  <p className="text-sm" style={{ color: theme.textSecondary }}>Watch the latest training to maintain authorized status.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <ThemeSwitcher current={themeId} onChange={handleThemeChange} />
     </div>
   );
 }
