@@ -161,6 +161,111 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
   );
 }
 
+function SignaturePad({ onChange }: { onChange: (dataUrl: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSigned, setHasSigned] = useState(false);
+
+  function getPos(e: React.MouseEvent | React.TouchEvent) {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    let clientX, clientY;
+    if ("touches" in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+
+  function startDrawing(e: React.MouseEvent | React.TouchEvent) {
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    setIsDrawing(true);
+  }
+
+  function draw(e: React.MouseEvent | React.TouchEvent) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = "#0A0908";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    setHasSigned(true);
+  }
+
+  function stopDrawing() {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas && hasSigned) onChange(canvas.toDataURL("image/png"));
+  }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSigned(false);
+    onChange("");
+  }
+
+  return (
+    <div>
+      <div className="border-2 border-stone-300 bg-white">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={180}
+          className="w-full h-[180px] cursor-crosshair"
+          style={{ touchAction: "none" }}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+        />
+      </div>
+      <div className="flex justify-between mt-2">
+        <p className="font-body text-xs text-stone-500 italic">
+          {hasSigned ? "Signed ✓" : "Sign with your mouse or finger above"}
+        </p>
+        <button type="button" onClick={clear} className="text-xs uppercase tracking-wider text-stone-500 hover:text-ink font-body">
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const BUSINESS_TYPES = [
+  "General Contracting",
+  "Landscaping Design",
+  "Concrete Repair/Restoration",
+  "Deck Building",
+  "Railing Manufacturing",
+  "Aluminum Railing Manufacturing",
+  "Railing Installation",
+  "Other",
+];
+
 function CustomerForm({
   initiallySubmitted,
   onSubmitted,
@@ -182,16 +287,37 @@ function CustomerForm({
     postalCode: "",
     yearsInBusiness: "",
     website: "",
+    registeredBusinessNumber: "",
+    contractorLicenseNumber: "",
+    regionsSoldTo: "",
+    ownerName: "",
+    ownerEmail: "",
+    ownerPhone: "",
+    engineerRelationship: "" as "" | "yes" | "no",
     notes: "",
+    signatureName: "",
+    signatureTitle: "",
   });
+  const [businessTypes, setBusinessTypes] = useState<string[]>([]);
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
+  const [signature, setSignature] = useState("");
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setData({ ...data, [e.target.name]: e.target.value });
   }
 
+  function toggleBusinessType(type: string) {
+    setBusinessTypes((prev) => prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!signature) { setError("Please sign the form before submitting."); return; }
+    if (!newsletterOptIn) { setError("Please acknowledge the newsletter opt-in."); return; }
+    if (!data.signatureName.trim()) { setError("Please type your name to sign."); return; }
+
     setSubmitting(true);
 
     const { data: token, error: rpcError } = await supabase.rpc("create_pending_dealer", {
@@ -206,6 +332,18 @@ function CustomerForm({
       p_years_in_business: data.yearsInBusiness ? parseInt(data.yearsInBusiness) : null,
       p_website: data.website.trim() || null,
       p_notes: data.notes.trim() || null,
+      p_type_of_business: businessTypes.length > 0 ? businessTypes : null,
+      p_owner_name: data.ownerName.trim() || null,
+      p_owner_email: data.ownerEmail.trim() || null,
+      p_owner_phone: data.ownerPhone.trim() || null,
+      p_engineer_relationship: data.engineerRelationship ? data.engineerRelationship === "yes" : null,
+      p_newsletter_opt_in: newsletterOptIn,
+      p_signature_data: signature,
+      p_signature_name: data.signatureName.trim(),
+      p_signature_title: data.signatureTitle.trim() || null,
+      p_registered_business_number: data.registeredBusinessNumber.trim() || null,
+      p_contractor_license_number: data.contractorLicenseNumber.trim() || null,
+      p_regions_sold_to: data.regionsSoldTo.trim() || null,
     });
 
     if (rpcError || !token) {
@@ -215,13 +353,10 @@ function CustomerForm({
     }
 
     if (typeof window !== "undefined") {
-      localStorage.setItem(
-        PENDING_SIGNUP_KEY,
-        JSON.stringify({
-          contactName: data.contactName.trim(),
-          email: data.email.trim(),
-        })
-      );
+      localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({
+        contactName: data.contactName.trim(),
+        email: data.email.trim(),
+      }));
       localStorage.setItem(GUEST_FORM_KEY, "true");
       localStorage.setItem(REGISTRATION_TOKEN_KEY, token);
     }
@@ -229,7 +364,6 @@ function CustomerForm({
     setSubmitting(false);
     setSubmitted(true);
     onSubmitted(token);
-    // Note: NO redirect here. User stays on training to slide-complete the module.
   }
 
   if (submitted) {
@@ -254,67 +388,165 @@ function CustomerForm({
   return (
     <div className="bg-white border border-stone-200">
       <div className="p-6 border-b border-stone-200">
-        <h3 className="font-heading text-lg font-bold mb-1">New Customer Form</h3>
+        <h3 className="font-heading text-lg font-bold mb-1">New Customer Information</h3>
         <p className="font-body text-sm text-stone-600">Tell us about your business so we can set up your account properly.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Business Info */}
+        <div className="space-y-4">
+          <p className="eyebrow text-stone-500">Business Information</p>
+
           <div>
-            <label className="eyebrow text-stone-600 block mb-1">Company / Business Name *</label>
+            <label className="eyebrow text-stone-600 block mb-1">Company / Legal Business Name *</label>
             <input name="companyName" type="text" required value={data.companyName} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
+
           <div>
-            <label className="eyebrow text-stone-600 block mb-1">Contact Person *</label>
+            <label className="eyebrow text-stone-600 block mb-1">Primary Contact Person *</label>
             <input name="contactName" type="text" required value={data.contactName} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Email *</label>
+              <input name="email" type="email" required value={data.email} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Phone *</label>
+              <input name="phone" type="tel" required value={data.phone} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+          </div>
+
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Street Address *</label>
+            <input name="streetAddress" type="text" required value={data.streetAddress} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">City *</label>
+              <input name="city" type="text" required value={data.city} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Province / State *</label>
+              <input name="province" type="text" required value={data.province} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Postal Code *</label>
+              <input name="postalCode" type="text" required value={data.postalCode} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Years in Business</label>
+              <input name="yearsInBusiness" type="number" value={data.yearsInBusiness} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Website</label>
+              <input name="website" type="url" value={data.website} onChange={handleChange} placeholder="https://" className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Registered Business Number</label>
+              <input name="registeredBusinessNumber" type="text" value={data.registeredBusinessNumber} onChange={handleChange} placeholder="GST/HST or equivalent" className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Contractor License Number</label>
+              <input name="contractorLicenseNumber" type="text" value={data.contractorLicenseNumber} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+          </div>
+
+          <div>
+            <label className="eyebrow text-stone-600 block mb-1">Geographical Regions You Sell To</label>
+            <input name="regionsSoldTo" type="text" value={data.regionsSoldTo} onChange={handleChange} placeholder="e.g., Lower Mainland, Vancouver Island, Okanagan" className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="eyebrow text-stone-600 block mb-1">Email *</label>
-            <input name="email" type="email" required value={data.email} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
-          </div>
-          <div>
-            <label className="eyebrow text-stone-600 block mb-1">Phone *</label>
-            <input name="phone" type="tel" required value={data.phone} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
-          </div>
-        </div>
-
-        <div>
-          <label className="eyebrow text-stone-600 block mb-1">Street Address *</label>
-          <input name="streetAddress" type="text" required value={data.streetAddress} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="eyebrow text-stone-600 block mb-1">City *</label>
-            <input name="city" type="text" required value={data.city} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
-          </div>
-          <div>
-            <label className="eyebrow text-stone-600 block mb-1">Province *</label>
-            <input name="province" type="text" required value={data.province} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
-          </div>
-          <div>
-            <label className="eyebrow text-stone-600 block mb-1">Postal Code *</label>
-            <input name="postalCode" type="text" required value={data.postalCode} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+        {/* Type of Business */}
+        <div className="space-y-2 pt-4 border-t border-stone-200">
+          <p className="eyebrow text-stone-500 mb-2">Type of Business (select all that apply)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {BUSINESS_TYPES.map((type) => (
+              <label key={type} className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors ${businessTypes.includes(type) ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
+                <input type="checkbox" checked={businessTypes.includes(type)} onChange={() => toggleBusinessType(type)} className="flex-shrink-0" />
+                <span className="font-body text-sm">{type}</span>
+              </label>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Owner */}
+        <div className="space-y-4 pt-4 border-t border-stone-200">
+          <p className="eyebrow text-stone-500">Owner Information</p>
           <div>
-            <label className="eyebrow text-stone-600 block mb-1">Years in Business</label>
-            <input name="yearsInBusiness" type="number" value={data.yearsInBusiness} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            <label className="eyebrow text-stone-600 block mb-1">Owner&apos;s Name</label>
+            <input name="ownerName" type="text" value={data.ownerName} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
-          <div>
-            <label className="eyebrow text-stone-600 block mb-1">Website (optional)</label>
-            <input name="website" type="url" value={data.website} onChange={handleChange} placeholder="https://" className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Owner&apos;s Email</label>
+              <input name="ownerEmail" type="email" value={data.ownerEmail} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Owner&apos;s Cell</label>
+              <input name="ownerPhone" type="tel" value={data.ownerPhone} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
           </div>
         </div>
 
-        <div>
-          <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
+        {/* Engineer Relationship */}
+        <div className="pt-4 border-t border-stone-200">
+          <p className="eyebrow text-stone-600 mb-3">Do you have a working relationship with a qualified engineer?</p>
+          <p className="font-body text-xs text-stone-500 mb-3">Required for code-compliant railing engineering specs in many provinces.</p>
+          <div className="flex gap-2">
+            <label className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors flex-1 ${data.engineerRelationship === "yes" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
+              <input type="radio" name="engineerRelationship" value="yes" checked={data.engineerRelationship === "yes"} onChange={handleChange} />
+              <span className="font-body font-semibold text-sm">Yes</span>
+            </label>
+            <label className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors flex-1 ${data.engineerRelationship === "no" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
+              <input type="radio" name="engineerRelationship" value="no" checked={data.engineerRelationship === "no"} onChange={handleChange} />
+              <span className="font-body font-semibold text-sm">No</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="pt-4 border-t border-stone-200">
+          <label className="eyebrow text-stone-600 block mb-1">Additional Notes</label>
           <textarea name="notes" value={data.notes} onChange={handleChange} rows={3} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+        </div>
+
+        {/* Newsletter Opt-in */}
+        <div className="pt-4 border-t border-stone-200 bg-cream-dark p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" required checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} className="mt-1 flex-shrink-0" />
+            <p className="font-body text-sm text-ink leading-relaxed">
+              <span className="font-semibold">I acknowledge *</span> that I&apos;ll be added to Innovative Aluminum Systems and OnDeck Vinyl Works newsletters for important pricing and product updates. <span className="text-stone-600 italic">Your contact will not be sold.</span>
+            </p>
+          </label>
+        </div>
+
+        {/* Signature */}
+        <div className="pt-4 border-t border-stone-200 space-y-4">
+          <p className="eyebrow text-stone-600">Authorized Signature *</p>
+          <SignaturePad onChange={setSignature} />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Name (Please Print) *</label>
+              <input name="signatureName" type="text" required value={data.signatureName} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+            <div>
+              <label className="eyebrow text-stone-600 block mb-1">Title</label>
+              <input name="signatureTitle" type="text" value={data.signatureTitle} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
+            </div>
+          </div>
+
+          <p className="font-body text-xs text-stone-500">Date: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
         </div>
 
         {error && <p className="text-sm text-red-600 font-body">{error}</p>}
@@ -367,7 +599,6 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // Guest mode
         setIsGuest(true);
         const stored = typeof window !== "undefined" ? localStorage.getItem(GUEST_PROGRESS_KEY) : null;
         const guestCompleted = stored ? JSON.parse(stored) : [];
@@ -376,12 +607,11 @@ export default function OnboardingPage() {
         setFormSubmitted(formStored === "true");
         const tokenStored = typeof window !== "undefined" ? localStorage.getItem(REGISTRATION_TOKEN_KEY) : null;
         if (tokenStored) setRegistrationToken(tokenStored);
-        // Pick first incomplete that's also unlocked
         const firstAvailable = MODULES.find((m, idx) => {
           if (guestCompleted.includes(m.id)) return false;
           if (idx === 0) return true;
           if (!guestCompleted.includes(MODULES[idx - 1].id)) return false;
-          if (idx >= 2) return false; // guests can't access modules 3-5
+          if (idx >= 2) return false;
           return true;
         });
         if (firstAvailable) setActiveId(firstAvailable.id);
@@ -390,7 +620,6 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Logged in
       setIsGuest(false);
 
       const { data: progress } = await supabase
@@ -402,7 +631,6 @@ export default function OnboardingPage() {
       const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
       if (firstIncomplete) setActiveId(firstIncomplete.id);
 
-      // Logged-in users always have the form satisfied (registered → dealer record exists)
       setFormSubmitted(true);
 
       setLoading(false);
@@ -415,7 +643,6 @@ export default function OnboardingPage() {
     if (idx === 0) return true;
     const previousId = MODULES[idx - 1].id;
     if (!completed.includes(previousId)) return false;
-    // Modules 3-5 (idx 2, 3, 4) require login
     if (isGuest && idx >= 2) return false;
     return true;
   }
@@ -453,13 +680,11 @@ export default function OnboardingPage() {
     setTimeout(() => {
       setJustCompleted(null);
 
-      // For guests completing dealer-setup with a pending token: show account popup
       if (id === "dealer-setup" && isGuest && registrationToken) {
         setShowAccountPopup(true);
         return;
       }
 
-      // Otherwise advance to next available module
       const currentIdx = MODULES.findIndex((m) => m.id === id);
       const next = MODULES[currentIdx + 1];
       if (next && !(isGuest && currentIdx + 1 >= 2)) {
@@ -717,7 +942,6 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Account creation popup — shows after slide-completing module 2 as guest */}
       {showAccountPopup && registrationToken && (
         <div className="fixed inset-0 z-[60] bg-ink/80 flex items-center justify-center p-4">
           <div className="bg-cream max-w-md w-full p-8 shadow-2xl">
