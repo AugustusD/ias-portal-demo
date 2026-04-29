@@ -22,12 +22,19 @@ type Dealer = {
   years_in_business: number | null;
   website: string | null;
   notes: string | null;
-  credit_app_path: string | null;
-  credit_app_uploaded_at: string | null;
-  credit_app_admin_override: boolean;
-  customer_form_path: string | null;
-  customer_form_uploaded_at: string | null;
-  customer_form_admin_override: boolean;
+  type_of_business: string[] | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  owner_phone: string | null;
+  engineer_relationship: boolean | null;
+  newsletter_opt_in: boolean | null;
+  signature_data: string | null;
+  signature_name: string | null;
+  signature_title: string | null;
+  signature_signed_at: string | null;
+  registered_business_number: string | null;
+  contractor_license_number: string | null;
+  regions_sold_to: string | null;
 };
 
 type TeamMember = {
@@ -155,17 +162,6 @@ export default function DealerDetailPage() {
     load();
   }, [dealerId, router]);
 
-  async function viewDocument(path: string) {
-    const { data, error: urlErr } = await supabase.storage
-      .from("private-documents")
-      .createSignedUrl(path, 60);
-    if (urlErr || !data) {
-      alert("Couldn't generate file link: " + (urlErr?.message || "unknown"));
-      return;
-    }
-    window.open(data.signedUrl, "_blank");
-  }
-
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/admin/login");
@@ -191,6 +187,8 @@ export default function DealerDetailPage() {
   const wonLeads = leads.filter((l) => l.stage === "won");
   const activeLeads = leads.filter((l) => ["new", "accepted", "bid_submitted"].includes(l.stage));
   const totalWonValue = wonLeads.reduce((s, l) => s + (l.project_value || 0), 0);
+
+  const fullAddress = [dealer.street_address, dealer.city, dealer.province, dealer.postal_code].filter(Boolean).join(", ");
 
   return (
     <div className="bg-ink min-h-screen text-cream">
@@ -257,17 +255,17 @@ export default function DealerDetailPage() {
           </div>
         </div>
 
-        {/* Business Info (the customer form data) */}
+        {/* Business Info */}
         <div className="mb-10 bg-stone-900 border border-stone-800 p-6">
           <p className="eyebrow text-gold mb-4">Business Info</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 font-body">
             <div>
-              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Contact Person</p>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Primary Contact</p>
               <p className="text-cream">{dealer.contact_name || "—"}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Email</p>
-              <p className="text-cream">{dealer.email || "—"}</p>
+              <p className="text-cream break-all">{dealer.email || "—"}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Phone</p>
@@ -275,7 +273,7 @@ export default function DealerDetailPage() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Website</p>
-              <p className="text-cream">
+              <p className="text-cream break-all">
                 {dealer.website ? (
                   <a href={dealer.website} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">{dealer.website}</a>
                 ) : "—"}
@@ -283,9 +281,7 @@ export default function DealerDetailPage() {
             </div>
             <div className="md:col-span-2">
               <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Address</p>
-              <p className="text-cream">
-                {[dealer.street_address, dealer.city, dealer.province, dealer.postal_code].filter(Boolean).join(", ") || "—"}
-              </p>
+              <p className="text-cream">{fullAddress || "—"}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Years in Business</p>
@@ -295,16 +291,118 @@ export default function DealerDetailPage() {
               <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Joined IAS</p>
               <p className="text-cream">{formatDate(dealer.joined_date)}</p>
             </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Registered Business Number</p>
+              <p className="text-cream">{dealer.registered_business_number || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Contractor License #</p>
+              <p className="text-cream">{dealer.contractor_license_number || "—"}</p>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Geographical Regions Sold To</p>
+              <p className="text-cream">{dealer.regions_sold_to || "—"}</p>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-2">Type of Business</p>
+              {dealer.type_of_business && dealer.type_of_business.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {dealer.type_of_business.map((t) => (
+                    <span key={t} className="text-xs uppercase tracking-wider px-2.5 py-1 font-bold bg-stone-800 text-stone-200">{t}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-cream">—</p>
+              )}
+            </div>
             {dealer.notes && (
               <div className="md:col-span-2">
-                <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Notes</p>
+                <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Additional Notes</p>
                 <p className="text-cream whitespace-pre-wrap">{dealer.notes}</p>
               </div>
             )}
           </div>
         </div>
 
+        {/* Owner */}
+        <div className="mb-10 bg-stone-900 border border-stone-800 p-6">
+          <p className="eyebrow text-gold mb-4">Owner</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 font-body">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Name</p>
+              <p className="text-cream">{dealer.owner_name || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Email</p>
+              <p className="text-cream break-all">{dealer.owner_email || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Cell</p>
+              <p className="text-cream">{dealer.owner_phone || "—"}</p>
+            </div>
+          </div>
+        </div>
 
+        {/* Compliance */}
+        <div className="mb-10 bg-stone-900 border border-stone-800 p-6">
+          <p className="eyebrow text-gold mb-4">Compliance & Preferences</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 font-body">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Working with Qualified Engineer</p>
+              <p className="text-cream">
+                {dealer.engineer_relationship === true ? (
+                  <span className="text-green-400 font-semibold">✓ Yes</span>
+                ) : dealer.engineer_relationship === false ? (
+                  <span className="text-amber-400 font-semibold">✗ No</span>
+                ) : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Newsletter Subscription</p>
+              <p className="text-cream">
+                {dealer.newsletter_opt_in === true ? (
+                  <span className="text-green-400 font-semibold">✓ Subscribed</span>
+                ) : (
+                  <span className="text-stone-400">Not subscribed</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Authorized Signature */}
+        {(dealer.signature_data || dealer.signature_name) && (
+          <div className="mb-10 bg-stone-900 border border-stone-800 p-6">
+            <p className="eyebrow text-gold mb-4">Authorized Signature</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-body">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-stone-500 mb-2">Signature</p>
+                {dealer.signature_data ? (
+                  <div className="bg-cream p-3 inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={dealer.signature_data} alt="Authorized signature" className="max-h-32" />
+                  </div>
+                ) : (
+                  <p className="text-stone-400">No signature on file</p>
+                )}
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Signed By</p>
+                  <p className="text-cream">{dealer.signature_name || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Title</p>
+                  <p className="text-cream">{dealer.signature_title || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-stone-500 mb-1">Date Signed</p>
+                  <p className="text-cream">{formatDate(dealer.signature_signed_at)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Team */}
         <div className="mb-10 bg-stone-900 border border-stone-800 overflow-hidden">
