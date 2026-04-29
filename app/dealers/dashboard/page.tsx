@@ -515,8 +515,6 @@ export default function DashboardPage() {
 
   const trainingAnimated = useCountUp(completedCount, 900, animationsReady);
   const leadsAnimated = useCountUp(leadsCount, 1000, animationsReady);
-  const quotesAnimated = useCountUp(isGuest ? 0 : 7, 1100, animationsReady);
-  const quoteValueAnimated = useCountUp(isGuest ? 0 : 84250, 1400, animationsReady);
 
   if (loading || !dealer) {
     return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
@@ -625,20 +623,20 @@ export default function DashboardPage() {
           <p className="eyebrow mb-8" style={{ color: theme.textMuted }}>Your Activity</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-            <div className="p-8 transition-all" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
-              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
+            {/* Current Order Status — placeholder until orders backend is built */}
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Current Order Status</h3>
               <div className="flex items-end gap-2 mb-4">
-                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
-                <span className="mb-2" style={{ color: theme.textMuted }}>of {TRAINING_TOTAL} modules</span>
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>0</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>active</span>
               </div>
-              <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
-                <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
-              </div>
-              <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
-                {isAuthorized ? "Review Training →" : "Continue Training →"}
+              <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Track current orders and view past order history.</div>
+              <Link href={isGuest ? "/dealers/training" : "/dealers/orders"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                {isGuest ? "Complete Onboarding →" : "View Orders →"}
               </Link>
             </div>
 
+            {/* Leads */}
             <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
               <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Leads</h3>
               <div className="flex items-end gap-2 mb-4">
@@ -651,17 +649,18 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
-              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Recent Quotes</h3>
+            {/* Training Progress */}
+            <div className="p-8 transition-all" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
               <div className="flex items-end gap-2 mb-4">
-                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{quotesAnimated}</span>
-                <span className="mb-2" style={{ color: theme.textMuted }}>last 30 days</span>
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>of {TRAINING_TOTAL} modules</span>
               </div>
-              <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>
-                Total value: <span className="font-semibold tabular-nums" style={{ color: theme.textPrimary }}>${quoteValueAnimated.toLocaleString()}</span>
+              <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
+                <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
               </div>
-              <Link href={isGuest ? "/dealers/training" : "/dealers/tools/calculator"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
-                {isGuest ? "Complete Onboarding →" : "New Quote →"}
+              <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                {isAuthorized ? "Review Training →" : "Continue Training →"}
               </Link>
             </div>
           </div>
