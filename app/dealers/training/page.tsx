@@ -86,9 +86,7 @@ const MODULES: Module[] = [
 const GUEST_PROGRESS_KEY = "ias_guest_onboarding_progress";
 const GUEST_FORM_KEY = "ias_guest_customer_form_submitted";
 const PENDING_SIGNUP_KEY = "ias_pending_signup";
-
-// Modules with index >= GUEST_LIMIT_INDEX require login (modules 3, 4, 5 = indexes 2, 3, 4)
-const GUEST_LIMIT_INDEX = 2;
+const REGISTRATION_TOKEN_KEY = "ias_registration_token";
 
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -168,9 +166,8 @@ function CustomerForm({
   onSubmitted,
 }: {
   initiallySubmitted: boolean;
-  onSubmitted: () => void;
+  onSubmitted: (token: string | null) => void;
 }) {
-  const router = useRouter();
   const [submitted, setSubmitted] = useState(initiallySubmitted);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -226,13 +223,13 @@ function CustomerForm({
         })
       );
       localStorage.setItem(GUEST_FORM_KEY, "true");
+      localStorage.setItem(REGISTRATION_TOKEN_KEY, token);
     }
 
     setSubmitting(false);
     setSubmitted(true);
-    onSubmitted();
-
-    router.push(`/dealers/register/${token}`);
+    onSubmitted(token);
+    // Note: NO redirect here. User stays on training to slide-complete the module.
   }
 
   if (submitted) {
@@ -246,9 +243,7 @@ function CustomerForm({
             </svg>
             <div>
               <p className="font-body font-semibold mb-1">Submitted to IAS</p>
-              <p className="font-body text-sm text-stone-600">
-                Continue to create your dealer account to finish setup.
-              </p>
+              <p className="font-body text-sm text-stone-600">Slide the bar below to complete this module and create your account.</p>
             </div>
           </div>
         </div>
@@ -260,157 +255,76 @@ function CustomerForm({
     <div className="bg-white border border-stone-200">
       <div className="p-6 border-b border-stone-200">
         <h3 className="font-heading text-lg font-bold mb-1">New Customer Form</h3>
-        <p className="font-body text-sm text-stone-600">
-          Tell us about your business so we can set up your account properly. After submitting, you&apos;ll set your password and get a shareable link to invite your coworkers.
-        </p>
+        <p className="font-body text-sm text-stone-600">Tell us about your business so we can set up your account properly.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Company / Business Name *</label>
-            <input
-              name="companyName"
-              type="text"
-              required
-              value={data.companyName}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="companyName" type="text" required value={data.companyName} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Contact Person *</label>
-            <input
-              name="contactName"
-              type="text"
-              required
-              value={data.contactName}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="contactName" type="text" required value={data.contactName} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Email *</label>
-            <input
-              name="email"
-              type="email"
-              required
-              value={data.email}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="email" type="email" required value={data.email} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Phone *</label>
-            <input
-              name="phone"
-              type="tel"
-              required
-              value={data.phone}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="phone" type="tel" required value={data.phone} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
         </div>
 
         <div>
           <label className="eyebrow text-stone-600 block mb-1">Street Address *</label>
-          <input
-            name="streetAddress"
-            type="text"
-            required
-            value={data.streetAddress}
-            onChange={handleChange}
-            className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-          />
+          <input name="streetAddress" type="text" required value={data.streetAddress} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
         </div>
 
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="eyebrow text-stone-600 block mb-1">City *</label>
-            <input
-              name="city"
-              type="text"
-              required
-              value={data.city}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="city" type="text" required value={data.city} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Province *</label>
-            <input
-              name="province"
-              type="text"
-              required
-              value={data.province}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="province" type="text" required value={data.province} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Postal Code *</label>
-            <input
-              name="postalCode"
-              type="text"
-              required
-              value={data.postalCode}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="postalCode" type="text" required value={data.postalCode} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Years in Business</label>
-            <input
-              name="yearsInBusiness"
-              type="number"
-              value={data.yearsInBusiness}
-              onChange={handleChange}
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="yearsInBusiness" type="number" value={data.yearsInBusiness} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
           <div>
             <label className="eyebrow text-stone-600 block mb-1">Website (optional)</label>
-            <input
-              name="website"
-              type="url"
-              value={data.website}
-              onChange={handleChange}
-              placeholder="https://"
-              className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-            />
+            <input name="website" type="url" value={data.website} onChange={handleChange} placeholder="https://" className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
         </div>
 
         <div>
           <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
-          <textarea
-            name="notes"
-            value={data.notes}
-            onChange={handleChange}
-            rows={3}
-            className="w-full border border-stone-300 px-3 py-2 font-body bg-white"
-          />
+          <textarea name="notes" value={data.notes} onChange={handleChange} rows={3} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
         </div>
 
         {error && <p className="text-sm text-red-600 font-body">{error}</p>}
 
         <div className="pt-4 border-t border-stone-200">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn-gold w-full md:w-auto px-8"
-          >
-            {submitting ? "Submitting..." : "Submit and Continue →"}
+          <button type="submit" disabled={submitting} className="btn-gold w-full md:w-auto px-8">
+            {submitting ? "Submitting..." : "Submit to IAS"}
           </button>
           <p className="font-body text-xs text-stone-500 mt-2">
-            Next step: create your password and invite your coworkers.
+            By submitting, you confirm the information above is accurate. Your form will be reviewed within 1 business day.
           </p>
         </div>
       </form>
@@ -444,26 +358,41 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [registrationToken, setRegistrationToken] = useState<string | null>(null);
   const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
+  const [showAccountPopup, setShowAccountPopup] = useState(false);
 
   useEffect(() => {
     async function loadProgress() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
+        // Guest mode
         setIsGuest(true);
         const stored = typeof window !== "undefined" ? localStorage.getItem(GUEST_PROGRESS_KEY) : null;
         const guestCompleted = stored ? JSON.parse(stored) : [];
         setCompleted(guestCompleted);
         const formStored = typeof window !== "undefined" ? localStorage.getItem(GUEST_FORM_KEY) : null;
         setFormSubmitted(formStored === "true");
-        const firstIncomplete = MODULES.find((m) => !guestCompleted.includes(m.id));
-        if (firstIncomplete) setActiveId(firstIncomplete.id);
+        const tokenStored = typeof window !== "undefined" ? localStorage.getItem(REGISTRATION_TOKEN_KEY) : null;
+        if (tokenStored) setRegistrationToken(tokenStored);
+        // Pick first incomplete that's also unlocked
+        const firstAvailable = MODULES.find((m, idx) => {
+          if (guestCompleted.includes(m.id)) return false;
+          if (idx === 0) return true;
+          if (!guestCompleted.includes(MODULES[idx - 1].id)) return false;
+          if (idx >= 2) return false; // guests can't access modules 3-5
+          return true;
+        });
+        if (firstAvailable) setActiveId(firstAvailable.id);
+        else if (guestCompleted.includes("dealer-setup")) setActiveId("dealer-setup");
         setLoading(false);
         return;
       }
 
+      // Logged in
       setIsGuest(false);
+
       const { data: progress } = await supabase
         .from("training_progress")
         .select("module_id")
@@ -473,8 +402,8 @@ export default function OnboardingPage() {
       const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
       if (firstIncomplete) setActiveId(firstIncomplete.id);
 
-      const formStored = typeof window !== "undefined" ? localStorage.getItem(GUEST_FORM_KEY) : null;
-      setFormSubmitted(formStored === "true");
+      // Logged-in users always have the form satisfied (registered → dealer record exists)
+      setFormSubmitted(true);
 
       setLoading(false);
     }
@@ -484,21 +413,17 @@ export default function OnboardingPage() {
   function isModuleUnlocked(moduleId: string): boolean {
     const idx = MODULES.findIndex((m) => m.id === moduleId);
     if (idx === 0) return true;
-    // Modules 3+ require an account
-    if (isGuest && idx >= GUEST_LIMIT_INDEX) return false;
     const previousId = MODULES[idx - 1].id;
-    return completed.includes(previousId);
-  }
-
-  function isGuestLocked(moduleId: string): boolean {
-    const idx = MODULES.findIndex((m) => m.id === moduleId);
-    return isGuest && idx >= GUEST_LIMIT_INDEX;
+    if (!completed.includes(previousId)) return false;
+    // Modules 3-5 (idx 2, 3, 4) require login
+    if (isGuest && idx >= 2) return false;
+    return true;
   }
 
   function handleModuleClick(moduleId: string) {
     if (!isModuleUnlocked(moduleId)) {
       setLockedClickFeedback(moduleId);
-      setTimeout(() => setLockedClickFeedback(null), 1800);
+      setTimeout(() => setLockedClickFeedback(null), 1500);
       return;
     }
     setActiveId(moduleId);
@@ -527,9 +452,17 @@ export default function OnboardingPage() {
     setJustCompleted(id);
     setTimeout(() => {
       setJustCompleted(null);
+
+      // For guests completing dealer-setup with a pending token: show account popup
+      if (id === "dealer-setup" && isGuest && registrationToken) {
+        setShowAccountPopup(true);
+        return;
+      }
+
+      // Otherwise advance to next available module
       const currentIdx = MODULES.findIndex((m) => m.id === id);
       const next = MODULES[currentIdx + 1];
-      if (next && isModuleUnlocked(next.id)) {
+      if (next && !(isGuest && currentIdx + 1 >= 2)) {
         setActiveId(next.id);
         const el = document.getElementById("active-module");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -537,9 +470,9 @@ export default function OnboardingPage() {
     }, 2000);
   }
 
-  function handleFormSubmitted() {
+  function handleFormSubmitted(token: string | null) {
     setFormSubmitted(true);
-    localStorage.setItem(GUEST_FORM_KEY, "true");
+    if (token) setRegistrationToken(token);
   }
 
   if (loading) {
@@ -587,9 +520,6 @@ export default function OnboardingPage() {
                   Authorized
                 </span>
               )}
-              {isGuest && (
-                <Link href="/dealers/login" className="text-xs font-body uppercase tracking-wider text-gold hover:text-gold-hover">Sign in →</Link>
-              )}
             </div>
           </div>
           <div className="w-full bg-stone-200 h-1 overflow-hidden">
@@ -607,7 +537,7 @@ export default function OnboardingPage() {
           {isAuthorized
             ? "All onboarding modules complete. You now have full access to the IAS dealer network."
             : isGuest
-            ? "Walk through the first two modules to introduce yourself to IAS. To continue beyond module 2, you'll create an account so we can save your progress."
+            ? "Walk through Modules 1 and 2 to learn about IAS and submit your business info. After that you'll create your account to unlock the rest."
             : "Complete each module in order to unlock your authorized dealer status, premium pricing, and lead distribution."}
         </p>
       </div>
@@ -618,8 +548,11 @@ export default function OnboardingPage() {
             const isComplete = completed.includes(mod.id);
             const isActive = mod.id === activeId;
             const isUnlocked = isModuleUnlocked(mod.id);
-            const guestLocked = isGuestLocked(mod.id);
             const isJiggling = lockedClickFeedback === mod.id;
+            const lockedReason =
+              isGuest && idx >= 2 && completed.includes("dealer-setup")
+                ? "Create your account to continue"
+                : "Complete previous module first";
 
             return (
               <button
@@ -661,13 +594,8 @@ export default function OnboardingPage() {
                   {mod.title}
                 </p>
                 <p className="text-xs text-stone-400">{mod.duration}</p>
-                {guestLocked && !isJiggling && (
-                  <p className="text-[10px] text-gold font-body font-bold uppercase tracking-widest mt-2">Account required</p>
-                )}
                 {isJiggling && (
-                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">
-                    {guestLocked ? "Create an account to continue" : "Complete previous module first"}
-                  </p>
+                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">{lockedReason}</p>
                 )}
               </button>
             );
@@ -747,7 +675,6 @@ export default function OnboardingPage() {
                 {MODULES.map((mod) => {
                   const isComplete = completed.includes(mod.id);
                   const unlocked = isModuleUnlocked(mod.id);
-                  const guestLocked = isGuestLocked(mod.id);
                   return (
                     <div key={mod.id} className="flex items-center gap-3 text-sm font-body">
                       {isComplete ? (
@@ -766,25 +693,61 @@ export default function OnboardingPage() {
                       <span className={isComplete ? "line-through text-stone-400" : !unlocked ? "text-stone-500" : ""}>
                         {mod.title}
                       </span>
-                      {guestLocked && (
-                        <span className="ml-auto text-[10px] uppercase tracking-widest text-gold font-bold">Account</span>
-                      )}
                     </div>
                   );
                 })}
               </div>
               {isGuest && (
                 <div className="border-t border-stone-700 pt-6">
-                  <p className="font-body text-sm text-cream/70 mb-3">
-                    Modules 3 through 5 require an account. After you submit the customer form in module 2, you&apos;ll be able to create your login.
+                  <p className="font-body text-sm text-cream/70 mb-3 leading-relaxed">
+                    Modules 3 through 5 require an account. After you submit the customer form in Module 2, you&apos;ll be able to create your login.
                   </p>
-                  <Link href="/dealers/login" className="btn-gold text-xs px-5 py-2.5 inline-block">Sign In</Link>
+                  {formSubmitted && registrationToken && (
+                    <Link
+                      href={`/dealers/register/${registrationToken}`}
+                      className="btn-gold text-xs px-5 py-2.5 inline-block"
+                    >
+                      Create my account →
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Account creation popup — shows after slide-completing module 2 as guest */}
+      {showAccountPopup && registrationToken && (
+        <div className="fixed inset-0 z-[60] bg-ink/80 flex items-center justify-center p-4">
+          <div className="bg-cream max-w-md w-full p-8 shadow-2xl">
+            <div className="w-16 h-16 bg-gold rounded-full flex items-center justify-center mx-auto mb-5">
+              <svg width="36" height="36" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10L9 14L15 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p className="eyebrow text-gold mb-2 text-center">Modules 1 &amp; 2 Complete</p>
+            <h2 className="font-heading text-3xl font-bold mb-3 text-center">Time to create your account.</h2>
+            <p className="font-body text-sm text-stone-600 mb-6 text-center leading-relaxed">
+              You&apos;re ready to continue. Create your dealer login to unlock Modules 3, 4, and 5 and join the IAS dealer network.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Link
+                href={`/dealers/register/${registrationToken}`}
+                className="btn-gold text-center"
+              >
+                Create my account →
+              </Link>
+              <button
+                onClick={() => setShowAccountPopup(false)}
+                className="text-xs font-body uppercase tracking-wider text-stone-500 hover:text-ink transition-colors py-2"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
