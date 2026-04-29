@@ -183,6 +183,18 @@ function useCountUp(target: number, duration: number = 1200, enabled: boolean = 
   return value;
 }
 
+function LockedOverlay({ theme }: { theme: Theme }) {
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
+      style={{ background: "rgba(10, 9, 8, 0.78)" }}
+    >
+      <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>Locked</p>
+      <p className="font-heading text-base font-bold text-cream text-center px-4">Complete Onboarding to Access</p>
+    </div>
+  );
+}
+
 function AuthorizedBadge({ authorized, progress, theme }: { authorized: boolean; progress: number; theme: Theme }) {
   const fillPercent = authorized ? 100 : progress * 100;
 
@@ -280,20 +292,14 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
   locked?: boolean;
 }) {
   const [isHover, setIsHover] = useState(false);
-
   const bg = isHover && !locked ? theme.toolHoverBg : theme.toolBg;
   const mainText = isHover && !locked ? theme.toolHoverText : theme.toolText;
   const accentColor = isHover && !locked ? theme.toolHoverText : theme.toolEyebrow;
-
   const border = theme.id === "architect" ? "2px solid #000000" : "none";
 
-  // When locked, render as a static div (not clickable)
   if (locked) {
     return (
-      <div
-        className="block p-7 relative overflow-hidden cursor-not-allowed"
-        style={{ background: theme.toolBg, color: theme.toolText, boxShadow: theme.cardShadow, border, opacity: 0.85 }}
-      >
+      <div className="block p-7 relative overflow-hidden cursor-not-allowed" style={{ background: theme.toolBg, color: theme.toolText, boxShadow: theme.cardShadow, border, opacity: 0.85 }}>
         <div className="flex items-start justify-between mb-4">
           <p className="eyebrow" style={{ color: theme.toolEyebrow }}>{eyebrow}</p>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: theme.toolEyebrow }}>
@@ -303,13 +309,7 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
         </div>
         <h3 className="font-heading text-2xl font-bold mb-2" style={{ color: theme.toolText }}>{title}</h3>
         <p className="font-body text-sm" style={{ color: theme.toolText, opacity: 0.6 }}>{subtitle}</p>
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
-          style={{ background: "rgba(10, 9, 8, 0.78)" }}
-        >
-          <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>Locked</p>
-          <p className="font-heading text-lg font-bold text-cream mb-2">Sign in to access</p>
-        </div>
+        <LockedOverlay theme={theme} />
       </div>
     );
   }
@@ -318,13 +318,7 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
   const props: any = external ? { href, target: "_blank", rel: "noopener noreferrer" } : { href };
 
   return (
-    <Component
-      {...props}
-      className="block p-7 transition-colors duration-200 relative overflow-hidden"
-      style={{ background: bg, color: mainText, boxShadow: theme.cardShadow, border }}
-      onMouseEnter={() => setIsHover(true)}
-      onMouseLeave={() => setIsHover(false)}
-    >
+    <Component {...props} className="block p-7 transition-colors duration-200 relative overflow-hidden" style={{ background: bg, color: mainText, boxShadow: theme.cardShadow, border }} onMouseEnter={() => setIsHover(true)} onMouseLeave={() => setIsHover(false)}>
       <div className="flex items-start justify-between mb-4">
         <p className="eyebrow" style={{ color: accentColor }}>{eyebrow}</p>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: accentColor }}>
@@ -333,12 +327,8 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
       </div>
       <h3 className="font-heading text-2xl font-bold mb-2" style={{ color: mainText }}>{title}</h3>
       <p className="font-body text-sm" style={{ color: mainText, opacity: 0.8 }}>{subtitle}</p>
-
       {inDevelopment && (
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
-          style={{ background: "rgba(10, 9, 8, 0.78)" }}
-        >
+        <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none" style={{ background: "rgba(10, 9, 8, 0.78)" }}>
           <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>In Development</p>
           <p className="font-heading text-lg font-bold text-cream mb-2">Coming soon</p>
           <p className="text-[10px] font-body uppercase tracking-widest text-cream/60">Peek inside →</p>
@@ -359,7 +349,6 @@ function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck, locked,
   highlight?: boolean;
 }) {
   const [isHover, setIsHover] = useState(false);
-
   const bg = isHover && !locked ? theme.accountHoverBg : theme.accountBg;
   const mainText = isHover && !locked ? theme.accountHoverText : theme.textPrimary;
   const secondaryText = isHover && !locked ? theme.accountHoverText : theme.textSecondary;
@@ -367,10 +356,7 @@ function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck, locked,
 
   if (locked) {
     return (
-      <div
-        className="block p-6 relative cursor-not-allowed"
-        style={{ background: theme.accountBg, color: theme.textPrimary, boxShadow: theme.cardShadow, opacity: 0.7 }}
-      >
+      <div className="block p-6 relative cursor-not-allowed overflow-hidden" style={{ background: theme.accountBg, color: theme.textPrimary, boxShadow: theme.cardShadow, opacity: 0.85 }}>
         <div className="flex items-start justify-between mb-3">
           <p className="eyebrow" style={{ color: theme.textMuted }}>{eyebrow}</p>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: theme.textMuted }}>
@@ -379,7 +365,8 @@ function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck, locked,
           </svg>
         </div>
         <h3 className="font-heading text-xl font-bold mb-2" style={{ color: theme.textMuted }}>{title}</h3>
-        <p className="font-body text-sm" style={{ color: theme.textMuted }}>Sign in to access</p>
+        <p className="font-body text-sm" style={{ color: theme.textMuted }}>{subtitle}</p>
+        <LockedOverlay theme={theme} />
       </div>
     );
   }
@@ -387,26 +374,11 @@ function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck, locked,
   return (
     <div className="relative">
       {highlight && (
-        <div
-          className="absolute -top-3 left-4 z-10 px-3 py-1 text-[10px] font-body font-bold uppercase tracking-widest"
-          style={{ background: theme.gold, color: theme.id === "architect" ? "#FFFFFF" : "#0A0908" }}
-        >
+        <div className="absolute -top-3 left-4 z-10 px-3 py-1 text-[10px] font-body font-bold uppercase tracking-widest" style={{ background: theme.gold, color: theme.id === "architect" ? "#FFFFFF" : "#0A0908" }}>
           ★ Start Here →
         </div>
       )}
-      <Link
-        href={href}
-        className="block p-6 transition-colors duration-200"
-        style={{
-          background: bg,
-          color: mainText,
-          boxShadow: highlight
-            ? `0 0 0 2px ${theme.gold}, 0 8px 30px ${theme.gold}40`
-            : theme.cardShadow,
-        }}
-        onMouseEnter={() => setIsHover(true)}
-        onMouseLeave={() => setIsHover(false)}
-      >
+      <Link href={href} className="block p-6 transition-colors duration-200" style={{ background: bg, color: mainText, boxShadow: highlight ? `0 0 0 2px ${theme.gold}, 0 8px 30px ${theme.gold}40` : theme.cardShadow }} onMouseEnter={() => setIsHover(true)} onMouseLeave={() => setIsHover(false)}>
         <div className="flex items-start justify-between mb-3">
           <p className="eyebrow" style={{ color: accentColor }}>{eyebrow}</p>
           {showCheck && (
@@ -424,8 +396,7 @@ function AccountTile({ theme, href, eyebrow, title, subtitle, showCheck, locked,
 }
 
 function formatLeadDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function formatLeadProject(lead: RecentLead): string {
@@ -436,10 +407,7 @@ function formatLeadProject(lead: RecentLead): string {
 }
 
 function formatStage(stage: string): string {
-  return stage
-    .split("_")
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(" ");
+  return stage.split("_").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
 }
 
 export default function DashboardPage() {
@@ -458,14 +426,12 @@ export default function DashboardPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Theme preference (works for guests too)
       const savedTheme = typeof window !== "undefined" ? localStorage.getItem("ias_dashboard_theme") : null;
       if (savedTheme && THEMES.find(t => t.id === savedTheme)) {
         setThemeId(savedTheme as ThemeId);
       }
 
       if (!user) {
-        // GUEST MODE: read training progress from localStorage, no DB queries
         setIsGuest(true);
         setDealer({ name: "Guest", email: "" });
         const guestProgress = typeof window !== "undefined" ? localStorage.getItem("ias_guest_onboarding_progress") : null;
@@ -473,9 +439,7 @@ export default function DashboardPage() {
           try {
             const arr = JSON.parse(guestProgress);
             setCompletedCount(Array.isArray(arr) ? arr.length : 0);
-          } catch {
-            setCompletedCount(0);
-          }
+          } catch { setCompletedCount(0); }
         }
         setRecentLeads([]);
         setLeadsCount(0);
@@ -484,7 +448,6 @@ export default function DashboardPage() {
         return;
       }
 
-      // LOGGED IN MODE
       setIsGuest(false);
 
       const { data: profile } = await supabase
@@ -530,7 +493,19 @@ export default function DashboardPage() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("ias_dealer");
     }
-    router.push("/dealers/dashboard");
+    setIsGuest(true);
+    setDealer({ name: "Guest", email: "" });
+    setRecentLeads([]);
+    setLeadsCount(0);
+    const guestProgress = typeof window !== "undefined" ? localStorage.getItem("ias_guest_onboarding_progress") : null;
+    if (guestProgress) {
+      try {
+        const arr = JSON.parse(guestProgress);
+        setCompletedCount(Array.isArray(arr) ? arr.length : 0);
+      } catch { setCompletedCount(0); }
+    } else {
+      setCompletedCount(0);
+    }
   }
 
   function handleThemeChange(newThemeId: ThemeId) {
@@ -550,19 +525,10 @@ export default function DashboardPage() {
   const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
   const trainingPercent = (completedCount / TRAINING_TOTAL) * 100;
   const isAuthorized = !isGuest && completedCount === TRAINING_TOTAL;
-
   const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
 
   return (
-    <div
-      style={{
-        background: theme.bg,
-        color: theme.textPrimary,
-        transition: "background 0.4s, color 0.4s",
-        backgroundImage: theme.bgPattern,
-        backgroundSize: theme.bgPattern ? "40px 40px" : undefined,
-      }}
-    >
+    <div style={{ background: theme.bg, color: theme.textPrimary, transition: "background 0.4s, color 0.4s", backgroundImage: theme.bgPattern, backgroundSize: theme.bgPattern ? "40px 40px" : undefined }}>
       <div className="section-container section-padding">
         {/* HERO */}
         <div className="mb-12">
@@ -589,29 +555,11 @@ export default function DashboardPage() {
               </div>
             </div>
             {isGuest ? (
-              <Link
-                href="/dealers/login"
-                className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors"
-                style={{
-                  borderColor: theme.gold,
-                  color: theme.id === "architect" ? "#FFFFFF" : "#0A0908",
-                  background: theme.gold,
-                }}
-              >
+              <Link href="/dealers/login" className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors" style={{ borderColor: theme.gold, color: theme.id === "architect" ? "#FFFFFF" : "#0A0908", background: theme.gold }}>
                 Log In
               </Link>
             ) : (
-              <button
-                onClick={handleLogout}
-                onMouseEnter={() => setLogoutHover(true)}
-                onMouseLeave={() => setLogoutHover(false)}
-                className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors"
-                style={{
-                  borderColor: theme.logoutBorder,
-                  color: logoutHover ? theme.bg : theme.logoutText,
-                  background: logoutHover ? theme.logoutHoverBg : "transparent",
-                }}
-              >
+              <button onClick={handleLogout} onMouseEnter={() => setLogoutHover(true)} onMouseLeave={() => setLogoutHover(false)} className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors" style={{ borderColor: theme.logoutBorder, color: logoutHover ? theme.bg : theme.logoutText, background: logoutHover ? theme.logoutHoverBg : "transparent" }}>
                 Log Out
               </button>
             )}
@@ -672,96 +620,94 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Analytics — hidden for guests */}
-        {!isGuest && (
-          <div className="pt-16" style={{ borderTop: `1px solid ${theme.divider}` }}>
-            <p className="eyebrow mb-8" style={{ color: theme.textMuted }}>Your Activity</p>
+        {/* ANALYTICS — always visible, zeros for guests */}
+        <div className="pt-16" style={{ borderTop: `1px solid ${theme.divider}` }}>
+          <p className="eyebrow mb-8" style={{ color: theme.textMuted }}>Your Activity</p>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-              <div className="p-8 transition-all" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
-                <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
-                <div className="flex items-end gap-2 mb-4">
-                  <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
-                  <span className="mb-2" style={{ color: theme.textMuted }}>of {TRAINING_TOTAL} modules</span>
-                </div>
-                <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
-                  <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
-                </div>
-                <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
-                  {isAuthorized ? "Review Training →" : "Continue Training →"}
-                </Link>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+            <div className="p-8 transition-all" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Training Progress</h3>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{trainingAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>of {TRAINING_TOTAL} modules</span>
               </div>
-
-              <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
-                <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Leads</h3>
-                <div className="flex items-end gap-2 mb-4">
-                  <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{leadsAnimated}</span>
-                  <span className="mb-2" style={{ color: theme.textMuted }}>total</span>
-                </div>
-                <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Leads sent to you from IAS.</div>
-                <Link href="/dealers/leads" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
-                  View Leads →
-                </Link>
+              <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
+                <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
               </div>
-
-              <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
-                <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Recent Quotes</h3>
-                <div className="flex items-end gap-2 mb-4">
-                  <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{quotesAnimated}</span>
-                  <span className="mb-2" style={{ color: theme.textMuted }}>last 30 days</span>
-                </div>
-                <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>
-                  Total value: <span className="font-semibold tabular-nums" style={{ color: theme.textPrimary }}>${quoteValueAnimated.toLocaleString()}</span>
-                </div>
-                <Link href="/dealers/tools/calculator" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
-                  New Quote →
-                </Link>
-              </div>
+              <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                {isAuthorized ? "Review Training →" : "Continue Training →"}
+              </Link>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>Recent Leads</h3>
-                {recentLeads.length === 0 ? (
-                  <p className="text-sm font-body italic" style={{ color: theme.textMuted }}>
-                    No recent leads. New leads from IAS will appear here.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {recentLeads.map((lead, i) => (
-                      <div key={i} className="flex justify-between items-center pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
-                        <div>
-                          <p className="font-body font-semibold" style={{ color: theme.textPrimary }}>{lead.homeowner_name ?? "—"}</p>
-                          <p className="text-sm" style={{ color: theme.textSecondary }}>{formatLeadProject(lead)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: theme.gold }}>{formatStage(lead.stage)}</p>
-                          <p className="text-xs" style={{ color: theme.textMuted }}>{formatLeadDate(lead.received_at)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Leads</h3>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{leadsAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>total</span>
               </div>
+              <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Leads sent to you from IAS.</div>
+              <Link href={isGuest ? "/dealers/training" : "/dealers/leads"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                {isGuest ? "Complete Onboarding →" : "View Leads →"}
+              </Link>
+            </div>
 
-              <div>
-                <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>News &amp; Announcements</h3>
+            <div className="p-8" style={{ background: theme.cardBg, border: borderStyle, boxShadow: theme.cardShadow }}>
+              <h3 className="font-heading text-xl font-bold mb-4" style={{ color: theme.textPrimary }}>Recent Quotes</h3>
+              <div className="flex items-end gap-2 mb-4">
+                <span className="text-5xl font-heading font-bold tabular-nums" style={{ color: theme.textPrimary }}>{quotesAnimated}</span>
+                <span className="mb-2" style={{ color: theme.textMuted }}>last 30 days</span>
+              </div>
+              <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>
+                Total value: <span className="font-semibold tabular-nums" style={{ color: theme.textPrimary }}>${quoteValueAnimated.toLocaleString()}</span>
+              </div>
+              <Link href={isGuest ? "/dealers/training" : "/dealers/tools/calculator"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+                {isGuest ? "Complete Onboarding →" : "New Quote →"}
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>Recent Leads</h3>
+              {recentLeads.length === 0 ? (
+                <p className="text-sm font-body italic" style={{ color: theme.textMuted }}>
+                  {isGuest ? "Complete onboarding to start receiving leads from IAS." : "No recent leads. New leads from IAS will appear here."}
+                </p>
+              ) : (
                 <div className="space-y-4">
-                  <div className="pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
-                    <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: theme.gold }}>New Product</p>
-                    <p className="font-body font-semibold mb-1" style={{ color: theme.textPrimary }}>Infinity Topless 2026 pricing now live</p>
-                    <p className="text-sm" style={{ color: theme.textSecondary }}>Updated US/Canada pricing reflects tariff adjustments. Calculator updated.</p>
-                  </div>
-                  <div className="pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
-                    <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: theme.gold }}>Training</p>
-                    <p className="font-body font-semibold mb-1" style={{ color: theme.textPrimary }}>New installation video — Fascia mount</p>
-                    <p className="text-sm" style={{ color: theme.textSecondary }}>Watch the latest training to maintain authorized status.</p>
-                  </div>
+                  {recentLeads.map((lead, i) => (
+                    <div key={i} className="flex justify-between items-center pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                      <div>
+                        <p className="font-body font-semibold" style={{ color: theme.textPrimary }}>{lead.homeowner_name ?? "—"}</p>
+                        <p className="text-sm" style={{ color: theme.textSecondary }}>{formatLeadProject(lead)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: theme.gold }}>{formatStage(lead.stage)}</p>
+                        <p className="text-xs" style={{ color: theme.textMuted }}>{formatLeadDate(lead.received_at)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="font-heading text-xl font-bold mb-6" style={{ color: theme.textPrimary }}>News &amp; Announcements</h3>
+              <div className="space-y-4">
+                <div className="pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                  <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: theme.gold }}>New Product</p>
+                  <p className="font-body font-semibold mb-1" style={{ color: theme.textPrimary }}>Infinity Topless 2026 pricing now live</p>
+                  <p className="text-sm" style={{ color: theme.textSecondary }}>Updated US/Canada pricing reflects tariff adjustments. Calculator updated.</p>
+                </div>
+                <div className="pb-4" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                  <p className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: theme.gold }}>Training</p>
+                  <p className="font-body font-semibold mb-1" style={{ color: theme.textPrimary }}>New installation video — Fascia mount</p>
+                  <p className="text-sm" style={{ color: theme.textSecondary }}>Watch the latest training to maintain authorized status.</p>
                 </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       <ThemeSwitcher current={themeId} onChange={handleThemeChange} />
