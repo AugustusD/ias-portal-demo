@@ -87,6 +87,9 @@ const GUEST_PROGRESS_KEY = "ias_guest_onboarding_progress";
 const GUEST_FORM_KEY = "ias_guest_customer_form_submitted";
 const PENDING_SIGNUP_KEY = "ias_pending_signup";
 
+// Modules with index >= GUEST_LIMIT_INDEX require login (modules 3, 4, 5 = indexes 2, 3, 4)
+const GUEST_LIMIT_INDEX = 2;
+
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(0);
@@ -194,13 +197,18 @@ function CustomerForm({
     setError("");
     setSubmitting(true);
 
-    // Call the RPC to create a pending dealer record + get back the registration token
     const { data: token, error: rpcError } = await supabase.rpc("create_pending_dealer", {
       p_company_name: data.companyName.trim(),
       p_contact_name: data.contactName.trim(),
       p_email: data.email.trim(),
       p_phone: data.phone.trim(),
-      p_location: `${data.city.trim()}, ${data.province.trim()}`,
+      p_street_address: data.streetAddress.trim() || null,
+      p_city: data.city.trim() || null,
+      p_province: data.province.trim() || null,
+      p_postal_code: data.postalCode.trim() || null,
+      p_years_in_business: data.yearsInBusiness ? parseInt(data.yearsInBusiness) : null,
+      p_website: data.website.trim() || null,
+      p_notes: data.notes.trim() || null,
     });
 
     if (rpcError || !token) {
@@ -209,7 +217,6 @@ function CustomerForm({
       return;
     }
 
-    // Save submitter info so the register page can prefill name/email
     if (typeof window !== "undefined") {
       localStorage.setItem(
         PENDING_SIGNUP_KEY,
@@ -225,7 +232,6 @@ function CustomerForm({
     setSubmitted(true);
     onSubmitted();
 
-    // Redirect to the register page with the token
     router.push(`/dealers/register/${token}`);
   }
 
@@ -478,14 +484,21 @@ export default function OnboardingPage() {
   function isModuleUnlocked(moduleId: string): boolean {
     const idx = MODULES.findIndex((m) => m.id === moduleId);
     if (idx === 0) return true;
+    // Modules 3+ require an account
+    if (isGuest && idx >= GUEST_LIMIT_INDEX) return false;
     const previousId = MODULES[idx - 1].id;
     return completed.includes(previousId);
+  }
+
+  function isGuestLocked(moduleId: string): boolean {
+    const idx = MODULES.findIndex((m) => m.id === moduleId);
+    return isGuest && idx >= GUEST_LIMIT_INDEX;
   }
 
   function handleModuleClick(moduleId: string) {
     if (!isModuleUnlocked(moduleId)) {
       setLockedClickFeedback(moduleId);
-      setTimeout(() => setLockedClickFeedback(null), 1500);
+      setTimeout(() => setLockedClickFeedback(null), 1800);
       return;
     }
     setActiveId(moduleId);
@@ -516,7 +529,7 @@ export default function OnboardingPage() {
       setJustCompleted(null);
       const currentIdx = MODULES.findIndex((m) => m.id === id);
       const next = MODULES[currentIdx + 1];
-      if (next) {
+      if (next && isModuleUnlocked(next.id)) {
         setActiveId(next.id);
         const el = document.getElementById("active-module");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -594,7 +607,7 @@ export default function OnboardingPage() {
           {isAuthorized
             ? "All onboarding modules complete. You now have full access to the IAS dealer network."
             : isGuest
-            ? "Walk through these five modules to learn about IAS and prepare to become an authorized dealer. You can complete them as a guest — sign in later to save your progress."
+            ? "Walk through the first two modules to introduce yourself to IAS. To continue beyond module 2, you'll create an account so we can save your progress."
             : "Complete each module in order to unlock your authorized dealer status, premium pricing, and lead distribution."}
         </p>
       </div>
@@ -605,6 +618,7 @@ export default function OnboardingPage() {
             const isComplete = completed.includes(mod.id);
             const isActive = mod.id === activeId;
             const isUnlocked = isModuleUnlocked(mod.id);
+            const guestLocked = isGuestLocked(mod.id);
             const isJiggling = lockedClickFeedback === mod.id;
 
             return (
@@ -647,8 +661,13 @@ export default function OnboardingPage() {
                   {mod.title}
                 </p>
                 <p className="text-xs text-stone-400">{mod.duration}</p>
+                {guestLocked && !isJiggling && (
+                  <p className="text-[10px] text-gold font-body font-bold uppercase tracking-widest mt-2">Account required</p>
+                )}
                 {isJiggling && (
-                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">Complete previous module first</p>
+                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-center text-stone-500 font-body italic">
+                    {guestLocked ? "Create an account to continue" : "Complete previous module first"}
+                  </p>
                 )}
               </button>
             );
@@ -728,6 +747,7 @@ export default function OnboardingPage() {
                 {MODULES.map((mod) => {
                   const isComplete = completed.includes(mod.id);
                   const unlocked = isModuleUnlocked(mod.id);
+                  const guestLocked = isGuestLocked(mod.id);
                   return (
                     <div key={mod.id} className="flex items-center gap-3 text-sm font-body">
                       {isComplete ? (
@@ -746,13 +766,18 @@ export default function OnboardingPage() {
                       <span className={isComplete ? "line-through text-stone-400" : !unlocked ? "text-stone-500" : ""}>
                         {mod.title}
                       </span>
+                      {guestLocked && (
+                        <span className="ml-auto text-[10px] uppercase tracking-widest text-gold font-bold">Account</span>
+                      )}
                     </div>
                   );
                 })}
               </div>
               {isGuest && (
                 <div className="border-t border-stone-700 pt-6">
-                  <p className="font-body text-sm text-cream/70 mb-3">Sign in to save your progress and access dealer tools.</p>
+                  <p className="font-body text-sm text-cream/70 mb-3">
+                    Modules 3 through 5 require an account. After you submit the customer form in module 2, you&apos;ll be able to create your login.
+                  </p>
                   <Link href="/dealers/login" className="btn-gold text-xs px-5 py-2.5 inline-block">Sign In</Link>
                 </div>
               )}
