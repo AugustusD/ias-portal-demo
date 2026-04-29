@@ -85,6 +85,7 @@ const MODULES: Module[] = [
 
 const GUEST_PROGRESS_KEY = "ias_guest_onboarding_progress";
 const GUEST_FORM_KEY = "ias_guest_customer_form_submitted";
+const PENDING_SIGNUP_KEY = "ias_pending_signup";
 
 function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,8 +167,10 @@ function CustomerForm({
   initiallySubmitted: boolean;
   onSubmitted: () => void;
 }) {
+  const router = useRouter();
   const [submitted, setSubmitted] = useState(initiallySubmitted);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [data, setData] = useState({
     companyName: "",
     contactName: "",
@@ -188,12 +191,42 @@ function CustomerForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setSubmitting(true);
-    // Fake submit — wait briefly then mark complete
-    await new Promise((r) => setTimeout(r, 800));
+
+    // Call the RPC to create a pending dealer record + get back the registration token
+    const { data: token, error: rpcError } = await supabase.rpc("create_pending_dealer", {
+      p_company_name: data.companyName.trim(),
+      p_contact_name: data.contactName.trim(),
+      p_email: data.email.trim(),
+      p_phone: data.phone.trim(),
+      p_location: `${data.city.trim()}, ${data.province.trim()}`,
+    });
+
+    if (rpcError || !token) {
+      setError(rpcError?.message ?? "Couldn't submit. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    // Save submitter info so the register page can prefill name/email
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        PENDING_SIGNUP_KEY,
+        JSON.stringify({
+          contactName: data.contactName.trim(),
+          email: data.email.trim(),
+        })
+      );
+      localStorage.setItem(GUEST_FORM_KEY, "true");
+    }
+
     setSubmitting(false);
     setSubmitted(true);
     onSubmitted();
+
+    // Redirect to the register page with the token
+    router.push(`/dealers/register/${token}`);
   }
 
   if (submitted) {
@@ -207,7 +240,9 @@ function CustomerForm({
             </svg>
             <div>
               <p className="font-body font-semibold mb-1">Submitted to IAS</p>
-              <p className="font-body text-sm text-stone-600">Your business info has been sent. We&apos;ll review and follow up within 1 business day.</p>
+              <p className="font-body text-sm text-stone-600">
+                Continue to create your dealer account to finish setup.
+              </p>
             </div>
           </div>
         </div>
@@ -219,7 +254,9 @@ function CustomerForm({
     <div className="bg-white border border-stone-200">
       <div className="p-6 border-b border-stone-200">
         <h3 className="font-heading text-lg font-bold mb-1">New Customer Form</h3>
-        <p className="font-body text-sm text-stone-600">Tell us about your business so we can set up your account properly.</p>
+        <p className="font-body text-sm text-stone-600">
+          Tell us about your business so we can set up your account properly. After submitting, you&apos;ll set your password and get a shareable link to invite your coworkers.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -356,16 +393,18 @@ function CustomerForm({
           />
         </div>
 
+        {error && <p className="text-sm text-red-600 font-body">{error}</p>}
+
         <div className="pt-4 border-t border-stone-200">
           <button
             type="submit"
             disabled={submitting}
             className="btn-gold w-full md:w-auto px-8"
           >
-            {submitting ? "Submitting..." : "Submit to IAS"}
+            {submitting ? "Submitting..." : "Submit and Continue →"}
           </button>
           <p className="font-body text-xs text-stone-500 mt-2">
-            By submitting, you confirm the information above is accurate. IAS will be in touch within 1 business day.
+            Next step: create your password and invite your coworkers.
           </p>
         </div>
       </form>
@@ -394,7 +433,6 @@ function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
 export default function OnboardingPage() {
   const router = useRouter();
   const [isGuest, setIsGuest] = useState(true);
-  const [dealerName, setDealerName] = useState("");
   const [completed, setCompleted] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string>(MODULES[0].id);
   const [loading, setLoading] = useState(true);
@@ -407,7 +445,6 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // Guest mode: read from localStorage
         setIsGuest(true);
         const stored = typeof window !== "undefined" ? localStorage.getItem(GUEST_PROGRESS_KEY) : null;
         const guestCompleted = stored ? JSON.parse(stored) : [];
@@ -420,15 +457,7 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Logged-in mode
       setIsGuest(false);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-      setDealerName(profile?.full_name || "Dealer");
-
       const { data: progress } = await supabase
         .from("training_progress")
         .select("module_id")
@@ -438,7 +467,6 @@ export default function OnboardingPage() {
       const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
       if (firstIncomplete) setActiveId(firstIncomplete.id);
 
-      // For logged-in users, treat the form as submitted if we have a flag in localStorage too
       const formStored = typeof window !== "undefined" ? localStorage.getItem(GUEST_FORM_KEY) : null;
       setFormSubmitted(formStored === "true");
 
@@ -511,7 +539,6 @@ export default function OnboardingPage() {
   const progressPercent = (completedCount / totalCount) * 100;
   const isAuthorized = !isGuest && completedCount === totalCount;
 
-  // Module 2 (form module) is unlocked once form is submitted
   const canCompleteActive =
     activeModule.type === "form"
       ? formSubmitted
