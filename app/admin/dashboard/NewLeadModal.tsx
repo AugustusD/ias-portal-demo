@@ -17,36 +17,47 @@ type Props = {
 
 export default function NewLeadModal({ open, onClose, onCreated, dealers }: Props) {
   const [dealerId, setDealerId] = useState("");
-  const [homeowner, setHomeowner] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [product, setProduct] = useState("");
-  const [estValue, setEstValue] = useState("");
-  const [linealFt, setLinealFt] = useState("");
+  const [customerType, setCustomerType] = useState<"" | "homeowner" | "builder">("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   if (!open) return null;
 
+  function reset() {
+    setDealerId("");
+    setCustomerType("");
+    setContactName("");
+    setContactPhone("");
+    setContactEmail("");
+    setCity("");
+    setProvince("");
+    setNotes("");
+    setError("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!dealerId) { setError("Please select a dealer."); return; }
-    if (!homeowner.trim()) { setError("Homeowner name is required."); return; }
+    if (!dealerId) { setError("Please assign to a dealer."); return; }
 
     setSubmitting(true);
 
     const { error: insertError } = await supabase.from("leads").insert({
       dealer_id: dealerId,
-      homeowner_name: homeowner.trim(),
-      homeowner_email: email.trim() || null,
-      homeowner_phone: phone.trim() || null,
-      project_address: address.trim() || null,
-      product_interest: product.trim() || null,
-      project_value: estValue ? parseFloat(estValue) : null,
-      lineal_footage: linealFt ? parseFloat(linealFt) : null,
+      customer_type: customerType || null,
+      homeowner_name: contactName.trim() || null,
+      homeowner_phone: contactPhone.trim() || null,
+      homeowner_email: contactEmail.trim() || null,
+      city: city.trim() || null,
+      province: province.trim() || null,
+      notes: notes.trim() || null,
       stage: "new",
     });
 
@@ -57,8 +68,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
       return;
     }
 
-    setDealerId(""); setHomeowner(""); setEmail(""); setPhone("");
-    setAddress(""); setProduct(""); setEstValue(""); setLinealFt("");
+    reset();
     onCreated();
     onClose();
   }
@@ -75,13 +85,13 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Assign to Dealer */}
           <div>
-            <label className="block eyebrow text-stone-400 mb-1">Assign to dealer *</label>
+            <label className="block eyebrow text-stone-400 mb-1">Assign to Dealer</label>
             <select
               value={dealerId}
               onChange={(e) => setDealerId(e.target.value)}
               className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
-              required
             >
               <option value="">Select a dealer…</option>
               {dealers.map((d) => (
@@ -90,48 +100,83 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block eyebrow text-stone-400 mb-1">Homeowner name *</label>
-              <input value={homeowner} onChange={(e) => setHomeowner(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" required />
-            </div>
-            <div>
-              <label className="block eyebrow text-stone-400 mb-1">Homeowner email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block eyebrow text-stone-400 mb-1">Phone</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
-            </div>
-            <div>
-              <label className="block eyebrow text-stone-400 mb-1">Project address</label>
-              <input value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
-            </div>
-          </div>
-
+          {/* Customer Type */}
           <div>
-            <label className="block eyebrow text-stone-400 mb-1">Product interest</label>
-            <select value={product} onChange={(e) => setProduct(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body">
+            <label className="block eyebrow text-stone-400 mb-1">Customer Type</label>
+            <select
+              value={customerType}
+              onChange={(e) => setCustomerType(e.target.value as "" | "homeowner" | "builder")}
+              className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+            >
               <option value="">—</option>
-              <option value="Infinity Topless">Infinity Topless</option>
-              <option value="Glass Component">Glass Component</option>
-              <option value="Picket">Picket</option>
-              <option value="Custom">Custom</option>
+              <option value="homeowner">Homeowner</option>
+              <option value="builder">Builder</option>
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Contact info */}
+          <div>
+            <label className="block eyebrow text-stone-400 mb-1">Contact Name</label>
+            <input
+              type="text"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block eyebrow text-stone-400 mb-1">Est. project value ($)</label>
-              <input type="number" value={estValue} onChange={(e) => setEstValue(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+              <label className="block eyebrow text-stone-400 mb-1">Contact Number</label>
+              <input
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+              />
             </div>
             <div>
-              <label className="block eyebrow text-stone-400 mb-1">Est. lineal footage</label>
-              <input type="number" value={linealFt} onChange={(e) => setLinealFt(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+              <label className="block eyebrow text-stone-400 mb-1">Contact Email</label>
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+              />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block eyebrow text-stone-400 mb-1">City</label>
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+              />
+            </div>
+            <div>
+              <label className="block eyebrow text-stone-400 mb-1">Province / State</label>
+              <input
+                type="text"
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block eyebrow text-stone-400 mb-1">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={4}
+              placeholder="Any additional info to pass along to the dealer (project size, timeline, special requirements, source of the lead, etc.)"
+              className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+            />
           </div>
 
           {error && <p className="text-red-400 text-sm font-body">{error}</p>}
@@ -141,7 +186,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="text-xs uppercase tracking-wider px-6 py-2 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors disabled:opacity-50">
-              {submitting ? "Creating…" : "Create lead"}
+              {submitting ? "Creating…" : "Create Lead"}
             </button>
           </div>
         </form>
