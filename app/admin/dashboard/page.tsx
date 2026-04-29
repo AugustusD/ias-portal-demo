@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import NewLeadModal from "./NewLeadModal";
+import EditLeadModal, { EditLead } from "./EditLeadModal";
 
 type DealerStat = {
   dealer_id: string;
@@ -20,10 +21,15 @@ type DealerStat = {
 
 type LeadRow = {
   id: string;
+  dealer_id: string;
+  customer_type: "homeowner" | "builder" | null;
   homeowner_name: string | null;
-  project_address: string | null;
+  homeowner_phone: string | null;
+  homeowner_email: string | null;
+  city: string | null;
+  province: string | null;
+  notes: string | null;
   product_interest: string | null;
-  project_value: number | null;
   stage: "new" | "accepted" | "bid_submitted" | "won" | "lost";
   updated_at: string;
   dealers: { company_name: string; location: string | null } | null;
@@ -66,6 +72,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"onboarding" | "leads">("onboarding");
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<EditLead | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [pendingReviews, setPendingReviews] = useState(0);
 
@@ -94,7 +101,7 @@ export default function AdminDashboard() {
 
       const { data: leadData } = await supabase
         .from("leads")
-        .select("id, homeowner_name, project_address, product_interest, project_value, stage, updated_at, dealers(company_name, location)")
+        .select("id, dealer_id, customer_type, homeowner_name, homeowner_phone, homeowner_email, city, province, notes, product_interest, stage, updated_at, dealers(company_name, location)")
         .in("stage", ["new", "accepted", "bid_submitted"])
         .order("updated_at", { ascending: false });
       setLeads((leadData as unknown as LeadRow[]) || []);
@@ -119,6 +126,20 @@ export default function AdminDashboard() {
     router.push("/admin/login");
   }
 
+  function openEditLead(lead: LeadRow) {
+    setEditingLead({
+      id: lead.id,
+      dealer_id: lead.dealer_id,
+      customer_type: lead.customer_type,
+      homeowner_name: lead.homeowner_name,
+      homeowner_phone: lead.homeowner_phone,
+      homeowner_email: lead.homeowner_email,
+      city: lead.city,
+      province: lead.province,
+      notes: lead.notes,
+    });
+  }
+
   if (loading) {
     return <div className="section-container section-padding"><p className="text-stone-600">Loading...</p></div>;
   }
@@ -136,8 +157,6 @@ export default function AdminDashboard() {
   const stalledLeads = leads.filter((l) => daysAgo(l.updated_at) > 14);
   const stalledLeadsCount = stalledLeads.length;
   const activeLeadsCount = leads.length;
-  const totalPipelineValue = leads.reduce((s, l) => s + (l.project_value || 0), 0);
-  const stalledPipelineValue = stalledLeads.reduce((s, l) => s + (l.project_value || 0), 0);
 
   return (
     <div className="bg-ink min-h-screen text-cream">
@@ -150,24 +169,17 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link
-              href="/admin/reviews"
-              className="relative inline-flex items-center gap-2 text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors"
-            >
+            <Link href="/admin/reviews" className="relative inline-flex items-center gap-2 text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">
               Reviews
               {pendingReviews > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 bg-red-600 text-white text-xs font-bold rounded-full">
-                  {pendingReviews}
-                </span>
+                <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 bg-red-600 text-white text-xs font-bold rounded-full">{pendingReviews}</span>
               )}
             </Link>
             <p className="text-sm font-body">
               <span className="text-stone-400">Signed in as</span>
               <span className="ml-2 font-semibold">{adminName}</span>
             </p>
-            <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-gold hover:text-gold px-4 py-2 transition-colors">
-              Log Out
-            </button>
+            <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-gold hover:text-gold px-4 py-2 transition-colors">Log Out</button>
           </div>
         </div>
       </div>
@@ -175,12 +187,10 @@ export default function AdminDashboard() {
       <div className="section-container section-padding">
         <div className="mb-10">
           <h2 className="font-heading text-4xl md:text-5xl font-bold mb-2">Dashboard</h2>
-          <p className="font-body text-stone-400 max-w-2xl">
-            Live view of dealer onboarding, lead pipeline, and pending document reviews.
-          </p>
+          <p className="font-body text-stone-400 max-w-2xl">Live view of dealer onboarding, lead pipeline, and pending document reviews.</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
           <div className="bg-stone-900 border border-stone-800 p-5">
             <p className="eyebrow text-stone-500 mb-2">Authorized</p>
             <p className="text-3xl font-heading font-bold text-cream">{authorizedCount}</p>
@@ -194,15 +204,10 @@ export default function AdminDashboard() {
             )}
           </div>
           <div className="bg-stone-900 border border-stone-800 p-5">
-            <p className="eyebrow text-stone-500 mb-2">Active Pipeline</p>
-            <p className="text-3xl font-heading font-bold text-cream">${(totalPipelineValue / 1000).toFixed(1)}K</p>
-            <p className="text-xs text-stone-500 font-body mt-1">{activeLeadsCount} active lead{activeLeadsCount === 1 ? "" : "s"}</p>
-          </div>
-          <div className="bg-stone-900 border border-stone-800 p-5">
-            <p className="eyebrow text-stone-500 mb-2">Stalled Value</p>
-            <p className="text-3xl font-heading font-bold text-gold">${(stalledPipelineValue / 1000).toFixed(1)}K</p>
+            <p className="eyebrow text-stone-500 mb-2">Active Leads</p>
+            <p className="text-3xl font-heading font-bold text-cream">{activeLeadsCount}</p>
             {stalledLeadsCount > 0 && (
-              <p className="text-xs text-red-400 font-body font-semibold uppercase tracking-wider mt-1">{stalledLeadsCount} need attention</p>
+              <p className="text-xs text-red-400 font-body font-semibold uppercase tracking-wider mt-1">{stalledLeadsCount} stalled</p>
             )}
           </div>
         </div>
@@ -222,7 +227,7 @@ export default function AdminDashboard() {
               <div className="mb-6 p-5 bg-red-950/30 border-l-4 border-red-500">
                 <p className="eyebrow text-red-400 mb-2">Bottleneck Alert</p>
                 <h3 className="font-heading text-lg font-bold mb-2">{bottleneckCount} dealer{bottleneckCount === 1 ? " is" : "s are"} stuck in onboarding.</h3>
-                <p className="font-body text-sm text-stone-300">No training activity in over 7 days. Click a dealer row below to see their info, team, and leads.</p>
+                <p className="font-body text-sm text-stone-300">Click a dealer row to see their info, team, and leads.</p>
               </div>
             )}
 
@@ -272,9 +277,7 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                           <td className="py-4 px-4 text-sm font-body">
-                            <span className={d.forms_submitted === TOTAL_FORMS ? "text-green-400" : "text-amber-400"}>
-                              {d.forms_submitted}/{TOTAL_FORMS}
-                            </span>
+                            <span className={d.forms_submitted === TOTAL_FORMS ? "text-green-400" : "text-amber-400"}>{d.forms_submitted}/{TOTAL_FORMS}</span>
                           </td>
                           <td className="py-4 px-4 text-sm font-body">
                             <span className={days > 7 && d.onboarding_stage !== "authorized" ? "text-red-400 font-semibold" : "text-stone-300"}>
@@ -283,13 +286,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-4 px-4">
                             {isBottleneck ? (
-                              <div className="flex items-center gap-2">
-                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" className="text-red-500 flex-shrink-0">
-                                  <path d="M10 2L18 17H2L10 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                                  <path d="M10 8V10.5M10 13.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                </svg>
-                                <p className="text-xs font-body text-red-400">Inactive {days}d</p>
-                              </div>
+                              <p className="text-xs font-body text-red-400">Inactive {days}d</p>
                             ) : (
                               <span className="text-xs font-body text-stone-500">On track</span>
                             )}
@@ -297,9 +294,7 @@ export default function AdminDashboard() {
                         </tr>
                       );
                     })}
-                    {dealers.length === 0 && (
-                      <tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No dealers yet.</td></tr>
-                    )}
+                    {dealers.length === 0 && (<tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No dealers yet.</td></tr>)}
                   </tbody>
                 </table>
               </div>
@@ -310,21 +305,14 @@ export default function AdminDashboard() {
         {activeTab === "leads" && (
           <div>
             <div className="flex justify-end mb-4">
-              <button
-                onClick={() => setNewLeadOpen(true)}
-                className="text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors"
-              >
-                + New Lead
-              </button>
+              <button onClick={() => setNewLeadOpen(true)} className="text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">+ New Lead</button>
             </div>
 
             {stalledLeadsCount > 0 && (
               <div className="mb-6 p-5 bg-gold/10 border-l-4 border-gold">
                 <p className="eyebrow text-gold mb-2">Stalled Lead Alert</p>
-                <h3 className="font-heading text-lg font-bold mb-2">
-                  {stalledLeadsCount} lead{stalledLeadsCount === 1 ? " is" : "s are"} stalled — ${stalledPipelineValue.toLocaleString()} at risk.
-                </h3>
-                <p className="font-body text-sm text-stone-300">No movement in 14+ days. May benefit from direct support or builder outreach.</p>
+                <h3 className="font-heading text-lg font-bold mb-2">{stalledLeadsCount} lead{stalledLeadsCount === 1 ? " is" : "s are"} stalled.</h3>
+                <p className="font-body text-sm text-stone-300">No movement in 14+ days. Click any lead row to edit or delete.</p>
               </div>
             )}
 
@@ -334,11 +322,11 @@ export default function AdminDashboard() {
                   <thead className="bg-stone-950 text-stone-400">
                     <tr className="border-b border-stone-800">
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Customer</th>
+                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Type</th>
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Dealer</th>
-                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Project</th>
+                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Location</th>
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Stage</th>
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Days</th>
-                      <th className="text-right py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Est. Value</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -346,17 +334,22 @@ export default function AdminDashboard() {
                       const days = daysAgo(lead.updated_at);
                       const stalled = days > 14;
                       return (
-                        <tr key={lead.id} className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors ${stalled ? "bg-gold/5" : ""}`}>
+                        <tr
+                          key={lead.id}
+                          onClick={() => openEditLead(lead)}
+                          className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors cursor-pointer ${stalled ? "bg-gold/5" : ""}`}
+                        >
                           <td className="py-4 px-4">
                             <p className="font-body font-semibold text-cream">{lead.homeowner_name || "—"}</p>
                             {stalled && (<p className="text-xs text-gold font-body font-semibold uppercase tracking-wider mt-1">Stalled</p>)}
                           </td>
+                          <td className="py-4 px-4 text-sm font-body text-stone-300 capitalize">{lead.customer_type || "—"}</td>
                           <td className="py-4 px-4">
                             <p className="font-body text-sm text-cream">{lead.dealers?.company_name || "—"}</p>
                             <p className="text-xs text-stone-500 font-body">{lead.dealers?.location || "—"}</p>
                           </td>
                           <td className="py-4 px-4 text-sm font-body text-stone-300">
-                            {lead.product_interest || "—"}{lead.project_address ? ` · ${lead.project_address}` : ""}
+                            {[lead.city, lead.province].filter(Boolean).join(", ") || "—"}
                           </td>
                           <td className="py-4 px-4">
                             <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
@@ -369,19 +362,12 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="py-4 px-4 text-sm font-body">
-                            <span className={days > 14 ? "text-red-400 font-semibold" : stalled ? "text-gold font-semibold" : "text-stone-300"}>
-                              {days}d
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-right">
-                            <span className="font-heading font-bold text-cream">${(lead.project_value || 0).toLocaleString()}</span>
+                            <span className={days > 14 ? "text-red-400 font-semibold" : stalled ? "text-gold font-semibold" : "text-stone-300"}>{days}d</span>
                           </td>
                         </tr>
                       );
                     })}
-                    {leads.length === 0 && (
-                      <tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No active leads.</td></tr>
-                    )}
+                    {leads.length === 0 && (<tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No active leads.</td></tr>)}
                   </tbody>
                 </table>
               </div>
@@ -394,6 +380,14 @@ export default function AdminDashboard() {
         open={newLeadOpen}
         onClose={() => setNewLeadOpen(false)}
         onCreated={() => setRefreshKey((k) => k + 1)}
+        dealers={dealers.map((d) => ({ dealer_id: d.dealer_id, company_name: d.company_name }))}
+      />
+
+      <EditLeadModal
+        open={editingLead !== null}
+        lead={editingLead}
+        onClose={() => setEditingLead(null)}
+        onSaved={() => setRefreshKey((k) => k + 1)}
         dealers={dealers.map((d) => ({ dealer_id: d.dealer_id, company_name: d.company_name }))}
       />
     </div>
