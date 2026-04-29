@@ -314,8 +314,9 @@ function CustomerForm({
     e.preventDefault();
     setError("");
 
+    if (businessTypes.length === 0) { setError("Please select at least one Type of Business."); return; }
+    if (!data.engineerRelationship) { setError("Please answer the engineer relationship question."); return; }
     if (!signature) { setError("Please sign the form before submitting."); return; }
-    if (!newsletterOptIn) { setError("Please acknowledge the newsletter opt-in."); return; }
     if (!data.signatureName.trim()) { setError("Please type your name to sign."); return; }
 
     setSubmitting(true);
@@ -332,11 +333,11 @@ function CustomerForm({
       p_years_in_business: data.yearsInBusiness ? parseInt(data.yearsInBusiness) : null,
       p_website: data.website.trim() || null,
       p_notes: data.notes.trim() || null,
-      p_type_of_business: businessTypes.length > 0 ? businessTypes : null,
+      p_type_of_business: businessTypes,
       p_owner_name: data.ownerName.trim() || null,
       p_owner_email: data.ownerEmail.trim() || null,
       p_owner_phone: data.ownerPhone.trim() || null,
-      p_engineer_relationship: data.engineerRelationship ? data.engineerRelationship === "yes" : null,
+      p_engineer_relationship: data.engineerRelationship === "yes",
       p_newsletter_opt_in: newsletterOptIn,
       p_signature_data: signature,
       p_signature_name: data.signatureName.trim(),
@@ -393,7 +394,7 @@ function CustomerForm({
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        {/* Business Info */}
+        {/* Required Section */}
         <div className="space-y-4">
           <p className="eyebrow text-stone-500">Business Information</p>
 
@@ -438,6 +439,40 @@ function CustomerForm({
             </div>
           </div>
 
+          {/* Type of Business — required */}
+          <div>
+            <p className="eyebrow text-stone-600 mb-2">Type of Business * (select all that apply)</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {BUSINESS_TYPES.map((type) => (
+                <label key={type} className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors ${businessTypes.includes(type) ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
+                  <input type="checkbox" checked={businessTypes.includes(type)} onChange={() => toggleBusinessType(type)} className="flex-shrink-0" />
+                  <span className="font-body text-sm">{type}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Engineer Relationship — required */}
+          <div>
+            <p className="eyebrow text-stone-600 mb-2">Do you have a working relationship with a qualified engineer? *</p>
+            <p className="font-body text-xs text-stone-500 mb-2">Required for code-compliant railing engineering specs in many provinces.</p>
+            <div className="flex gap-2">
+              <label className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors flex-1 ${data.engineerRelationship === "yes" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
+                <input type="radio" name="engineerRelationship" value="yes" checked={data.engineerRelationship === "yes"} onChange={handleChange} />
+                <span className="font-body font-semibold text-sm">Yes</span>
+              </label>
+              <label className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors flex-1 ${data.engineerRelationship === "no" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
+                <input type="radio" name="engineerRelationship" value="no" checked={data.engineerRelationship === "no"} onChange={handleChange} />
+                <span className="font-body font-semibold text-sm">No</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Optional details */}
+        <div className="space-y-4 pt-4 border-t border-stone-200">
+          <p className="eyebrow text-stone-500">Additional Details</p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="eyebrow text-stone-600 block mb-1">Years in Business</label>
@@ -466,19 +501,6 @@ function CustomerForm({
           </div>
         </div>
 
-        {/* Type of Business */}
-        <div className="space-y-2 pt-4 border-t border-stone-200">
-          <p className="eyebrow text-stone-500 mb-2">Type of Business (select all that apply)</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {BUSINESS_TYPES.map((type) => (
-              <label key={type} className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors ${businessTypes.includes(type) ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
-                <input type="checkbox" checked={businessTypes.includes(type)} onChange={() => toggleBusinessType(type)} className="flex-shrink-0" />
-                <span className="font-body text-sm">{type}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
         {/* Owner */}
         <div className="space-y-4 pt-4 border-t border-stone-200">
           <p className="eyebrow text-stone-500">Owner Information</p>
@@ -498,36 +520,10 @@ function CustomerForm({
           </div>
         </div>
 
-        {/* Engineer Relationship */}
-        <div className="pt-4 border-t border-stone-200">
-          <p className="eyebrow text-stone-600 mb-3">Do you have a working relationship with a qualified engineer?</p>
-          <p className="font-body text-xs text-stone-500 mb-3">Required for code-compliant railing engineering specs in many provinces.</p>
-          <div className="flex gap-2">
-            <label className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors flex-1 ${data.engineerRelationship === "yes" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
-              <input type="radio" name="engineerRelationship" value="yes" checked={data.engineerRelationship === "yes"} onChange={handleChange} />
-              <span className="font-body font-semibold text-sm">Yes</span>
-            </label>
-            <label className={`flex items-center gap-3 p-3 border cursor-pointer transition-colors flex-1 ${data.engineerRelationship === "no" ? "border-gold bg-gold/5" : "border-stone-200 bg-white hover:border-stone-400"}`}>
-              <input type="radio" name="engineerRelationship" value="no" checked={data.engineerRelationship === "no"} onChange={handleChange} />
-              <span className="font-body font-semibold text-sm">No</span>
-            </label>
-          </div>
-        </div>
-
         {/* Notes */}
         <div className="pt-4 border-t border-stone-200">
           <label className="eyebrow text-stone-600 block mb-1">Additional Notes</label>
           <textarea name="notes" value={data.notes} onChange={handleChange} rows={3} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
-        </div>
-
-        {/* Newsletter Opt-in */}
-        <div className="pt-4 border-t border-stone-200 bg-cream-dark p-4">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" required checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} className="mt-1 flex-shrink-0" />
-            <p className="font-body text-sm text-ink leading-relaxed">
-              <span className="font-semibold">I acknowledge *</span> that I&apos;ll be added to Innovative Aluminum Systems and OnDeck Vinyl Works newsletters for important pricing and product updates. <span className="text-stone-600 italic">Your contact will not be sold.</span>
-            </p>
-          </label>
         </div>
 
         {/* Signature */}
@@ -547,6 +543,16 @@ function CustomerForm({
           </div>
 
           <p className="font-body text-xs text-stone-500">Date: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+
+          {/* Newsletter Opt-in — moved here, optional */}
+          <div className="bg-cream-dark p-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} className="mt-1 flex-shrink-0" />
+              <p className="font-body text-sm text-ink leading-relaxed">
+                <span className="font-semibold">I acknowledge</span> that I&apos;ll be added to Innovative Aluminum Systems and OnDeck Vinyl Works newsletters for important pricing and product updates. <span className="text-stone-600 italic">Your contact will not be sold.</span>
+              </p>
+            </label>
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600 font-body">{error}</p>}
