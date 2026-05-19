@@ -51,31 +51,32 @@ export default function CalculatorPage() {
     <div className="bg-cream">
       <div className="sticky top-0 z-30 bg-cream border-b border-stone-200">
         <div className="section-container py-5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
-              <span className="text-stone-300">/</span>
-              <p className="eyebrow text-stone-600">Tools / Calculator</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
+              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors whitespace-nowrap">← Dashboard</Link>
+              <span className="hidden md:inline text-stone-300">/</span>
+              <p className="hidden md:block eyebrow text-stone-600">Tools / Calculator</p>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-body font-semibold uppercase tracking-wider text-stone-600 hover:text-gold transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 px-2 md:px-3 py-2 text-xs font-body font-semibold uppercase tracking-wider text-stone-600 hover:text-gold transition-colors whitespace-nowrap"
                 title={`Watch ${TOOL_NAME} video guide`}
               >
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.5" />
                   <path d="M8 6.5L13.5 10L8 13.5V6.5Z" fill="currentColor" />
                 </svg>
-                Video Guide
+                <span className="hidden md:inline">Video Guide</span>
               </button>
               <a
                 href="https://ias-calculator.vercel.app"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-gold text-ink font-body font-bold text-xs uppercase tracking-widest hover:bg-gold transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 border-2 border-gold text-ink font-body font-bold text-xs uppercase tracking-widest hover:bg-gold transition-colors whitespace-nowrap"
               >
-                Open in Full Window
+                <span className="md:hidden">Open</span>
+                <span className="hidden md:inline">Open in Full Window</span>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
                   <path d="M11 3H17V9M9 11L17 3M9 17H3V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
