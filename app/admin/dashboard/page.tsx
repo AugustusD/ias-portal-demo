@@ -141,6 +141,9 @@ export default function AdminDashboard() {
       city: lead.city,
       province: lead.province,
       notes: lead.notes,
+      project_name: lead.project_name,
+      contact_company: lead.contact_company,
+      bid_due_date: lead.bid_due_date,
     });
   }
 
@@ -361,6 +364,7 @@ export default function AdminDashboard() {
                               lead.stage === "new" ? "bg-gold text-ink" :
                               lead.stage === "accepted" ? "bg-blue-900 text-blue-100" :
                               lead.stage === "bid_submitted" ? "bg-amber-900 text-amber-100" :
+                              lead.stage === "declined" ? "bg-amber-950 text-amber-200 border border-amber-700" :
                               "bg-stone-800 text-stone-300"
                             }`}>
                               {LEAD_STAGE_LABELS[lead.stage]}

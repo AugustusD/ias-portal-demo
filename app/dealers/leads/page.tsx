@@ -90,7 +90,7 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: stri
   bid_submitted: { label: "Bid Submitted", color: "text-amber-900", bg: "bg-amber-100", description: "Quote sent to customer. Awaiting decision." },
   won: { label: "Won", color: "text-green-900", bg: "bg-green-100", description: "Project secured. Completion pending." },
   lost: { label: "Lost", color: "text-stone-700", bg: "bg-stone-200", description: "Project went to another bidder." },
-  declined: { label: "Declined", color: "text-stone-700", bg: "bg-stone-200", description: "Lead declined before accept." },
+  declined: { label: "Declined", color: "text-amber-800", bg: "bg-amber-50 border border-amber-300", description: "Lead passed back to IAS — wasn't a fit." },
 };
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -489,6 +489,24 @@ function LeadDetailModal({
     systemTypes: lead.systemTypes || [],
   });
 
+  // Re-sync formData when the underlying lead changes (e.g. after parent
+  // re-fetches following a save), otherwise opening a fresh action mode
+  // would show stale values from initial mount.
+  useEffect(() => {
+    setFormData({
+      scopeOfWork: lead.scopeOfWork || "",
+      linealFootage: lead.linealFootage || "",
+      projectValue: lead.projectValue || "",
+      orderNumber: lead.orderNumber || "",
+      lostReason: lead.lostReason || "Price — we were higher",
+      wonReason: lead.wonReason || WON_REASON_OPTIONS[0],
+      declineReason: lead.declineReason || DECLINE_REASON_OPTIONS[0],
+      notes: lead.notes || "",
+      installationDate: lead.installationDate || "",
+      systemTypes: lead.systemTypes || [],
+    });
+  }, [lead]);
+
   function toggleSystemType(s: string) {
     setFormData((prev) => ({
       ...prev,
@@ -571,7 +589,9 @@ function LeadDetailModal({
     if (!files || files.length === 0) return;
     setUploadingPhotos(true);
     setError("");
-    const newAttachments: LeadAttachment[] = [];
+    // Persist after EACH successful upload so a mid-batch failure doesn't
+    // orphan files in storage that the DB doesn't reference.
+    let currentPaths: LeadAttachment[] = [...(lead.installationPhotos || [])];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -580,18 +600,21 @@ function LeadDetailModal({
         .from("private-documents")
         .upload(path, f, { contentType: f.type, upsert: false });
       if (upErr) {
-        setError(`Upload failed for ${f.name}: ${upErr.message}`);
+        setError(`Upload failed at ${f.name}: ${upErr.message}. ${currentPaths.length - (lead.installationPhotos?.length || 0)} photo(s) before this were saved.`);
         setUploadingPhotos(false);
         return;
       }
-      newAttachments.push({
-        path,
-        filename: f.name,
-        uploaded_at: new Date().toISOString(),
-      });
+      currentPaths = [
+        ...currentPaths,
+        { path, filename: f.name, uploaded_at: new Date().toISOString() },
+      ];
+      // Patch the row after each upload — if next one fails, DB is still consistent
+      const ok = await saveUpdate({ installation_photo_paths: currentPaths });
+      if (!ok) {
+        setUploadingPhotos(false);
+        return;
+      }
     }
-    const merged = [...(lead.installationPhotos || []), ...newAttachments];
-    await saveUpdate({ installation_photo_paths: merged });
     setUploadingPhotos(false);
   }
 

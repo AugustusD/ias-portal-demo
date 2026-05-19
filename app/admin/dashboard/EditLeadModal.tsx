@@ -18,6 +18,10 @@ export type EditLead = {
   city: string | null;
   province: string | null;
   notes: string | null;
+  // Meeting items (2026-05-04) — also editable post-creation
+  project_name: string | null;
+  contact_company: string | null;
+  bid_due_date: string | null;
 };
 
 type Props = {
@@ -37,6 +41,9 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [notes, setNotes] = useState("");
+  const [projectName, setProjectName] = useState("");
+  const [contactCompany, setContactCompany] = useState("");
+  const [bidDueDate, setBidDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +58,9 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
       setCity(lead.city || "");
       setProvince(lead.province || "");
       setNotes(lead.notes || "");
+      setProjectName(lead.project_name || "");
+      setContactCompany(lead.contact_company || "");
+      setBidDueDate(lead.bid_due_date || "");
       setError("");
     }
   }, [lead]);
@@ -74,6 +84,9 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
         city: city.trim() || null,
         province: province.trim() || null,
         notes: notes.trim() || null,
+        project_name: projectName.trim() || null,
+        contact_company: contactCompany.trim() || null,
+        bid_due_date: bidDueDate || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", lead!.id);
@@ -109,6 +122,22 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
         </div>
 
         <form onSubmit={handleSave} className="p-6 space-y-4">
+          <div>
+            <label className="block eyebrow text-stone-400 mb-1">Project Name</label>
+            <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Harbour View Towers, Phase 2" className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block eyebrow text-stone-400 mb-1">Contracting Company</label>
+              <input type="text" value={contactCompany} onChange={(e) => setContactCompany(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+            </div>
+            <div>
+              <label className="block eyebrow text-stone-400 mb-1">Bid Due Date</label>
+              <input type="date" value={bidDueDate} onChange={(e) => setBidDueDate(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+            </div>
+          </div>
+
           <div>
             <label className="block eyebrow text-stone-400 mb-1">Assign to Dealer</label>
             <select value={dealerId} onChange={(e) => setDealerId(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body">

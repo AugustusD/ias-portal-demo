@@ -44,12 +44,15 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Duplicate detection — fires when both project_name + contact_company set
+  // Duplicate detection — fires when both project_name + contact_company set.
+  // Only checks ACTIVE stages (new/accepted/bid_submitted/won). Declined and lost
+  // are terminal so they shouldn't block a fresh attempt at the same project.
   useEffect(() => {
     const pn = projectName.trim().toLowerCase();
     const cc = contactCompany.trim().toLowerCase();
     if (!pn || !cc) {
       setDuplicate(null);
+      setOverrideDup(false); // clear stale override if user changes inputs
       return;
     }
     const t = setTimeout(async () => {
@@ -58,9 +61,11 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
         .select("id, project_name, contact_company, stage, dealer_id")
         .ilike("project_name", pn)
         .ilike("contact_company", cc)
+        .in("stage", ["new", "accepted", "bid_submitted", "won"])
         .limit(1);
       if (error || !data || data.length === 0) {
         setDuplicate(null);
+        setOverrideDup(false); // dup cleared → reset override so it doesn't auto-apply if user re-enters dup
         return;
       }
       setDuplicate(data[0] as DuplicateMatch);
@@ -139,7 +144,8 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
 
     const leadId = insertData.id;
 
-    // Upload attachments (if any) and patch the row with their paths
+    // Upload attachments (if any) and patch the row after EACH success so a
+    // mid-batch failure doesn't orphan files in storage that the row never references.
     if (attachments.length > 0) {
       const uploaded: { path: string; filename: string; uploaded_at: string }[] = [];
       for (let i = 0; i < attachments.length; i++) {
@@ -150,7 +156,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
           .from("private-documents")
           .upload(path, f, { contentType: f.type || "application/octet-stream", upsert: false });
         if (upErr) {
-          setError(`Lead created but upload failed for ${f.name}: ${upErr.message}`);
+          setError(`Lead created. Upload failed at ${f.name}: ${upErr.message}. ${uploaded.length} attachment(s) before this were saved.`);
           setSubmitting(false);
           return;
         }
@@ -159,8 +165,9 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
           filename: f.name,
           uploaded_at: new Date().toISOString(),
         });
+        // Persist after each successful upload — keeps DB and storage in sync
+        await supabase.from("leads").update({ lead_attachment_paths: uploaded }).eq("id", leadId);
       }
-      await supabase.from("leads").update({ lead_attachment_paths: uploaded }).eq("id", leadId);
     }
 
     setSubmitting(false);
