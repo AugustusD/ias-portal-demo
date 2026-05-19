@@ -643,7 +643,7 @@ function LeadDetailModal({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-ink/70 flex items-start justify-center overflow-y-auto p-4 md:p-8">
-        <div className="bg-cream w-full max-w-3xl my-8 shadow-2xl">
+        <div className="bg-cream w-full max-w-3xl lg:max-w-4xl my-8 shadow-2xl">
           <div className="sticky top-0 bg-cream border-b border-stone-200 px-6 md:px-8 py-5 flex items-center justify-between z-10">
             <div className="flex items-center gap-3 flex-wrap">
               <p className="eyebrow text-stone-500">Lead Detail</p>
