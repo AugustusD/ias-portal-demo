@@ -162,10 +162,18 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
 }
 
 function SignaturePad({ onChange }: { onChange: (dataUrl: string) => void }) {
+  const [mode, setMode] = useState<"type" | "draw">("type");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const typedCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // --- Draw mode state ---
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSigned, setHasSigned] = useState(false);
 
+  // --- Type mode state ---
+  const [typedName, setTypedName] = useState("");
+
+  // ----- Draw mode -----
   function getPos(e: React.MouseEvent | React.TouchEvent) {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -215,7 +223,7 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string) => void }) {
     if (canvas && hasSigned) onChange(canvas.toDataURL("image/png"));
   }
 
-  function clear() {
+  function clearDraw() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -225,32 +233,171 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string) => void }) {
     onChange("");
   }
 
+  // ----- Type mode: render cursive name to hidden canvas, export as PNG -----
+  useEffect(() => {
+    if (mode !== "type") return;
+    const c = typedCanvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, c.width, c.height);
+
+    if (!typedName.trim()) {
+      onChange("");
+      return;
+    }
+
+    // Resolve the actual font-family string from the CSS variable
+    const probe = document.createElement("span");
+    probe.style.cssText =
+      "position:absolute;visibility:hidden;font-family:var(--font-signature),cursive";
+    document.body.appendChild(probe);
+    const fontFamily = getComputedStyle(probe).fontFamily || "cursive";
+    document.body.removeChild(probe);
+
+    const render = () => {
+      const cc = typedCanvasRef.current;
+      if (!cc) return;
+      const cx = cc.getContext("2d");
+      if (!cx) return;
+      cx.clearRect(0, 0, cc.width, cc.height);
+      cx.fillStyle = "#0A0908";
+      cx.textAlign = "center";
+      cx.textBaseline = "middle";
+      // Auto-shrink font size if name overflows
+      let size = 96;
+      do {
+        cx.font = `italic 600 ${size}px ${fontFamily}`;
+        const w = cx.measureText(typedName).width;
+        if (w <= cc.width - 60) break;
+        size -= 4;
+      } while (size > 32);
+      cx.fillText(typedName, cc.width / 2, cc.height / 2 + size * 0.1);
+      onChange(cc.toDataURL("image/png"));
+    };
+
+    if (typeof document !== "undefined" && (document as any).fonts?.ready) {
+      (document as any).fonts.ready.then(render);
+    } else {
+      render();
+    }
+  }, [typedName, mode, onChange]);
+
+  function switchMode(newMode: "type" | "draw") {
+    if (newMode === mode) return;
+    onChange("");
+    setHasSigned(false);
+    setTypedName("");
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    setMode(newMode);
+  }
+
   return (
     <div>
-      <div className="border-2 border-stone-300 bg-white">
-        <canvas
-          ref={canvasRef}
-          width={800}
-          height={180}
-          className="w-full h-[180px] cursor-crosshair"
-          style={{ touchAction: "none" }}
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-        />
-      </div>
-      <div className="flex justify-between mt-2">
-        <p className="font-body text-xs text-stone-500 italic">
-          {hasSigned ? "Signed ✓" : "Sign with your mouse or finger above"}
-        </p>
-        <button type="button" onClick={clear} className="text-xs uppercase tracking-wider text-stone-500 hover:text-ink font-body">
-          Clear
+      {/* Mode tabs */}
+      <div className="flex gap-0 mb-0" role="tablist" aria-label="Signature input method">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "type"}
+          onClick={() => switchMode("type")}
+          className={`px-4 py-2 text-xs uppercase tracking-wider font-body border-2 border-b-0 transition-colors ${
+            mode === "type"
+              ? "bg-white border-stone-300 text-ink"
+              : "bg-stone-100 border-transparent text-stone-500 hover:text-ink"
+          }`}
+        >
+          Type
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "draw"}
+          onClick={() => switchMode("draw")}
+          className={`px-4 py-2 text-xs uppercase tracking-wider font-body border-2 border-b-0 transition-colors ${
+            mode === "draw"
+              ? "bg-white border-stone-300 text-ink"
+              : "bg-stone-100 border-transparent text-stone-500 hover:text-ink"
+          }`}
+        >
+          Draw
         </button>
       </div>
+
+      {mode === "draw" ? (
+        <>
+          <div className="border-2 border-stone-300 bg-white">
+            <canvas
+              ref={canvasRef}
+              width={800}
+              height={180}
+              className="w-full h-[180px] cursor-crosshair"
+              style={{ touchAction: "none" }}
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={startDrawing}
+              onTouchMove={draw}
+              onTouchEnd={stopDrawing}
+            />
+          </div>
+          <div className="flex justify-between mt-2">
+            <p className="font-body text-xs text-stone-500 italic">
+              {hasSigned ? "Signed ✓" : "Sign with your mouse or finger above"}
+            </p>
+            <button
+              type="button"
+              onClick={clearDraw}
+              className="text-xs uppercase tracking-wider text-stone-500 hover:text-ink font-body"
+            >
+              Clear
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="border-2 border-stone-300 bg-white">
+            <input
+              type="text"
+              value={typedName}
+              onChange={(e) => setTypedName(e.target.value)}
+              placeholder="Type your full name"
+              className="w-full h-[180px] bg-transparent text-center text-5xl text-ink font-signature italic outline-none px-4 placeholder:text-stone-300 placeholder:not-italic placeholder:font-body placeholder:text-base"
+              style={{ caretColor: "#B69A5A" }}
+              maxLength={60}
+              aria-label="Type your signature"
+            />
+            {/* Hidden canvas: renders the typed name as a PNG for backend storage */}
+            <canvas
+              ref={typedCanvasRef}
+              width={800}
+              height={180}
+              className="hidden"
+              aria-hidden="true"
+            />
+          </div>
+          <div className="flex justify-between mt-2">
+            <p className="font-body text-xs text-stone-500 italic">
+              {typedName.trim()
+                ? "Signed ✓ — your typed name is your legal signature"
+                : "Type your name above to create a signature"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setTypedName("")}
+              className="text-xs uppercase tracking-wider text-stone-500 hover:text-ink font-body"
+            >
+              Clear
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -54,6 +54,7 @@ const config: Config = {
       fontFamily: {
         heading: ['var(--font-ubuntu)', 'sans-serif'],
         body: ['var(--font-titillium)', 'sans-serif'],
+        signature: ['var(--font-signature)', 'cursive'],
       },
       maxWidth: {
         container: '1440px',
