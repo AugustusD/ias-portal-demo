@@ -56,11 +56,14 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
       return;
     }
     const t = setTimeout(async () => {
+      // Escape ilike wildcards in user input so a stray % or _ in a project
+      // name doesn't match every row in the table.
+      const escapeIlike = (s: string) => s.replace(/[\\%_]/g, "\\$&");
       const { data, error } = await supabase
         .from("leads")
         .select("id, project_name, contact_company, stage, dealer_id")
-        .ilike("project_name", pn)
-        .ilike("contact_company", cc)
+        .ilike("project_name", escapeIlike(pn))
+        .ilike("contact_company", escapeIlike(cc))
         .in("stage", ["new", "accepted", "bid_submitted", "won"])
         .limit(1);
       if (error || !data || data.length === 0) {
