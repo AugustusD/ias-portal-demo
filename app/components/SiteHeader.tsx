@@ -26,7 +26,7 @@ export default function SiteHeader() {
         <Link href="/" className="font-heading text-xl font-bold text-ink">
           IAS
         </Link>
-        <ul className="hidden md:flex items-center gap-8">
+        <ul className="hidden lg:flex items-center gap-8">
           <li><a href="https://innovativealuminum.com/products" className="nav-link">Products</a></li>
           <li><a href="https://innovativealuminum.com/designer-tool" className="nav-link">Designer Tool</a></li>
           <li><a href="https://innovativealuminum.com/company" className="nav-link">Company</a></li>
