@@ -9,6 +9,13 @@ const GUEST_ALLOWED = [
   "/dealers/dashboard",
   "/dealers/training",
   "/dealers/register",
+  // Password recovery — accessed pre-auth. Without these, a locked-out dealer
+  // gets bounced back to login when clicking "Forgot?", creating a redirect
+  // loop. /reset-password technically has a recovery session, but Supabase
+  // sets that asynchronously after URL-hash parsing, so we'd race the auth
+  // check. Safer to whitelist both.
+  "/dealers/forgot-password",
+  "/dealers/reset-password",
 ];
 
 function isGuestAllowed(pathname: string): boolean {
