@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { humanizeError } from "@/lib/errors";
 
 type LeadStatus = "new" | "accepted" | "bid_submitted" | "won" | "lost" | "declined";
 
@@ -289,13 +290,13 @@ function WarrantyRegistrationFlow({
 
   return (
     <div className="fixed inset-0 z-[60] bg-ink/80 flex items-start justify-center overflow-y-auto p-4 md:p-8">
-      <div className="bg-cream w-full max-w-2xl my-8 shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-labelledby="warranty-title" className="bg-cream w-full max-w-2xl my-8 shadow-2xl">
         <div className="sticky top-0 bg-cream border-b border-stone-200 px-6 md:px-8 py-5 flex items-center justify-between z-10">
           <div>
             <p className="eyebrow text-gold mb-1">Warranty Registration</p>
-            <h3 className="font-heading text-xl font-bold">Step {step} of {totalSteps}</h3>
+            <h3 id="warranty-title" className="font-heading text-xl font-bold">Step {step} of {totalSteps}</h3>
           </div>
-          <button onClick={onCancel} className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
+          <button onClick={onCancel} aria-label="Cancel warranty registration" className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
         </div>
 
         <div className="w-full h-1 bg-stone-200">
@@ -489,6 +490,23 @@ function LeadDetailModal({
     systemTypes: lead.systemTypes || [],
   });
 
+  // Escape closes the lead detail (unless mid-save or a warranty flow is
+  // open — Escape should close the inner overlay first).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (saving || uploadingPhotos) return;
+      if (showWarrantyFlow || showWarrantySuccess) return;
+      if (actionMode !== "none") {
+        setActionMode("none");
+        return;
+      }
+      onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [saving, uploadingPhotos, showWarrantyFlow, showWarrantySuccess, actionMode, onClose]);
+
   // Re-sync formData when the underlying lead changes (e.g. after parent
   // re-fetches following a save), otherwise opening a fresh action mode
   // would show stale values from initial mount.
@@ -525,7 +543,7 @@ function LeadDetailModal({
       .eq("id", lead.id);
     setSaving(false);
     if (updErr) {
-      setError(updErr.message);
+      setError(humanizeError(updErr, "Couldn't save changes."));
       return false;
     }
     onChanged();
@@ -546,13 +564,23 @@ function LeadDetailModal({
     if (ok) setActionMode("none");
   }
 
+  // Helper — parseFloat that returns null for empty / non-numeric input
+  // instead of NaN. Previously `parseFloat("abc")` silently wrote NaN into
+  // numeric DB columns, which Postgres coerces to NULL but JS comparisons
+  // do all sorts of weird things on.
+  function parseNumOrNull(v: string | null | undefined): number | null {
+    if (v == null || v === "") return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
   async function handleSubmitBid() {
     const ok = await saveUpdate({
       stage: "bid_submitted",
       bid_submitted_at: new Date().toISOString(),
       scope_of_work: formData.scopeOfWork,
-      lineal_footage: formData.linealFootage ? parseFloat(formData.linealFootage) : null,
-      project_value: formData.projectValue ? parseFloat(formData.projectValue) : null,
+      lineal_footage: parseNumOrNull(formData.linealFootage),
+      project_value: parseNumOrNull(formData.projectValue),
       installation_date: formData.installationDate || null,
       system_types: formData.systemTypes.length ? formData.systemTypes : null,
     });
@@ -565,8 +593,8 @@ function LeadDetailModal({
       closed_at: new Date().toISOString(),
       order_number: formData.orderNumber,
       scope_of_work: formData.scopeOfWork || lead.scopeOfWork || null,
-      lineal_footage: formData.linealFootage ? parseFloat(formData.linealFootage) : (lead.linealFootage ? parseFloat(lead.linealFootage) : null),
-      project_value: formData.projectValue ? parseFloat(formData.projectValue) : (lead.projectValue ? parseFloat(lead.projectValue) : null),
+      lineal_footage: parseNumOrNull(formData.linealFootage) ?? parseNumOrNull(lead.linealFootage),
+      project_value: parseNumOrNull(formData.projectValue) ?? parseNumOrNull(lead.projectValue),
       installation_date: formData.installationDate || lead.installationDate || null,
       system_types: formData.systemTypes.length ? formData.systemTypes : (lead.systemTypes || null),
       won_reason: formData.wonReason,
@@ -589,6 +617,15 @@ function LeadDetailModal({
     if (!files || files.length === 0) return;
     setUploadingPhotos(true);
     setError("");
+    // Per-file cap. Modern phones produce 5–10 MB JPEGs; 25 MB leaves room
+    // for HEIC + RAW without letting a 500 MB video tank the storage quota.
+    const MAX_FILE_BYTES = 25 * 1024 * 1024;
+    const oversized = Array.from(files).filter((f) => f.size > MAX_FILE_BYTES);
+    if (oversized.length > 0) {
+      setError(`Photo${oversized.length > 1 ? "s" : ""} too large (max 25 MB): ${oversized.map((f) => f.name).join(", ")}`);
+      setUploadingPhotos(false);
+      return;
+    }
     // Persist after EACH successful upload so a mid-batch failure doesn't
     // orphan files in storage that the DB doesn't reference.
     let currentPaths: LeadAttachment[] = [...(lead.installationPhotos || [])];
@@ -643,7 +680,7 @@ function LeadDetailModal({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-ink/70 flex items-start justify-center overflow-y-auto p-4 md:p-8">
-        <div className="bg-cream w-full max-w-3xl lg:max-w-4xl my-8 shadow-2xl">
+        <div role="dialog" aria-modal="true" aria-labelledby="lead-detail-title" className="bg-cream w-full max-w-3xl lg:max-w-4xl my-8 shadow-2xl">
           <div className="sticky top-0 bg-cream border-b border-stone-200 px-6 md:px-8 py-5 flex items-center justify-between z-10">
             <div className="flex items-center gap-3 flex-wrap">
               <p className="eyebrow text-stone-500">Lead Detail</p>
@@ -655,12 +692,12 @@ function LeadDetailModal({
               )}
               {overdue && <span className="text-xs uppercase tracking-wider px-3 py-1 font-bold bg-red-600 text-white">Overdue</span>}
             </div>
-            <button onClick={onClose} className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
+            <button onClick={onClose} aria-label="Close lead details" className="text-stone-500 hover:text-ink text-2xl leading-none">×</button>
           </div>
 
           <div className="px-6 md:px-8 py-6">
             <div className="mb-6">
-              <h2 className="font-heading text-3xl font-bold mb-1">{lead.customer}</h2>
+              <h2 id="lead-detail-title" className="font-heading text-3xl font-bold mb-1">{lead.customer}</h2>
               {locationDisplay && <p className="font-body text-stone-600">{locationDisplay}</p>}
             </div>
 
@@ -742,7 +779,7 @@ function LeadDetailModal({
                 <div className="space-y-2 text-sm font-body">
                   {lead.scopeOfWork && <div><span className="text-stone-600">Scope: </span><span className="font-semibold">{lead.scopeOfWork}</span></div>}
                   {lead.linealFootage && <div><span className="text-stone-600">Lineal footage: </span><span className="font-semibold">{lead.linealFootage} LF</span></div>}
-                  {lead.projectValue && <div><span className="text-stone-600">Railing cost: </span><span className="font-semibold">${parseInt(lead.projectValue).toLocaleString()}</span></div>}
+                  {lead.projectValue && Number.isFinite(parseFloat(lead.projectValue)) && <div><span className="text-stone-600">Railing cost: </span><span className="font-semibold">${Math.round(parseFloat(lead.projectValue)).toLocaleString()}</span></div>}
                   {lead.orderNumber && <div><span className="text-stone-600">Order #: </span><span className="font-semibold">{lead.orderNumber}</span></div>}
                   {lead.wonReason && <div><span className="text-stone-600">Reason won: </span><span className="font-semibold">{lead.wonReason}</span></div>}
                   {lead.lostReason && <div><span className="text-stone-600">Reason lost: </span><span className="font-semibold">{lead.lostReason}</span></div>}
@@ -1053,7 +1090,7 @@ export default function LeadsPage() {
         .from("profiles")
         .select("full_name")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
       if (profile?.full_name) setDealerName(profile.full_name);
 
       const { data: rows } = await supabase
@@ -1133,7 +1170,10 @@ export default function LeadsPage() {
           <div className="bg-white border border-stone-200 p-5">
             <p className="eyebrow text-stone-500 mb-2">Total Value Won</p>
             <p className="text-3xl font-heading font-bold">
-              ${leads.filter((l) => l.status === "won").reduce((sum, l) => sum + (parseInt(l.projectValue || "0")), 0).toLocaleString()}
+              ${leads.filter((l) => l.status === "won").reduce((sum, l) => {
+                const n = parseFloat(l.projectValue || "0");
+                return sum + (Number.isFinite(n) ? n : 0);
+              }, 0).toLocaleString()}
             </p>
             <p className="text-xs text-stone-500 font-body mt-1">Project value</p>
           </div>

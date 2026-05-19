@@ -22,12 +22,15 @@ export default function AdminLayout({
         return
       }
 
-      // Check role from profiles table
+      // Check role from profiles table. maybeSingle() instead of single() so a
+      // missing profile row (e.g. user created via auth admin UI but no
+      // matching profile yet) doesn't throw — it returns null and we route
+      // them to the dealer side as a safe default.
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
-        .single()
+        .maybeSingle()
 
       if (!profile || profile.role !== 'admin') {
         // Logged in but not an admin — kick them to the dealer side

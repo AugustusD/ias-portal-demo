@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { humanizeError } from "@/lib/errors";
 
 type Dealer = {
   dealer_id: string;
@@ -48,6 +49,46 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
+  // Dirty-check + confirm-discard. Compares each editable field against the
+  // lead prop so the prompt only fires if the admin actually changed
+  // something — opening Edit and immediately closing is silent.
+  function isDirty(): boolean {
+    if (!lead) return false;
+    return (
+      dealerId !== lead.dealer_id ||
+      customerType !== (lead.customer_type || "") ||
+      contactName !== (lead.homeowner_name || "") ||
+      contactPhone !== (lead.homeowner_phone || "") ||
+      contactEmail !== (lead.homeowner_email || "") ||
+      city !== (lead.city || "") ||
+      province !== (lead.province || "") ||
+      notes !== (lead.notes || "") ||
+      projectName !== (lead.project_name || "") ||
+      contactCompany !== (lead.contact_company || "") ||
+      bidDueDate !== (lead.bid_due_date || "")
+    );
+  }
+
+  function attemptClose() {
+    if (saving || deleting) return;
+    if (isDirty() && !confirm("Discard your changes?")) return;
+    onClose();
+  }
+
+  // Escape-to-close routed through attemptClose. closeRef captures the
+  // latest dirty-check on each render so the keydown listener doesn't need
+  // to re-subscribe on every input change.
+  const closeRef = useRef<() => void>(() => {});
+  closeRef.current = attemptClose;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   useEffect(() => {
     if (lead) {
       setDealerId(lead.dealer_id);
@@ -91,7 +132,7 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
       .eq("id", lead!.id);
 
     setSaving(false);
-    if (updateError) { setError(updateError.message); return; }
+    if (updateError) { setError(humanizeError(updateError, "Couldn't update lead.")); return; }
     onSaved();
     onClose();
   }
@@ -104,20 +145,26 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
       .delete()
       .eq("id", lead!.id);
     setDeleting(false);
-    if (deleteError) { setError(deleteError.message); return; }
+    if (deleteError) { setError(humanizeError(deleteError, "Couldn't delete lead.")); return; }
     onSaved();
     onClose();
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-stone-900 border border-stone-800 max-w-2xl lg:max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={attemptClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-lead-title"
+        className="bg-stone-900 border border-stone-800 max-w-2xl lg:max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b border-stone-800 flex items-center justify-between">
           <div>
             <p className="eyebrow text-gold mb-1">Edit Lead</p>
-            <h2 className="font-heading text-xl font-bold text-cream">Update or Delete</h2>
+            <h2 id="edit-lead-title" className="font-heading text-xl font-bold text-cream">Update or Delete</h2>
           </div>
-          <button onClick={onClose} className="text-stone-500 hover:text-cream text-2xl leading-none">×</button>
+          <button onClick={attemptClose} aria-label="Close dialog" className="text-stone-500 hover:text-cream text-2xl leading-none">×</button>
         </div>
 
         <form onSubmit={handleSave} className="p-6 space-y-4">
@@ -193,7 +240,7 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
               {deleting ? "Deleting…" : "Delete Lead"}
             </button>
             <div className="flex gap-3">
-              <button type="button" onClick={onClose} disabled={saving || deleting} className="text-xs uppercase tracking-wider px-4 py-2 border border-stone-700 hover:border-gold text-stone-300 hover:text-gold font-body transition-colors">
+              <button type="button" onClick={attemptClose} disabled={saving || deleting} className="text-xs uppercase tracking-wider px-4 py-2 border border-stone-700 hover:border-gold text-stone-300 hover:text-gold font-body transition-colors">
                 Cancel
               </button>
               <button type="submit" disabled={saving || deleting} className="text-xs uppercase tracking-wider px-6 py-2 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors disabled:opacity-50">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Dealer = {
@@ -44,6 +44,32 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Escape closes the modal — routes through attemptClose so the discard
+  // confirm fires if any field has been touched. We stash the latest
+  // attemptClose in a ref so the listener doesn't have to re-subscribe on
+  // every keystroke (which would happen if attemptClose was in the dep
+  // array, since it's recreated each render).
+  const closeRef = useRef<() => void>(() => {});
+  closeRef.current = () => {
+    if (submitting) return;
+    const dirty = Boolean(
+      dealerId || customerType || contactName || contactPhone || contactEmail ||
+      city || province || notes || projectName || contactCompany || bidDueDate ||
+      attachments.length > 0
+    );
+    if (dirty && !confirm("Discard this lead? Your changes will be lost.")) return;
+    reset();
+    onClose();
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   // Duplicate detection — fires when both project_name + contact_company set.
   // Only checks ACTIVE stages (new/accepted/bid_submitted/won). Declined and lost
   // are terminal so they shouldn't block a fresh attempt at the same project.
@@ -78,6 +104,24 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
 
   if (!open) return null;
 
+  // Dirty-check — guards against accidental dismissal (backdrop click, ×,
+  // Cancel) when the user has typed anything. Doesn't fire if literally
+  // nothing has been entered (so opening + immediately closing is silent).
+  function isDirty(): boolean {
+    return Boolean(
+      dealerId || customerType || contactName || contactPhone || contactEmail ||
+      city || province || notes || projectName || contactCompany || bidDueDate ||
+      attachments.length > 0
+    );
+  }
+
+  function attemptClose() {
+    if (submitting) return; // never dismiss mid-submit
+    if (isDirty() && !confirm("Discard this lead? Your changes will be lost.")) return;
+    reset();
+    onClose();
+  }
+
   function reset() {
     setDealerId("");
     setCustomerType("");
@@ -96,10 +140,22 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
     setError("");
   }
 
+  // 25 MB per-file cap — generous for a scanned PDF or a .eml with inline
+  // images, but blocks someone from dragging in a 500 MB video and quietly
+  // burning through the Supabase storage quota. Supabase Free is 1 GB total.
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
   function addFiles(fileList: FileList | File[] | null) {
     if (!fileList) return;
     const arr = Array.from(fileList);
-    setAttachments((prev) => [...prev, ...arr]);
+    const oversized = arr.filter((f) => f.size > MAX_FILE_BYTES);
+    const okay = arr.filter((f) => f.size <= MAX_FILE_BYTES);
+    if (oversized.length > 0) {
+      setError(`File${oversized.length > 1 ? "s" : ""} too large (max 25 MB): ${oversized.map((f) => f.name).join(", ")}`);
+    }
+    if (okay.length > 0) {
+      setAttachments((prev) => [...prev, ...okay]);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -180,14 +236,20 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-stone-900 border border-stone-800 max-w-2xl lg:max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={attemptClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-lead-title"
+        className="bg-stone-900 border border-stone-800 max-w-2xl lg:max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b border-stone-800 flex items-center justify-between">
           <div>
             <p className="eyebrow text-gold mb-1">New Lead</p>
-            <h2 className="font-heading text-xl font-bold text-cream">Forward to Dealer</h2>
+            <h2 id="new-lead-title" className="font-heading text-xl font-bold text-cream">Forward to Dealer</h2>
           </div>
-          <button onClick={onClose} className="text-stone-500 hover:text-cream text-2xl leading-none">×</button>
+          <button onClick={attemptClose} aria-label="Close dialog" className="text-stone-500 hover:text-cream text-2xl leading-none">×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -370,7 +432,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
                 {attachments.map((f, i) => (
                   <li key={i} className="flex items-center justify-between text-xs font-body text-stone-300 bg-stone-950 border border-stone-800 px-3 py-1.5">
                     <span className="truncate">📎 {f.name} <span className="text-stone-500">({Math.ceil(f.size / 1024)} KB)</span></span>
-                    <button type="button" onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))} className="text-stone-500 hover:text-red-400 ml-2">×</button>
+                    <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))} className="text-stone-500 hover:text-red-400 ml-2">×</button>
                   </li>
                 ))}
               </ul>
@@ -380,7 +442,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
           {error && <p className="text-red-400 text-sm font-body">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-stone-800">
-            <button type="button" onClick={onClose} className="text-xs uppercase tracking-wider px-4 py-2 border border-stone-700 hover:border-gold text-stone-300 hover:text-gold font-body transition-colors">
+            <button type="button" onClick={attemptClose} className="text-xs uppercase tracking-wider px-4 py-2 border border-stone-700 hover:border-gold text-stone-300 hover:text-gold font-body transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="text-xs uppercase tracking-wider px-6 py-2 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors disabled:opacity-50">

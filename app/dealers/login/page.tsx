@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -20,11 +21,14 @@ export default function LoginPage() {
         setCheckingSession(false);
         return;
       }
+      // maybeSingle: a session without a matching profiles row shouldn't crash
+      // the checkSession effect — we just fall through to dealer dashboard,
+      // which will gate further or surface a clean error.
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
       if (profile?.role === "admin") {
         router.replace("/admin/dashboard");
       } else {
@@ -54,7 +58,7 @@ export default function LoginPage() {
       .from("profiles")
       .select("full_name, email, role")
       .eq("id", authData.user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) {
       setError("Account exists but profile not found. Contact IAS support.");
@@ -110,9 +114,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-body font-semibold mb-2 uppercase tracking-wider">
-              Password
-            </label>
+            <div className="flex items-baseline justify-between mb-2">
+              <label htmlFor="password" className="block text-sm font-body font-semibold uppercase tracking-wider">
+                Password
+              </label>
+              <Link href="/dealers/forgot-password" className="text-xs font-body text-stone-600 hover:text-gold underline">
+                Forgot?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

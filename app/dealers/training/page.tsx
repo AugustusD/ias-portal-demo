@@ -504,7 +504,14 @@ function CustomerForm({
       p_city: data.city.trim() || null,
       p_province: data.province.trim() || null,
       p_postal_code: data.postalCode.trim() || null,
-      p_years_in_business: data.yearsInBusiness ? parseInt(data.yearsInBusiness) : null,
+      // isFinite guard — parseInt("abc") returns NaN and Supabase will reject
+      // the whole RPC with a confusing type error. Treat unparseable input
+      // as null so the form submission still succeeds.
+      p_years_in_business: (() => {
+        if (!data.yearsInBusiness) return null;
+        const n = parseInt(data.yearsInBusiness, 10);
+        return Number.isFinite(n) ? n : null;
+      })(),
       p_website: data.website.trim() || null,
       p_notes: data.notes.trim() || null,
       p_type_of_business: businessTypes,
