@@ -14,7 +14,6 @@ type Dealer = {
   location: string | null;
   joined_date: string | null;
   onboarding_stage: string;
-  authorized: boolean;
   street_address: string | null;
   city: string | null;
   province: string | null;
