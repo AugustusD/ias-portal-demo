@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Dealer = {
@@ -15,6 +15,14 @@ type Props = {
   dealers: Dealer[];
 };
 
+type DuplicateMatch = {
+  id: string;
+  project_name: string | null;
+  contact_company: string | null;
+  stage: string;
+  dealer_id: string;
+};
+
 export default function NewLeadModal({ open, onClose, onCreated, dealers }: Props) {
   const [dealerId, setDealerId] = useState("");
   const [customerType, setCustomerType] = useState<"" | "homeowner" | "builder">("");
@@ -24,8 +32,46 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [notes, setNotes] = useState("");
+  // Meeting items
+  const [projectName, setProjectName] = useState("");
+  const [contactCompany, setContactCompany] = useState("");
+  const [bidDueDate, setBidDueDate] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [duplicate, setDuplicate] = useState<DuplicateMatch | null>(null);
+  const [overrideDup, setOverrideDup] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Duplicate detection — fires when both project_name + contact_company set.
+  // Only checks ACTIVE stages (new/accepted/bid_submitted/won). Declined and lost
+  // are terminal so they shouldn't block a fresh attempt at the same project.
+  useEffect(() => {
+    const pn = projectName.trim().toLowerCase();
+    const cc = contactCompany.trim().toLowerCase();
+    if (!pn || !cc) {
+      setDuplicate(null);
+      setOverrideDup(false); // clear stale override if user changes inputs
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, project_name, contact_company, stage, dealer_id")
+        .ilike("project_name", pn)
+        .ilike("contact_company", cc)
+        .in("stage", ["new", "accepted", "bid_submitted", "won"])
+        .limit(1);
+      if (error || !data || data.length === 0) {
+        setDuplicate(null);
+        setOverrideDup(false); // dup cleared → reset override so it doesn't auto-apply if user re-enters dup
+        return;
+      }
+      setDuplicate(data[0] as DuplicateMatch);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [projectName, contactCompany]);
 
   if (!open) return null;
 
@@ -38,7 +84,25 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
     setCity("");
     setProvince("");
     setNotes("");
+    setProjectName("");
+    setContactCompany("");
+    setBidDueDate("");
+    setAttachments([]);
+    setDuplicate(null);
+    setOverrideDup(false);
     setError("");
+  }
+
+  function addFiles(fileList: FileList | File[] | null) {
+    if (!fileList) return;
+    const arr = Array.from(fileList);
+    setAttachments((prev) => [...prev, ...arr]);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    addFiles(e.dataTransfer.files);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -46,28 +110,67 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
     setError("");
 
     if (!dealerId) { setError("Please assign to a dealer."); return; }
-
-    setSubmitting(true);
-
-    const { error: insertError } = await supabase.from("leads").insert({
-      dealer_id: dealerId,
-      customer_type: customerType || null,
-      homeowner_name: contactName.trim() || null,
-      homeowner_phone: contactPhone.trim() || null,
-      homeowner_email: contactEmail.trim() || null,
-      city: city.trim() || null,
-      province: province.trim() || null,
-      notes: notes.trim() || null,
-      stage: "new",
-    });
-
-    setSubmitting(false);
-
-    if (insertError) {
-      setError(insertError.message);
+    if (duplicate && !overrideDup) {
+      setError("This looks like a duplicate. Tick the override box below if you want to send it anyway.");
       return;
     }
 
+    setSubmitting(true);
+
+    const { data: insertData, error: insertError } = await supabase
+      .from("leads")
+      .insert({
+        dealer_id: dealerId,
+        customer_type: customerType || null,
+        homeowner_name: contactName.trim() || null,
+        homeowner_phone: contactPhone.trim() || null,
+        homeowner_email: contactEmail.trim() || null,
+        city: city.trim() || null,
+        province: province.trim() || null,
+        notes: notes.trim() || null,
+        project_name: projectName.trim() || null,
+        contact_company: contactCompany.trim() || null,
+        bid_due_date: bidDueDate || null,
+        stage: "new",
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !insertData) {
+      setSubmitting(false);
+      setError(insertError?.message ?? "Couldn't create lead.");
+      return;
+    }
+
+    const leadId = insertData.id;
+
+    // Upload attachments (if any) and patch the row after EACH success so a
+    // mid-batch failure doesn't orphan files in storage that the row never references.
+    if (attachments.length > 0) {
+      const uploaded: { path: string; filename: string; uploaded_at: string }[] = [];
+      for (let i = 0; i < attachments.length; i++) {
+        const f = attachments[i];
+        const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `leads/${leadId}/email/${Date.now()}-${i}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from("private-documents")
+          .upload(path, f, { contentType: f.type || "application/octet-stream", upsert: false });
+        if (upErr) {
+          setError(`Lead created. Upload failed at ${f.name}: ${upErr.message}. ${uploaded.length} attachment(s) before this were saved.`);
+          setSubmitting(false);
+          return;
+        }
+        uploaded.push({
+          path,
+          filename: f.name,
+          uploaded_at: new Date().toISOString(),
+        });
+        // Persist after each successful upload — keeps DB and storage in sync
+        await supabase.from("leads").update({ lead_attachment_paths: uploaded }).eq("id", leadId);
+      }
+    }
+
+    setSubmitting(false);
     reset();
     onCreated();
     onClose();
@@ -85,6 +188,58 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Project — Mike & Fred wanted these as the primary identifying fields */}
+          <div>
+            <label className="block eyebrow text-stone-400 mb-1">Project Name</label>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="e.g. Harbour View Towers, Phase 2"
+              className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block eyebrow text-stone-400 mb-1">Contracting Company</label>
+              <input
+                type="text"
+                value={contactCompany}
+                onChange={(e) => setContactCompany(e.target.value)}
+                placeholder="e.g. Insignia Construction"
+                className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+              />
+              <p className="text-xs text-stone-500 mt-1 font-body italic">Used for duplicate detection.</p>
+            </div>
+            <div>
+              <label className="block eyebrow text-stone-400 mb-1">Bid Due Date</label>
+              <input
+                type="date"
+                value={bidDueDate}
+                onChange={(e) => setBidDueDate(e.target.value)}
+                className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+              />
+            </div>
+          </div>
+
+          {/* Duplicate banner */}
+          {duplicate && (
+            <div className="p-3 bg-amber-950/60 border border-amber-700">
+              <p className="text-amber-200 font-body text-sm font-semibold mb-1">
+                ⚠️ Possible duplicate
+              </p>
+              <p className="text-amber-100 font-body text-xs mb-2">
+                A lead for &ldquo;{duplicate.project_name}&rdquo; from &ldquo;{duplicate.contact_company}&rdquo; already
+                exists (current stage: <span className="font-bold">{duplicate.stage}</span>).
+              </p>
+              <label className="flex items-center gap-2 text-amber-100 text-xs font-body cursor-pointer">
+                <input type="checkbox" checked={overrideDup} onChange={(e) => setOverrideDup(e.target.checked)} className="accent-amber-400" />
+                Send it anyway — this is a different request for the same project.
+              </label>
+            </div>
+          )}
+
           {/* Assign to Dealer */}
           <div>
             <label className="block eyebrow text-stone-400 mb-1">Assign to Dealer</label>
@@ -177,6 +332,42 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
               placeholder="Any additional info to pass along to the dealer (project size, timeline, special requirements, source of the lead, etc.)"
               className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
             />
+          </div>
+
+          {/* Email / file drag-drop */}
+          <div>
+            <label className="block eyebrow text-stone-400 mb-1">Email / Attachments</label>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed p-6 text-center transition-colors ${isDragging ? "border-gold bg-gold/10" : "border-stone-700 bg-stone-950"}`}
+            >
+              <p className="font-body text-sm text-stone-400 mb-2">
+                Drag in the original email or any related files (.eml, .msg, .pdf, .jpg…)
+              </p>
+              <label className="inline-block">
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => addFiles(e.target.files)}
+                />
+                <span className="text-xs uppercase tracking-wider px-4 py-2 border border-stone-600 text-stone-300 hover:text-gold hover:border-gold font-body cursor-pointer inline-block">
+                  Or browse…
+                </span>
+              </label>
+            </div>
+            {attachments.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {attachments.map((f, i) => (
+                  <li key={i} className="flex items-center justify-between text-xs font-body text-stone-300 bg-stone-950 border border-stone-800 px-3 py-1.5">
+                    <span className="truncate">📎 {f.name} <span className="text-stone-500">({Math.ceil(f.size / 1024)} KB)</span></span>
+                    <button type="button" onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))} className="text-stone-500 hover:text-red-400 ml-2">×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {error && <p className="text-red-400 text-sm font-body">{error}</p>}

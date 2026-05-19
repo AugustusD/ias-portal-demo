@@ -30,8 +30,11 @@ type LeadRow = {
   province: string | null;
   notes: string | null;
   product_interest: string | null;
-  stage: "new" | "accepted" | "bid_submitted" | "won" | "lost";
+  stage: "new" | "accepted" | "bid_submitted" | "won" | "lost" | "declined";
   updated_at: string;
+  project_name: string | null;
+  contact_company: string | null;
+  bid_due_date: string | null;
   dealers: { company_name: string; location: string | null } | null;
 };
 
@@ -49,6 +52,7 @@ const LEAD_STAGE_LABELS: Record<LeadRow["stage"], string> = {
   bid_submitted: "Bid Submitted",
   won: "Won",
   lost: "Lost",
+  declined: "Declined",
 };
 
 const TOTAL_MODULES = 5;
@@ -101,7 +105,7 @@ export default function AdminDashboard() {
 
       const { data: leadData } = await supabase
         .from("leads")
-        .select("id, dealer_id, customer_type, homeowner_name, homeowner_phone, homeowner_email, city, province, notes, product_interest, stage, updated_at, dealers(company_name, location)")
+        .select("id, dealer_id, customer_type, homeowner_name, homeowner_phone, homeowner_email, city, province, notes, product_interest, stage, updated_at, project_name, contact_company, bid_due_date, dealers(company_name, location)")
         .in("stage", ["new", "accepted", "bid_submitted"])
         .order("updated_at", { ascending: false });
       setLeads((leadData as unknown as LeadRow[]) || []);
@@ -137,6 +141,9 @@ export default function AdminDashboard() {
       city: lead.city,
       province: lead.province,
       notes: lead.notes,
+      project_name: lead.project_name,
+      contact_company: lead.contact_company,
+      bid_due_date: lead.bid_due_date,
     });
   }
 
@@ -321,12 +328,12 @@ export default function AdminDashboard() {
                 <table className="w-full">
                   <thead className="bg-stone-950 text-stone-400">
                     <tr className="border-b border-stone-800">
+                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Project</th>
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Customer</th>
-                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Type</th>
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Dealer</th>
-                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Location</th>
                       <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Stage</th>
-                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Days</th>
+                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Bid Due</th>
+                      <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Last Activity</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -340,29 +347,38 @@ export default function AdminDashboard() {
                           className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors cursor-pointer ${stalled ? "bg-gold/5" : ""}`}
                         >
                           <td className="py-4 px-4">
-                            <p className="font-body font-semibold text-cream">{lead.homeowner_name || "—"}</p>
+                            <p className="font-body font-semibold text-cream">{lead.project_name || "—"}</p>
+                            {lead.contact_company && <p className="text-xs text-stone-500 font-body">{lead.contact_company}</p>}
                             {stalled && (<p className="text-xs text-gold font-body font-semibold uppercase tracking-wider mt-1">Stalled</p>)}
                           </td>
-                          <td className="py-4 px-4 text-sm font-body text-stone-300 capitalize">{lead.customer_type || "—"}</td>
+                          <td className="py-4 px-4">
+                            <p className="font-body text-sm text-cream">{lead.homeowner_name || "—"}</p>
+                            <p className="text-xs text-stone-500 font-body capitalize">{lead.customer_type || "—"}</p>
+                          </td>
                           <td className="py-4 px-4">
                             <p className="font-body text-sm text-cream">{lead.dealers?.company_name || "—"}</p>
                             <p className="text-xs text-stone-500 font-body">{lead.dealers?.location || "—"}</p>
-                          </td>
-                          <td className="py-4 px-4 text-sm font-body text-stone-300">
-                            {[lead.city, lead.province].filter(Boolean).join(", ") || "—"}
                           </td>
                           <td className="py-4 px-4">
                             <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
                               lead.stage === "new" ? "bg-gold text-ink" :
                               lead.stage === "accepted" ? "bg-blue-900 text-blue-100" :
                               lead.stage === "bid_submitted" ? "bg-amber-900 text-amber-100" :
+                              lead.stage === "declined" ? "bg-amber-950 text-amber-200 border border-amber-700" :
                               "bg-stone-800 text-stone-300"
                             }`}>
                               {LEAD_STAGE_LABELS[lead.stage]}
                             </span>
                           </td>
                           <td className="py-4 px-4 text-sm font-body">
-                            <span className={days > 14 ? "text-red-400 font-semibold" : stalled ? "text-gold font-semibold" : "text-stone-300"}>{days}d</span>
+                            {lead.bid_due_date ? (
+                              <span className={daysAgo(lead.bid_due_date) > 0 ? "text-red-400 font-semibold" : "text-stone-300"}>
+                                {formatDate(lead.bid_due_date)}
+                              </span>
+                            ) : <span className="text-stone-500">—</span>}
+                          </td>
+                          <td className="py-4 px-4 text-sm font-body">
+                            <span className={days > 14 ? "text-red-400 font-semibold" : stalled ? "text-gold font-semibold" : "text-stone-300"}>{days}d ago</span>
                           </td>
                         </tr>
                       );
