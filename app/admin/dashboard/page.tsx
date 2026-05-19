@@ -237,12 +237,12 @@ export default function AdminDashboard() {
               <h1 className="font-heading text-xl font-bold">Admin Console</h1>
             </Link>
           </div>
-          <div className="flex items-center gap-4">
-            <p className="text-sm font-body">
+          <div className="flex items-center gap-3 md:gap-4">
+            <p className="hidden md:block text-sm font-body">
               <span className="text-stone-400">Signed in as</span>
               <span className="ml-2 font-semibold">{adminName}</span>
             </p>
-            <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-gold hover:text-gold px-4 py-2 transition-colors">Log Out</button>
+            <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-gold hover:text-gold px-3 md:px-4 py-2 transition-colors whitespace-nowrap">Log Out</button>
           </div>
         </div>
       </div>
@@ -293,15 +293,18 @@ export default function AdminDashboard() {
               {activity.map((ev, i) => {
                 const meta = ACTIVITY_LABELS[ev.kind] || { label: ev.kind, color: "text-stone-300" };
                 return (
-                  <li key={i} className="px-5 py-3 flex items-center gap-3 text-sm font-body">
-                    <span className={`flex-shrink-0 inline-block w-1.5 h-1.5 rounded-full ${meta.color.replace("text-", "bg-")}`} aria-hidden></span>
-                    <span className={`flex-shrink-0 ${meta.color} font-semibold w-44`}>{meta.label}</span>
-                    <span className="text-stone-300 truncate flex-1">
+                  <li key={i} className="px-5 py-3 flex flex-col md:flex-row md:items-center gap-1 md:gap-3 text-sm font-body">
+                    <div className="flex items-center gap-2 md:gap-3 md:flex-shrink-0">
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${meta.color.replace("text-", "bg-")}`} aria-hidden></span>
+                      <span className={`${meta.color} font-semibold md:w-44`}>{meta.label}</span>
+                      <span className="md:hidden ml-auto text-stone-500 text-xs">{timeAgoShort(ev.at)} ago</span>
+                    </div>
+                    <span className="text-stone-300 min-w-0 truncate flex-1 pl-3.5 md:pl-0">
                       <span className="font-semibold">{ev.actor || "Someone"}</span>
                       {ev.subject && <span className="text-stone-500"> · {ev.subject}</span>}
                       {ev.detail && <span className="text-stone-500"> · {ev.detail}</span>}
                     </span>
-                    <span className="flex-shrink-0 text-stone-500 text-xs w-12 text-right">{timeAgoShort(ev.at)} ago</span>
+                    <span className="hidden md:inline-block flex-shrink-0 text-stone-500 text-xs w-12 text-right">{timeAgoShort(ev.at)} ago</span>
                   </li>
                 );
               })}
@@ -371,7 +374,7 @@ export default function AdminDashboard() {
                           onClick={() => router.push(`/admin/dealers/${d.dealer_id}`)}
                           className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors cursor-pointer ${isBottleneck ? "bg-red-950/20" : ""}`}
                         >
-                          <td className="py-4 px-4">
+                          <td className="py-4 px-4 min-w-[180px]">
                             <p className="font-body font-semibold text-cream">{d.company_name}</p>
                             <p className="text-xs text-stone-500 font-body">{d.location || "—"} · Joined {formatDate(d.joined_date)}</p>
                           </td>
