@@ -600,7 +600,7 @@ export default function DealerDetailPage() {
                   <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Type</th>
                   <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Location</th>
                   <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Stage</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Received</th>
+                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Assigned</th>
                   <th className="text-right py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Value</th>
                 </tr>
               </thead>

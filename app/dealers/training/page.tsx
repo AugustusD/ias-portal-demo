@@ -88,7 +88,15 @@ const GUEST_FORM_KEY = "ias_guest_customer_form_submitted";
 const PENDING_SIGNUP_KEY = "ias_pending_signup";
 const REGISTRATION_TOKEN_KEY = "ias_registration_token";
 
-function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComplete: () => void; label?: string }) {
+function SlideToComplete({
+  onComplete,
+  label = "Slide to Complete",
+  autoComplete = false,
+}: {
+  onComplete: () => void;
+  label?: string;
+  autoComplete?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -131,6 +139,25 @@ function SlideToComplete({ onComplete, label = "Slide to Complete" }: { onComple
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDragging]);
+
+  // Auto-complete: when triggered (e.g. right after form submit), animate the
+  // knob across and fire onComplete. Per Fred's meeting feedback — submit
+  // shouldn't make the user then manually slide.
+  useEffect(() => {
+    if (!autoComplete || completed) return;
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const knobWidth = 56;
+    const maxPosition = rect.width - knobWidth;
+    // brief delay so the user perceives the animation
+    const t = setTimeout(() => {
+      setCompleted(true);
+      setPosition(maxPosition);
+      setTimeout(() => onComplete(), 600);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoComplete]);
 
   return (
     <div ref={containerRef} className="relative h-14 bg-stone-100 border border-stone-300 select-none overflow-hidden" style={{ touchAction: "none" }}>
@@ -596,6 +623,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [justSubmittedForm, setJustSubmittedForm] = useState(false);
   const [registrationToken, setRegistrationToken] = useState<string | null>(null);
   const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
   const [showAccountPopup, setShowAccountPopup] = useState(false);
@@ -703,6 +731,7 @@ export default function OnboardingPage() {
 
   function handleFormSubmitted(token: string | null) {
     setFormSubmitted(true);
+    setJustSubmittedForm(true);
     if (token) setRegistrationToken(token);
   }
 
@@ -887,7 +916,13 @@ export default function OnboardingPage() {
                   <span className="font-body font-semibold">Module complete</span>
                 </div>
               ) : canCompleteActive ? (
-                <SlideToComplete onComplete={() => markComplete(activeModule.id)} />
+                <SlideToComplete
+                  onComplete={() => {
+                    markComplete(activeModule.id);
+                    setJustSubmittedForm(false);
+                  }}
+                  autoComplete={activeModule.type === "form" && justSubmittedForm}
+                />
               ) : (
                 <div className="bg-stone-100 border border-stone-300 h-14 flex items-center justify-center">
                   <span className="font-body text-sm text-stone-400 uppercase tracking-widest">Submit the form to unlock</span>

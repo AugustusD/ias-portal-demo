@@ -5,7 +5,30 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type LeadStatus = "new" | "accepted" | "bid_submitted" | "won" | "lost";
+type LeadStatus = "new" | "accepted" | "bid_submitted" | "won" | "lost" | "declined";
+
+const SYSTEM_TYPE_OPTIONS = ["Infinity Topless", "Glass Component", "Picket", "Custom"] as const;
+
+const WON_REASON_OPTIONS = [
+  "Lowest bid",
+  "Reputation in market",
+  "Following spec",
+  "Quality of powder coating",
+  "Custom capability",
+  "Existing relationship",
+  "Other",
+] as const;
+
+const DECLINE_REASON_OPTIONS = [
+  "Out of region / too far",
+  "Capacity full — can't take on right now",
+  "Not our type of work",
+  "Material lead time too long",
+  "Customer not a fit",
+  "Other",
+] as const;
+
+type LeadAttachment = { path: string; filename: string; uploaded_at: string };
 
 type Warranty = {
   type: "residential" | "commercial";
@@ -35,7 +58,19 @@ type Lead = {
   estimatedSize: string;
   description: string;
   receivedDate: string;
+  assignedDate?: string;
   status: LeadStatus;
+  // Meeting items (2026-05-04 with Mike + Fred)
+  projectName?: string;
+  contactCompany?: string;
+  bidDueDate?: string;
+  installationDate?: string;
+  systemTypes?: string[];
+  wonReason?: string;
+  declineReason?: string;
+  leadAttachments?: LeadAttachment[];
+  installationPhotos?: LeadAttachment[];
+  // Existing
   scopeOfWork?: string;
   linealFootage?: string;
   projectValue?: string;
@@ -55,6 +90,7 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: stri
   bid_submitted: { label: "Bid Submitted", color: "text-amber-900", bg: "bg-amber-100", description: "Quote sent to customer. Awaiting decision." },
   won: { label: "Won", color: "text-green-900", bg: "bg-green-100", description: "Project secured. Completion pending." },
   lost: { label: "Lost", color: "text-stone-700", bg: "bg-stone-200", description: "Project went to another bidder." },
+  declined: { label: "Declined", color: "text-stone-700", bg: "bg-stone-200", description: "Lead declined before accept." },
 };
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -124,6 +160,16 @@ type DbLead = {
   warranty_signed_by_name: string | null;
   warranty_signed_at: string | null;
   warranty_photo_paths: string[] | null;
+  // Meeting items
+  project_name: string | null;
+  contact_company: string | null;
+  bid_due_date: string | null;
+  installation_date: string | null;
+  system_types: string[] | null;
+  won_reason: string | null;
+  decline_reason: string | null;
+  lead_attachment_paths: LeadAttachment[] | null;
+  installation_photo_paths: LeadAttachment[] | null;
 };
 
 function dbToLead(r: DbLead): Lead {
@@ -168,6 +214,16 @@ function dbToLead(r: DbLead): Lead {
     closedDate: r.closed_at || undefined,
     warrantyRegistered: !!r.warranty_registered_at,
     warranty,
+    // Meeting items
+    projectName: r.project_name || undefined,
+    contactCompany: r.contact_company || undefined,
+    bidDueDate: r.bid_due_date || undefined,
+    installationDate: r.installation_date || undefined,
+    systemTypes: r.system_types || undefined,
+    wonReason: r.won_reason || undefined,
+    declineReason: r.decline_reason || undefined,
+    leadAttachments: r.lead_attachment_paths || undefined,
+    installationPhotos: r.installation_photo_paths || undefined,
   };
 }
 
@@ -411,11 +467,14 @@ function LeadDetailModal({
   onClose: () => void;
   onChanged: () => void;
 }) {
-  const [actionMode, setActionMode] = useState<"none" | "submit_bid" | "won" | "lost">("none");
+  const [actionMode, setActionMode] = useState<
+    "none" | "submit_bid" | "won" | "lost" | "decline"
+  >("none");
   const [showWarrantyFlow, setShowWarrantyFlow] = useState(false);
   const [showWarrantySuccess, setShowWarrantySuccess] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   const [formData, setFormData] = useState({
     scopeOfWork: lead.scopeOfWork || "",
@@ -423,8 +482,21 @@ function LeadDetailModal({
     projectValue: lead.projectValue || "",
     orderNumber: lead.orderNumber || "",
     lostReason: lead.lostReason || "Price — we were higher",
+    wonReason: lead.wonReason || WON_REASON_OPTIONS[0],
+    declineReason: lead.declineReason || DECLINE_REASON_OPTIONS[0],
     notes: lead.notes || "",
+    installationDate: lead.installationDate || "",
+    systemTypes: lead.systemTypes || [],
   });
+
+  function toggleSystemType(s: string) {
+    setFormData((prev) => ({
+      ...prev,
+      systemTypes: prev.systemTypes.includes(s)
+        ? prev.systemTypes.filter((x) => x !== s)
+        : [...prev.systemTypes, s],
+    }));
+  }
 
   async function saveUpdate(updates: Record<string, unknown>) {
     setSaving(true);
@@ -446,6 +518,16 @@ function LeadDetailModal({
     await saveUpdate({ stage: "accepted", accepted_at: new Date().toISOString() });
   }
 
+  async function handleDecline() {
+    const ok = await saveUpdate({
+      stage: "declined",
+      closed_at: new Date().toISOString(),
+      decline_reason: formData.declineReason,
+      notes: formData.notes,
+    });
+    if (ok) setActionMode("none");
+  }
+
   async function handleSubmitBid() {
     const ok = await saveUpdate({
       stage: "bid_submitted",
@@ -453,6 +535,8 @@ function LeadDetailModal({
       scope_of_work: formData.scopeOfWork,
       lineal_footage: formData.linealFootage ? parseFloat(formData.linealFootage) : null,
       project_value: formData.projectValue ? parseFloat(formData.projectValue) : null,
+      installation_date: formData.installationDate || null,
+      system_types: formData.systemTypes.length ? formData.systemTypes : null,
     });
     if (ok) setActionMode("none");
   }
@@ -465,6 +549,9 @@ function LeadDetailModal({
       scope_of_work: formData.scopeOfWork || lead.scopeOfWork || null,
       lineal_footage: formData.linealFootage ? parseFloat(formData.linealFootage) : (lead.linealFootage ? parseFloat(lead.linealFootage) : null),
       project_value: formData.projectValue ? parseFloat(formData.projectValue) : (lead.projectValue ? parseFloat(lead.projectValue) : null),
+      installation_date: formData.installationDate || lead.installationDate || null,
+      system_types: formData.systemTypes.length ? formData.systemTypes : (lead.systemTypes || null),
+      won_reason: formData.wonReason,
       notes: formData.notes,
     });
     if (ok) setActionMode("none");
@@ -478,6 +565,34 @@ function LeadDetailModal({
       notes: formData.notes,
     });
     if (ok) setActionMode("none");
+  }
+
+  async function handleUploadInstallPhotos(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingPhotos(true);
+    setError("");
+    const newAttachments: LeadAttachment[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `leads/${lead.id}/install/${Date.now()}-${i}-${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from("private-documents")
+        .upload(path, f, { contentType: f.type, upsert: false });
+      if (upErr) {
+        setError(`Upload failed for ${f.name}: ${upErr.message}`);
+        setUploadingPhotos(false);
+        return;
+      }
+      newAttachments.push({
+        path,
+        filename: f.name,
+        uploaded_at: new Date().toISOString(),
+      });
+    }
+    const merged = [...(lead.installationPhotos || []), ...newAttachments];
+    await saveUpdate({ installation_photo_paths: merged });
+    setUploadingPhotos(false);
   }
 
   async function handleWarrantyComplete(w: Warranty) {
@@ -539,12 +654,44 @@ function LeadDetailModal({
               </div>
             </div>
 
-            {(lead.projectType !== "—" || lead.estimatedSize || lead.description) && (
+            {(lead.projectName || lead.contactCompany || lead.bidDueDate) && (
               <div className="mb-6 pb-6 border-b border-stone-200">
                 <p className="eyebrow text-stone-500 mb-2">Project</p>
+                {lead.projectName && <p className="font-body font-semibold text-lg mb-1">{lead.projectName}</p>}
+                <div className="space-y-1 text-sm font-body text-stone-600 mt-2">
+                  {lead.contactCompany && <div><span className="text-stone-500">Contracting company:</span> <span className="font-semibold text-ink">{lead.contactCompany}</span></div>}
+                  {lead.bidDueDate && (
+                    <div>
+                      <span className="text-stone-500">Bid due:</span>{" "}
+                      <span className={`font-semibold ${getDaysAgo(lead.bidDueDate) > 0 ? "text-red-700" : "text-ink"}`}>
+                        {formatDate(lead.bidDueDate)}
+                        {getDaysAgo(lead.bidDueDate) > 0 && " (overdue)"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(lead.projectType !== "—" || lead.estimatedSize || lead.description || (lead.systemTypes && lead.systemTypes.length > 0)) && (
+              <div className="mb-6 pb-6 border-b border-stone-200">
+                <p className="eyebrow text-stone-500 mb-2">Scope</p>
                 {lead.projectType !== "—" && <p className="font-body font-semibold mb-1">{lead.projectType}</p>}
                 {lead.estimatedSize && <p className="font-body text-sm text-stone-600 mb-3">{lead.estimatedSize}</p>}
-                {lead.description && <p className="font-body text-sm text-stone-600 leading-relaxed">{lead.description}</p>}
+                {lead.description && <p className="font-body text-sm text-stone-600 leading-relaxed mb-3">{lead.description}</p>}
+                {lead.systemTypes && lead.systemTypes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {lead.systemTypes.map((s) => (
+                      <span key={s} className="inline-block px-2 py-1 text-xs font-body bg-stone-100 border border-stone-300 text-stone-700">{s}</span>
+                    ))}
+                  </div>
+                )}
+                {lead.installationDate && (
+                  <p className="text-sm font-body text-stone-600 mt-3">
+                    <span className="text-stone-500">Estimated first install:</span>{" "}
+                    <span className="font-semibold text-ink">{formatDate(lead.installationDate)}</span>
+                  </p>
+                )}
               </div>
             )}
 
@@ -566,15 +713,17 @@ function LeadDetailModal({
               </div>
             </div>
 
-            {(lead.scopeOfWork || lead.projectValue || lead.lostReason || (lead.notes && lead.status !== "new")) && (
+            {(lead.scopeOfWork || lead.projectValue || lead.lostReason || lead.wonReason || lead.declineReason || (lead.notes && lead.status !== "new")) && (
               <div className="mb-6 pb-6 border-b border-stone-200">
                 <p className="eyebrow text-stone-500 mb-3">Outcome Details</p>
                 <div className="space-y-2 text-sm font-body">
                   {lead.scopeOfWork && <div><span className="text-stone-600">Scope: </span><span className="font-semibold">{lead.scopeOfWork}</span></div>}
                   {lead.linealFootage && <div><span className="text-stone-600">Lineal footage: </span><span className="font-semibold">{lead.linealFootage} LF</span></div>}
-                  {lead.projectValue && <div><span className="text-stone-600">Project value: </span><span className="font-semibold">${parseInt(lead.projectValue).toLocaleString()}</span></div>}
+                  {lead.projectValue && <div><span className="text-stone-600">Railing cost: </span><span className="font-semibold">${parseInt(lead.projectValue).toLocaleString()}</span></div>}
                   {lead.orderNumber && <div><span className="text-stone-600">Order #: </span><span className="font-semibold">{lead.orderNumber}</span></div>}
+                  {lead.wonReason && <div><span className="text-stone-600">Reason won: </span><span className="font-semibold">{lead.wonReason}</span></div>}
                   {lead.lostReason && <div><span className="text-stone-600">Reason lost: </span><span className="font-semibold">{lead.lostReason}</span></div>}
+                  {lead.declineReason && <div><span className="text-stone-600">Reason declined: </span><span className="font-semibold">{lead.declineReason}</span></div>}
                   {lead.notes && lead.status !== "new" && <div><span className="text-stone-600">Notes: </span><span className="font-semibold">{lead.notes}</span></div>}
                 </div>
               </div>
@@ -597,6 +746,39 @@ function LeadDetailModal({
               </div>
             )}
 
+            {lead.status === "won" && actionMode === "none" && (
+              <div className="mb-6 p-5 bg-stone-50 border border-stone-200">
+                <p className="eyebrow text-stone-500 mb-2">Installation photos</p>
+                <h4 className="font-heading text-base font-bold mb-2">Share photos of the finished install</h4>
+                <p className="font-body text-sm text-stone-600 mb-3">
+                  We use these for marketing, social posts, and to prove the quality of your work.
+                  High-res is best. Drone shots welcome.
+                </p>
+                {lead.installationPhotos && lead.installationPhotos.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                    {lead.installationPhotos.map((p) => (
+                      <div key={p.path} className="text-xs font-body bg-white border border-stone-200 px-2 py-1.5 truncate" title={p.filename}>
+                        ✓ {p.filename}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label className="inline-block">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleUploadInstallPhotos(e.target.files)}
+                    disabled={uploadingPhotos}
+                  />
+                  <span className={`btn-outline-dark text-xs px-4 py-2 cursor-pointer inline-block ${uploadingPhotos ? "opacity-50" : ""}`}>
+                    {uploadingPhotos ? "Uploading…" : (lead.installationPhotos && lead.installationPhotos.length > 0 ? "Add more photos" : "Upload photos")}
+                  </span>
+                </label>
+              </div>
+            )}
+
             {lead.status === "won" && !lead.warrantyRegistered && actionMode === "none" && (
               <div className="mb-6 p-5 bg-gold/15 border-l-4 border-gold">
                 <p className="eyebrow text-gold mb-2">Phase 3 · Lifecycle Value</p>
@@ -616,15 +798,35 @@ function LeadDetailModal({
                     <label className="eyebrow text-stone-600 block mb-1">Scope of Work</label>
                     <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={3} />
                   </div>
+                  <div>
+                    <label className="eyebrow text-stone-600 block mb-2">System Type(s)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {SYSTEM_TYPE_OPTIONS.map((s) => {
+                        const on = formData.systemTypes.includes(s);
+                        return (
+                          <button key={s} type="button" onClick={() => toggleSystemType(s)}
+                            className={`px-3 py-1.5 text-xs font-body border ${on ? "bg-ink text-cream border-ink" : "bg-white text-stone-700 border-stone-300 hover:border-ink"}`}>
+                            {on ? "✓ " : ""}{s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="eyebrow text-stone-600 block mb-1">Lineal Footage</label>
                       <input type="text" value={formData.linealFootage} onChange={(e) => setFormData({ ...formData, linealFootage: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
                     </div>
                     <div>
-                      <label className="eyebrow text-stone-600 block mb-1">Quote Amount ($)</label>
-                      <input type="text" value={formData.projectValue} onChange={(e) => setFormData({ ...formData, projectValue: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                      <label className="eyebrow text-stone-600 block mb-1">Railing Cost ($)</label>
+                      <input type="text" value={formData.projectValue} onChange={(e) => setFormData({ ...formData, projectValue: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" placeholder="e.g. 24500" />
+                      <p className="text-xs text-stone-500 font-body mt-1 italic">What IAS is charging — not your sell price.</p>
                     </div>
+                  </div>
+                  <div>
+                    <label className="eyebrow text-stone-600 block mb-1">Estimated First Installation Date</label>
+                    <input type="date" value={formData.installationDate} onChange={(e) => setFormData({ ...formData, installationDate: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                    <p className="text-xs text-stone-500 font-body mt-1 italic">When the first delivery / install would be — helps IAS plan manufacturing.</p>
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={handleSubmitBid} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Save Bid"}</button>
@@ -642,19 +844,44 @@ function LeadDetailModal({
                     <label className="eyebrow text-stone-600 block mb-1">Final Scope of Work</label>
                     <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
+                  <div>
+                    <label className="eyebrow text-stone-600 block mb-2">System Type(s)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {SYSTEM_TYPE_OPTIONS.map((s) => {
+                        const on = formData.systemTypes.includes(s);
+                        return (
+                          <button key={s} type="button" onClick={() => toggleSystemType(s)}
+                            className={`px-3 py-1.5 text-xs font-body border ${on ? "bg-ink text-cream border-ink" : "bg-white text-stone-700 border-stone-300 hover:border-ink"}`}>
+                            {on ? "✓ " : ""}{s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="eyebrow text-stone-600 block mb-1">Lineal Footage</label>
                       <input type="text" value={formData.linealFootage} onChange={(e) => setFormData({ ...formData, linealFootage: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
                     </div>
                     <div>
-                      <label className="eyebrow text-stone-600 block mb-1">Final Project Value ($)</label>
+                      <label className="eyebrow text-stone-600 block mb-1">Final Railing Cost ($)</label>
                       <input type="text" value={formData.projectValue} onChange={(e) => setFormData({ ...formData, projectValue: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
                     </div>
                   </div>
                   <div>
+                    <label className="eyebrow text-stone-600 block mb-1">Estimated First Installation Date</label>
+                    <input type="date" value={formData.installationDate} onChange={(e) => setFormData({ ...formData, installationDate: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                  </div>
+                  <div>
                     <label className="eyebrow text-stone-600 block mb-1">IAS Order Number</label>
                     <input type="text" value={formData.orderNumber} onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
+                  </div>
+                  <div>
+                    <label className="eyebrow text-stone-600 block mb-1">Why did we win this?</label>
+                    <select value={formData.wonReason} onChange={(e) => setFormData({ ...formData, wonReason: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white">
+                      {WON_REASON_OPTIONS.map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                    <p className="text-xs text-stone-500 font-body mt-1 italic">Helps IAS understand where we&apos;re competitive.</p>
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
@@ -695,6 +922,31 @@ function LeadDetailModal({
               </div>
             )}
 
+            {actionMode === "decline" && (
+              <div className="mb-6 p-5 bg-cream-dark">
+                <h4 className="font-heading text-lg font-bold mb-4">Decline Lead</h4>
+                <p className="font-body text-sm text-stone-700 mb-4">
+                  Pass on this lead so IAS can route it to another dealer. Different from &ldquo;Lost&rdquo; — Decline means you never took it on.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="eyebrow text-stone-600 block mb-1">Why are you declining?</label>
+                    <select value={formData.declineReason} onChange={(e) => setFormData({ ...formData, declineReason: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white">
+                      {DECLINE_REASON_OPTIONS.map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
+                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button onClick={handleDecline} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Confirm Decline"}</button>
+                    <button onClick={() => setActionMode("none")} className="btn-outline-dark text-xs px-5 py-2">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {error && <p className="text-sm text-red-600 font-body mb-4">{error}</p>}
 
             {actionMode === "none" && (
@@ -702,12 +954,13 @@ function LeadDetailModal({
                 {lead.status === "new" && (
                   <>
                     <button onClick={handleAccept} disabled={saving} className="btn-gold text-xs px-5 py-2.5 disabled:opacity-50">{saving ? "Saving…" : "Accept Lead"}</button>
-                    <button onClick={() => setActionMode("lost")} className="btn-outline-dark text-xs px-5 py-2.5">Decline / Lost</button>
+                    <button onClick={() => setActionMode("decline")} className="btn-outline-dark text-xs px-5 py-2.5">Decline Lead</button>
                   </>
                 )}
                 {lead.status === "accepted" && (
                   <>
                     <button onClick={() => setActionMode("submit_bid")} className="btn-gold text-xs px-5 py-2.5">Submit Bid</button>
+                    <button onClick={() => setActionMode("won")} className="btn-outline-dark text-xs px-5 py-2.5">Mark Won</button>
                     <button onClick={() => setActionMode("lost")} className="btn-outline-dark text-xs px-5 py-2.5">Mark Lost</button>
                   </>
                 )}
