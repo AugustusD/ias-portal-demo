@@ -598,7 +598,7 @@ function CustomerForm({
             <input name="streetAddress" type="text" required value={data.streetAddress} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="eyebrow text-stone-600 block mb-1">City *</label>
               <input name="city" type="text" required value={data.city} onChange={handleChange} className="w-full border border-stone-300 px-3 py-2 font-body bg-white" />
