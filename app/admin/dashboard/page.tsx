@@ -13,10 +13,19 @@ type DealerStat = {
   contact_name: string | null;
   location: string | null;
   joined_date: string | null;
-  onboarding_stage: "new" | "training" | "forms_pending" | "authorized" | "inactive";
+  onboarding_stage: "new" | "training" | "forms_pending" | "approved" | "authorized" | "inactive";
   modules_complete: number;
   forms_submitted: number;
   last_activity_at: string | null;
+};
+
+type ActivityEvent = {
+  kind: string;
+  at: string;
+  record_id: string;
+  actor: string | null;
+  subject: string | null;
+  detail: string | null;
 };
 
 type LeadRow = {
@@ -39,9 +48,10 @@ type LeadRow = {
 };
 
 const STAGE_LABELS: Record<DealerStat["onboarding_stage"], string> = {
-  new: "New",
+  new: "Pending",
+  training: "In Training",
   forms_pending: "Forms Pending",
-  training: "Training",
+  approved: "Approved",
   authorized: "Authorized",
   inactive: "Inactive",
 };
@@ -56,7 +66,6 @@ const LEAD_STAGE_LABELS: Record<LeadRow["stage"], string> = {
 };
 
 const TOTAL_MODULES = 5;
-const TOTAL_FORMS = 1; // single customer info form (submitted via training module 2)
 
 function daysAgo(dateStr: string | null): number {
   if (!dateStr) return 999;
@@ -68,16 +77,41 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function timeAgoShort(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const mins = Math.max(1, Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
+}
+
+const ACTIVITY_LABELS: Record<string, { label: string; color: string }> = {
+  lead_created:        { label: "New lead created",       color: "text-cream" },
+  lead_accepted:       { label: "Lead accepted",          color: "text-blue-400" },
+  lead_bid_submitted:  { label: "Bid submitted",          color: "text-amber-400" },
+  lead_won:            { label: "Project won",            color: "text-emerald-400" },
+  lead_lost:           { label: "Lead lost",              color: "text-stone-400" },
+  lead_declined:       { label: "Lead declined",          color: "text-amber-200" },
+  dealer_signup:       { label: "New dealer signed up",   color: "text-gold" },
+  warranty_registered: { label: "Warranty registered",    color: "text-gold" },
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [adminName, setAdminName] = useState("Admin");
   const [dealers, setDealers] = useState<DealerStat[]>([]);
   const [leads, setLeads] = useState<LeadRow[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"onboarding" | "leads">("onboarding");
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<EditLead | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dealerSearch, setDealerSearch] = useState("");
+  const [dealerStageFilter, setDealerStageFilter] = useState<string>("all");
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadStageFilter, setLeadStageFilter] = useState<string>("all");
 
   useEffect(() => {
     async function loadData() {
@@ -106,8 +140,16 @@ export default function AdminDashboard() {
         .from("leads")
         .select("id, dealer_id, customer_type, homeowner_name, homeowner_phone, homeowner_email, city, province, notes, product_interest, stage, updated_at, project_name, contact_company, bid_due_date, dealers(company_name, location)")
         .in("stage", ["new", "accepted", "bid_submitted"])
+        .order("bid_due_date", { ascending: true, nullsFirst: false })
         .order("updated_at", { ascending: false });
       setLeads((leadData as unknown as LeadRow[]) || []);
+
+      const { data: activityData } = await supabase
+        .from("recent_activity")
+        .select("*")
+        .order("at", { ascending: false, nullsFirst: false })
+        .limit(15);
+      setActivity((activityData as ActivityEvent[]) || []);
 
       setLoading(false);
     }
@@ -153,6 +195,37 @@ export default function AdminDashboard() {
   const stalledLeads = leads.filter((l) => daysAgo(l.updated_at) > 14);
   const stalledLeadsCount = stalledLeads.length;
   const activeLeadsCount = leads.length;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const overdueBidsCount = leads.filter((l) => l.bid_due_date && l.bid_due_date < todayStr).length;
+  const dueThisWeekCount = leads.filter((l) => {
+    if (!l.bid_due_date) return false;
+    const days = Math.floor((new Date(l.bid_due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return days >= 0 && days <= 7;
+  }).length;
+
+  // Search + filter
+  const dq = dealerSearch.trim().toLowerCase();
+  const visibleDealers = dealers.filter((d) => {
+    if (dealerStageFilter !== "all" && d.onboarding_stage !== dealerStageFilter) return false;
+    if (!dq) return true;
+    return (
+      d.company_name?.toLowerCase().includes(dq) ||
+      d.contact_name?.toLowerCase().includes(dq) ||
+      d.location?.toLowerCase().includes(dq)
+    );
+  });
+  const lq = leadSearch.trim().toLowerCase();
+  const visibleLeads = leads.filter((l) => {
+    if (leadStageFilter !== "all" && l.stage !== leadStageFilter) return false;
+    if (!lq) return true;
+    return (
+      l.project_name?.toLowerCase().includes(lq) ||
+      l.contact_company?.toLowerCase().includes(lq) ||
+      l.homeowner_name?.toLowerCase().includes(lq) ||
+      l.dealers?.company_name?.toLowerCase().includes(lq) ||
+      l.city?.toLowerCase().includes(lq)
+    );
+  });
 
   return (
     <div className="bg-ink min-h-screen text-cream">
@@ -177,10 +250,10 @@ export default function AdminDashboard() {
       <div className="section-container section-padding">
         <div className="mb-10">
           <h2 className="font-heading text-4xl md:text-5xl font-bold mb-2">Dashboard</h2>
-          <p className="font-body text-stone-400 max-w-2xl">Live view of dealer onboarding, lead pipeline, and pending document reviews.</p>
+          <p className="font-body text-stone-400 max-w-2xl">Live view of dealer onboarding, lead pipeline, bid urgency, and the last 30 days of activity.</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           <div className="bg-stone-900 border border-stone-800 p-5">
             <p className="eyebrow text-stone-500 mb-2">Authorized</p>
             <p className="text-3xl font-heading font-bold text-cream">{authorizedCount}</p>
@@ -200,7 +273,41 @@ export default function AdminDashboard() {
               <p className="text-xs text-red-400 font-body font-semibold uppercase tracking-wider mt-1">{stalledLeadsCount} stalled</p>
             )}
           </div>
+          <div className={`p-5 ${overdueBidsCount > 0 ? "bg-red-950 border border-red-800" : "bg-stone-900 border border-stone-800"}`}>
+            <p className={`eyebrow mb-2 ${overdueBidsCount > 0 ? "text-red-400" : "text-stone-500"}`}>Bids Overdue</p>
+            <p className={`text-3xl font-heading font-bold ${overdueBidsCount > 0 ? "text-red-200" : "text-cream"}`}>{overdueBidsCount}</p>
+            {dueThisWeekCount > 0 && (
+              <p className="text-xs text-stone-400 font-body mt-1">{dueThisWeekCount} more due this week</p>
+            )}
+          </div>
         </div>
+
+        {/* Recent activity feed */}
+        {activity.length > 0 && (
+          <div className="mb-10 bg-stone-900 border border-stone-800">
+            <div className="px-5 py-3 border-b border-stone-800 flex items-baseline justify-between">
+              <p className="eyebrow text-stone-500">Recent Activity</p>
+              <p className="text-xs font-body text-stone-600">Last 30 days</p>
+            </div>
+            <ul className="divide-y divide-stone-800">
+              {activity.map((ev, i) => {
+                const meta = ACTIVITY_LABELS[ev.kind] || { label: ev.kind, color: "text-stone-300" };
+                return (
+                  <li key={i} className="px-5 py-3 flex items-center gap-3 text-sm font-body">
+                    <span className={`flex-shrink-0 inline-block w-1.5 h-1.5 rounded-full ${meta.color.replace("text-", "bg-")}`} aria-hidden></span>
+                    <span className={`flex-shrink-0 ${meta.color} font-semibold w-44`}>{meta.label}</span>
+                    <span className="text-stone-300 truncate flex-1">
+                      <span className="font-semibold">{ev.actor || "Someone"}</span>
+                      {ev.subject && <span className="text-stone-500"> · {ev.subject}</span>}
+                      {ev.detail && <span className="text-stone-500"> · {ev.detail}</span>}
+                    </span>
+                    <span className="flex-shrink-0 text-stone-500 text-xs w-12 text-right">{timeAgoShort(ev.at)} ago</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-800">
           <button onClick={() => setActiveTab("onboarding")} className={`px-6 py-4 text-xs font-body font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === "onboarding" ? "border-gold text-cream" : "border-transparent text-stone-500 hover:text-cream"}`}>
@@ -221,6 +328,26 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            <div className="flex flex-wrap gap-3 mb-4">
+              <input
+                type="text"
+                value={dealerSearch}
+                onChange={(e) => setDealerSearch(e.target.value)}
+                placeholder="Search by company, contact, or location…"
+                className="flex-1 min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
+              />
+              <select value={dealerStageFilter} onChange={(e) => setDealerStageFilter(e.target.value)}
+                className="bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm">
+                <option value="all">All stages</option>
+                <option value="new">Pending</option>
+                <option value="training">In Training</option>
+                <option value="forms_pending">Forms Pending</option>
+                <option value="approved">Approved</option>
+                <option value="authorized">Authorized</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
             <div className="bg-stone-900 border border-stone-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -235,7 +362,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dealers.map((d) => {
+                    {visibleDealers.map((d) => {
                       const days = daysAgo(d.last_activity_at);
                       const isBottleneck = d.onboarding_stage !== "authorized" && d.onboarding_stage !== "inactive" && days > 7;
                       return (
@@ -251,8 +378,10 @@ export default function AdminDashboard() {
                           <td className="py-4 px-4">
                             <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
                               d.onboarding_stage === "authorized" ? "bg-green-900 text-green-100" :
-                              d.onboarding_stage === "training" ? "bg-amber-900 text-amber-100" :
+                              d.onboarding_stage === "approved"   ? "bg-emerald-900 text-emerald-100 border border-emerald-700" :
+                              d.onboarding_stage === "training"   ? "bg-amber-900 text-amber-100" :
                               d.onboarding_stage === "forms_pending" ? "bg-red-900 text-red-100" :
+                              d.onboarding_stage === "inactive"   ? "bg-stone-900 text-stone-500 border border-stone-700" :
                               "bg-stone-800 text-stone-300"
                             }`}>
                               {STAGE_LABELS[d.onboarding_stage]}
@@ -267,7 +396,9 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                           <td className="py-4 px-4 text-sm font-body">
-                            <span className={d.forms_submitted === TOTAL_FORMS ? "text-green-400" : "text-amber-400"}>{d.forms_submitted}/{TOTAL_FORMS}</span>
+                            {d.forms_submitted > 0
+                              ? <span className="text-green-400">✓ Submitted</span>
+                              : <span className="text-amber-400">Pending</span>}
                           </td>
                           <td className="py-4 px-4 text-sm font-body">
                             <span className={days > 7 && d.onboarding_stage !== "authorized" ? "text-red-400 font-semibold" : "text-stone-300"}>
@@ -284,7 +415,7 @@ export default function AdminDashboard() {
                         </tr>
                       );
                     })}
-                    {dealers.length === 0 && (<tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No dealers yet.</td></tr>)}
+                    {visibleDealers.length === 0 && (<tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">{dealers.length === 0 ? "No dealers yet." : "No dealers match your filters."}</td></tr>)}
                   </tbody>
                 </table>
               </div>
@@ -294,7 +425,21 @@ export default function AdminDashboard() {
 
         {activeTab === "leads" && (
           <div>
-            <div className="flex justify-end mb-4">
+            <div className="flex flex-wrap gap-3 mb-4 items-center">
+              <input
+                type="text"
+                value={leadSearch}
+                onChange={(e) => setLeadSearch(e.target.value)}
+                placeholder="Search by project, company, customer, dealer, or city…"
+                className="flex-1 min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
+              />
+              <select value={leadStageFilter} onChange={(e) => setLeadStageFilter(e.target.value)}
+                className="bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm">
+                <option value="all">All active stages</option>
+                <option value="new">New</option>
+                <option value="accepted">Accepted</option>
+                <option value="bid_submitted">Bid Submitted</option>
+              </select>
               <button onClick={() => setNewLeadOpen(true)} className="text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">+ New Lead</button>
             </div>
 
@@ -320,7 +465,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {leads.map((lead) => {
+                    {visibleLeads.map((lead) => {
                       const days = daysAgo(lead.updated_at);
                       const stalled = days > 14;
                       return (
@@ -366,7 +511,7 @@ export default function AdminDashboard() {
                         </tr>
                       );
                     })}
-                    {leads.length === 0 && (<tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">No active leads.</td></tr>)}
+                    {visibleLeads.length === 0 && (<tr><td colSpan={6} className="py-8 text-center text-stone-500 font-body">{leads.length === 0 ? "No active leads." : "No leads match your filters."}</td></tr>)}
                   </tbody>
                 </table>
               </div>

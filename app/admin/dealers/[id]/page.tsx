@@ -62,6 +62,7 @@ type LeadRow = {
   stage: string;
   project_value: number | null;
   received_at: string;
+  accepted_at: string | null;
   closed_at: string | null;
 };
 
@@ -77,9 +78,10 @@ const BUSINESS_TYPES = [
 ];
 
 const STAGE_LABELS: Record<string, string> = {
-  new: "New",
+  new: "Pending",
+  training: "In Training",
   forms_pending: "Forms Pending",
-  training: "Training",
+  approved: "Approved",
   authorized: "Authorized",
   inactive: "Inactive",
 };
@@ -97,10 +99,14 @@ function formatDate(s: string | null): string {
   return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function daysAgo(s: string | null): number {
+  if (!s) return 0;
+  return Math.floor((Date.now() - new Date(s).getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function timeAgo(s: string | null): string {
   if (!s) return "—";
-  const ms = Date.now() - new Date(s).getTime();
-  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  const days = daysAgo(s);
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
   return `${days}d ago`;
@@ -179,7 +185,7 @@ export default function DealerDetailPage() {
 
       const { data: leadsData } = await supabase
         .from("leads")
-        .select("id, homeowner_name, product_interest, customer_type, city, province, stage, project_value, received_at, closed_at")
+        .select("id, homeowner_name, product_interest, customer_type, city, province, stage, project_value, received_at, accepted_at, closed_at")
         .eq("dealer_id", dealerId)
         .order("received_at", { ascending: false });
 
@@ -204,6 +210,20 @@ export default function DealerDetailPage() {
     if (dealer) setFormData(dealer);
     setIsEditing(false);
     setSaveError("");
+  }
+
+  async function transitionStage(newStage: string) {
+    if (!dealer) return;
+    setSaving(true);
+    setSaveError("");
+    const { error: updateError } = await supabase
+      .from("dealers")
+      .update({ onboarding_stage: newStage })
+      .eq("id", dealerId);
+    setSaving(false);
+    if (updateError) { setSaveError(updateError.message); return; }
+    setDealer({ ...dealer, onboarding_stage: newStage } as Dealer);
+    setFormData((prev) => ({ ...prev, onboarding_stage: newStage }));
   }
 
   async function handleSave() {
@@ -268,8 +288,26 @@ export default function DealerDetailPage() {
   }
 
   const wonLeads = leads.filter((l) => l.stage === "won");
+  const lostLeads = leads.filter((l) => l.stage === "lost");
+  const declinedLeads = leads.filter((l) => l.stage === "declined");
   const activeLeads = leads.filter((l) => ["new", "accepted", "bid_submitted"].includes(l.stage));
   const totalWonValue = wonLeads.reduce((s, l) => s + (l.project_value || 0), 0);
+  const winRate = (wonLeads.length + lostLeads.length) > 0
+    ? Math.round(100 * wonLeads.length / (wonLeads.length + lostLeads.length))
+    : null;
+  const acceptedLeads = leads.filter((l) => l.accepted_at);
+  const avgAcceptHours = acceptedLeads.length > 0
+    ? Math.round(
+        acceptedLeads.reduce((s, l) => {
+          if (!l.accepted_at || !l.received_at) return s;
+          return s + (new Date(l.accepted_at).getTime() - new Date(l.received_at).getTime()) / (1000 * 60 * 60);
+        }, 0) / acceptedLeads.length
+      )
+    : null;
+  const lastWonDate = wonLeads.reduce<string | null>((latest, l) => {
+    if (!l.closed_at) return latest;
+    return !latest || l.closed_at > latest ? l.closed_at : latest;
+  }, null);
   const fullAddress = [dealer.street_address, dealer.city, dealer.province, dealer.postal_code].filter(Boolean).join(", ");
 
   // Tailwind input styles
@@ -285,7 +323,7 @@ export default function DealerDetailPage() {
             <span className="text-stone-700">/</span>
             <p className="eyebrow text-stone-400">{dealer.company_name}</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {isEditing ? (
               <>
                 <button onClick={handleCancel} disabled={saving} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-cream px-4 py-2 transition-colors">Cancel</button>
@@ -294,7 +332,48 @@ export default function DealerDetailPage() {
                 </button>
               </>
             ) : (
-              <button onClick={handleEdit} className="text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">Edit Dealer</button>
+              <>
+                {/* Three-stage onboarding controls — pending or training → approved → authorized */}
+                {dealer && ["new", "training", "forms_pending"].includes(dealer.onboarding_stage) && (
+                  <button
+                    onClick={() => transitionStage("approved")}
+                    disabled={saving}
+                    className="text-xs uppercase tracking-wider px-4 py-2 bg-emerald-700 text-emerald-50 hover:bg-emerald-600 font-body font-bold transition-colors disabled:opacity-50"
+                    title="Approve as a dealer (unlocks engineering docs + costs). They still need to complete onboarding modules to be 'authorized' and use the tools."
+                  >
+                    {saving ? "…" : "Approve Dealer"}
+                  </button>
+                )}
+                {dealer?.onboarding_stage === "approved" && (
+                  <>
+                    <button
+                      onClick={() => transitionStage("authorized")}
+                      disabled={saving}
+                      className="text-xs uppercase tracking-wider px-4 py-2 bg-green-700 text-green-50 hover:bg-green-600 font-body font-bold transition-colors disabled:opacity-50"
+                      title="Mark fully authorized — unlocks designer + calculator tools."
+                    >
+                      {saving ? "…" : "Mark Authorized"}
+                    </button>
+                    <button
+                      onClick={() => transitionStage("new")}
+                      disabled={saving}
+                      className="text-xs uppercase tracking-wider px-3 py-2 border border-stone-700 hover:border-red-500 text-stone-400 hover:text-red-400 font-body transition-colors disabled:opacity-50"
+                    >
+                      Revoke
+                    </button>
+                  </>
+                )}
+                {dealer?.onboarding_stage === "authorized" && (
+                  <button
+                    onClick={() => transitionStage("approved")}
+                    disabled={saving}
+                    className="text-xs uppercase tracking-wider px-3 py-2 border border-stone-700 hover:border-amber-500 text-stone-400 hover:text-amber-400 font-body transition-colors disabled:opacity-50"
+                  >
+                    {saving ? "…" : "Step Back to Approved"}
+                  </button>
+                )}
+                <button onClick={handleEdit} className="text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">Edit Dealer</button>
+              </>
             )}
             <button onClick={handleLogout} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-gold hover:text-gold px-4 py-2 transition-colors">Log Out</button>
           </div>
@@ -314,8 +393,10 @@ export default function DealerDetailPage() {
             ) : (
               <span className={`text-xs uppercase tracking-wider px-3 py-1 font-bold ${
                 dealer.onboarding_stage === "authorized" ? "bg-green-900 text-green-100" :
+                dealer.onboarding_stage === "approved" ? "bg-emerald-900 text-emerald-100 border border-emerald-700" :
                 dealer.onboarding_stage === "training" ? "bg-amber-900 text-amber-100" :
                 dealer.onboarding_stage === "forms_pending" ? "bg-red-900 text-red-100" :
+                dealer.onboarding_stage === "inactive" ? "bg-stone-900 text-stone-500 border border-stone-700" :
                 "bg-stone-800 text-stone-300"
               }`}>{STAGE_LABELS[dealer.onboarding_stage] || dealer.onboarding_stage}</span>
             )}
@@ -324,11 +405,42 @@ export default function DealerDetailPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Team</p><p className="text-3xl font-heading font-bold text-cream">{team.length}</p><p className="text-xs text-stone-500 font-body mt-1">{team.length === 1 ? "user" : "users"}</p></div>
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Active Leads</p><p className="text-3xl font-heading font-bold text-cream">{activeLeads.length}</p><p className="text-xs text-stone-500 font-body mt-1">in pipeline</p></div>
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Won</p><p className="text-3xl font-heading font-bold text-cream">{wonLeads.length}</p><p className="text-xs text-stone-500 font-body mt-1">total</p></div>
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Won Value</p><p className="text-3xl font-heading font-bold text-gold">${(totalWonValue / 1000).toFixed(1)}K</p><p className="text-xs text-stone-500 font-body mt-1">all time</p></div>
+        </div>
+
+        {/* Performance — competitive insight, requested in the 2026-05-04 meeting */}
+        <div className="bg-stone-900 border border-stone-800 p-5 mb-10">
+          <p className="eyebrow text-stone-500 mb-4">Performance</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div>
+              <p className="text-xs font-body text-stone-500 mb-1">Win rate</p>
+              <p className={`text-2xl font-heading font-bold ${winRate === null ? "text-stone-600" : winRate >= 50 ? "text-emerald-400" : "text-amber-400"}`}>
+                {winRate === null ? "—" : `${winRate}%`}
+              </p>
+              <p className="text-xs font-body text-stone-500 mt-1">{wonLeads.length} won · {lostLeads.length} lost</p>
+            </div>
+            <div>
+              <p className="text-xs font-body text-stone-500 mb-1">Avg accept time</p>
+              <p className="text-2xl font-heading font-bold text-cream">
+                {avgAcceptHours === null ? "—" : avgAcceptHours < 24 ? `${avgAcceptHours}h` : `${Math.round(avgAcceptHours / 24)}d`}
+              </p>
+              <p className="text-xs font-body text-stone-500 mt-1">received → accepted</p>
+            </div>
+            <div>
+              <p className="text-xs font-body text-stone-500 mb-1">Declined</p>
+              <p className="text-2xl font-heading font-bold text-stone-300">{declinedLeads.length}</p>
+              <p className="text-xs font-body text-stone-500 mt-1">passed back to IAS</p>
+            </div>
+            <div>
+              <p className="text-xs font-body text-stone-500 mb-1">Last win</p>
+              <p className="text-2xl font-heading font-bold text-cream">{lastWonDate ? formatDate(lastWonDate) : "—"}</p>
+              <p className="text-xs font-body text-stone-500 mt-1">{lastWonDate ? `${daysAgo(lastWonDate)}d ago` : ""}</p>
+            </div>
+          </div>
         </div>
 
         {/* Discounts & Pricing — NEW */}

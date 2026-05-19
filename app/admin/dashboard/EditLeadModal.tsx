@@ -87,7 +87,6 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
         project_name: projectName.trim() || null,
         contact_company: contactCompany.trim() || null,
         bid_due_date: bidDueDate || null,
-        updated_at: new Date().toISOString(),
       })
       .eq("id", lead!.id);
 
