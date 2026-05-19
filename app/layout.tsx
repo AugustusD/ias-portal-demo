@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Ubuntu, Titillium_Web } from "next/font/google";
+import { Ubuntu, Titillium_Web, Dancing_Script } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 
@@ -17,6 +17,13 @@ const titillium = Titillium_Web({
   display: "swap",
 });
 
+const dancingScript = Dancing_Script({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-signature",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "IAS Dealer Portal",
   description: "Demo dealer portal for Innovative Aluminum Systems",
@@ -28,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${ubuntu.variable} ${titillium.variable}`}>
+    <html lang="en" className={`${ubuntu.variable} ${titillium.variable} ${dancingScript.variable}`}>
       <body>
         <header className="border-b border-stone-200 bg-cream">
           <nav className="section-container flex items-center justify-between py-6">
