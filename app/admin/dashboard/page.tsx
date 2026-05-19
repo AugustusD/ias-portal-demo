@@ -56,7 +56,7 @@ const LEAD_STAGE_LABELS: Record<LeadRow["stage"], string> = {
 };
 
 const TOTAL_MODULES = 5;
-const TOTAL_FORMS = 2;
+const TOTAL_FORMS = 1; // single customer info form (submitted via training module 2)
 
 function daysAgo(dateStr: string | null): number {
   if (!dateStr) return 999;
@@ -78,7 +78,6 @@ export default function AdminDashboard() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<EditLead | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [pendingReviews, setPendingReviews] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -109,16 +108,6 @@ export default function AdminDashboard() {
         .in("stage", ["new", "accepted", "bid_submitted"])
         .order("updated_at", { ascending: false });
       setLeads((leadData as unknown as LeadRow[]) || []);
-
-      const { data: pendingDealers } = await supabase
-        .from("dealers")
-        .select("customer_form_path, customer_form_admin_override, credit_app_path, credit_app_admin_override");
-      let pendingCount = 0;
-      (pendingDealers || []).forEach((d) => {
-        if (d.customer_form_path && !d.customer_form_admin_override) pendingCount++;
-        if (d.credit_app_path && !d.credit_app_admin_override) pendingCount++;
-      });
-      setPendingReviews(pendingCount);
 
       setLoading(false);
     }
@@ -176,12 +165,6 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/admin/reviews" className="relative inline-flex items-center gap-2 text-xs uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors">
-              Reviews
-              {pendingReviews > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 bg-red-600 text-white text-xs font-bold rounded-full">{pendingReviews}</span>
-              )}
-            </Link>
             <p className="text-sm font-body">
               <span className="text-stone-400">Signed in as</span>
               <span className="ml-2 font-semibold">{adminName}</span>
