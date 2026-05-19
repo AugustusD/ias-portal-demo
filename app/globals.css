@@ -49,14 +49,20 @@
     padding-right: 1.25rem;
   }
 
+  /* App pages want denser vertical rhythm than the marketing-y 7rem/10rem
+   * that earlier rules tried (and failed) to apply — the base rule below was
+   * defined after the @media rules so it always won, making the queries dead
+   * code. Keeping 5rem everywhere intentionally; cleaner and matches the
+   * dense data-driven feel of the admin / dealer dashboards. */
+  .section-padding {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+  }
+
   @media (min-width: 768px) {
     .section-container {
       padding-left: 3rem;
       padding-right: 3rem;
-    }
-    .section-padding {
-      padding-top: 7rem;
-      padding-bottom: 7rem;
     }
   }
 
@@ -65,15 +71,6 @@
       padding-left: 5rem;
       padding-right: 5rem;
     }
-    .section-padding {
-      padding-top: 10rem;
-      padding-bottom: 10rem;
-    }
-  }
-
-  .section-padding {
-    padding-top: 5rem;
-    padding-bottom: 5rem;
   }
 
   .btn-gold {

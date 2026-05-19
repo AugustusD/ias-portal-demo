@@ -181,7 +181,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-stone-900 border border-stone-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-stone-900 border border-stone-800 max-w-2xl lg:max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b border-stone-800 flex items-center justify-between">
           <div>
             <p className="eyebrow text-gold mb-1">New Lead</p>
