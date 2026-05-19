@@ -43,11 +43,10 @@ export default function RootLayout({
               IAS
             </Link>
             <ul className="hidden md:flex items-center gap-8">
-              <li><Link href="/products" className="nav-link">Products</Link></li>
-              <li><Link href="/dealers/dashboard" className="nav-link">Dealers</Link></li>
-              <li><Link href="/designer-tool" className="nav-link">Designer Tool</Link></li>
-              <li><Link href="/company" className="nav-link">Company</Link></li>
-              <li><Link href="/resources" className="nav-link">Resources</Link></li>
+              <li><a href="https://innovativealuminum.com/products" className="nav-link">Products</a></li>
+              <li><a href="https://innovativealuminum.com/designer-tool" className="nav-link">Designer Tool</a></li>
+              <li><a href="https://innovativealuminum.com/company" className="nav-link">Company</a></li>
+              <li><a href="https://innovativealuminum.com/resources" className="nav-link">Resources</a></li>
             </ul>
             <div className="flex items-center gap-3">
               <Link
