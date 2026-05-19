@@ -116,7 +116,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadData() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/admin/login"); return; }
+      if (!session) { router.push("/dealers/login"); return; }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
         .single();
 
       if (!profile || profile.role !== "admin") {
-        router.push("/admin/login");
+        router.push("/dealers/login");
         return;
       }
       setAdminName(profile.full_name || "Admin");
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/admin/login");
+    router.push("/dealers/login");
   }
 
   function openEditLead(lead: LeadRow) {

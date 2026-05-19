@@ -140,7 +140,7 @@ export default function DealerDetailPage() {
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/admin/login"); return; }
+      if (!session) { router.push("/dealers/login"); return; }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -148,7 +148,7 @@ export default function DealerDetailPage() {
         .eq("id", session.user.id)
         .single();
 
-      if (!profile || profile.role !== "admin") { router.push("/admin/login"); return; }
+      if (!profile || profile.role !== "admin") { router.push("/dealers/login"); return; }
       setAdminName(profile.full_name || "Admin");
 
       const { data: dealerData, error: dealerErr } = await supabase
@@ -197,7 +197,7 @@ export default function DealerDetailPage() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/admin/login");
+    router.push("/dealers/login");
   }
 
   function handleEdit() {
@@ -672,26 +672,28 @@ export default function DealerDetailPage() {
           {team.length === 0 ? (
             <div className="p-6 text-center font-body text-stone-500">No team members yet.</div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-stone-950 text-stone-400">
-                <tr className="border-b border-stone-800">
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Name</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Email</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Joined</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Onboarding</th>
-                </tr>
-              </thead>
-              <tbody>
-                {team.map((m) => (
-                  <tr key={m.id} className="border-b border-stone-800">
-                    <td className="py-4 px-4 font-body font-semibold text-cream">{m.full_name || "—"}</td>
-                    <td className="py-4 px-4 font-body text-sm text-cream">{m.email || "—"}</td>
-                    <td className="py-4 px-4 font-body text-sm text-stone-300">{formatDate(m.created_at)}</td>
-                    <td className="py-4 px-4 font-body text-sm"><span className={m.modules_complete === 5 ? "text-green-400" : "text-stone-300"}>{m.modules_complete}/5 modules</span></td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-stone-950 text-stone-400">
+                  <tr className="border-b border-stone-800">
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Name</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Email</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Joined</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Onboarding</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {team.map((m) => (
+                    <tr key={m.id} className="border-b border-stone-800">
+                      <td className="py-4 px-4 font-body font-semibold text-cream">{m.full_name || "—"}</td>
+                      <td className="py-4 px-4 font-body text-sm text-cream">{m.email || "—"}</td>
+                      <td className="py-4 px-4 font-body text-sm text-stone-300">{formatDate(m.created_at)}</td>
+                      <td className="py-4 px-4 font-body text-sm"><span className={m.modules_complete === 5 ? "text-green-400" : "text-stone-300"}>{m.modules_complete}/5 modules</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -704,17 +706,18 @@ export default function DealerDetailPage() {
           {leads.length === 0 ? (
             <div className="p-6 text-center font-body text-stone-500">No leads yet.</div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-stone-950 text-stone-400">
-                <tr className="border-b border-stone-800">
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Customer</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Type</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Location</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Stage</th>
-                  <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Assigned</th>
-                  <th className="text-right py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Value</th>
-                </tr>
-              </thead>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-stone-950 text-stone-400">
+                  <tr className="border-b border-stone-800">
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Customer</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Type</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Location</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Stage</th>
+                    <th className="text-left py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Assigned</th>
+                    <th className="text-right py-3 px-4 text-xs uppercase tracking-wider font-body font-bold">Value</th>
+                  </tr>
+                </thead>
               <tbody>
                 {leads.map((lead) => (
                   <tr key={lead.id} className="border-b border-stone-800">
@@ -737,8 +740,9 @@ export default function DealerDetailPage() {
                     <td className="py-4 px-4 text-right font-heading font-bold text-cream">${(lead.project_value || 0).toLocaleString()}</td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

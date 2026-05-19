@@ -14,17 +14,11 @@ export default function AdminLayout({
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // Login page must not be auth-gated
-    if (pathname === '/admin/login') {
-      setChecking(false)
-      return
-    }
-
     async function checkAuth() {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
-        router.replace('/admin/login')
+        router.replace('/dealers/login')
         return
       }
 
@@ -48,7 +42,7 @@ export default function AdminLayout({
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        router.replace('/admin/login')
+        router.replace('/dealers/login')
       }
     })
 

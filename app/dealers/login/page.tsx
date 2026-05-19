@@ -104,7 +104,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"
-              placeholder="dealer1@test.com"
+              placeholder="you@yourcompany.com"
               required
             />
           </div>
@@ -119,7 +119,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"
-              placeholder="password123"
+              placeholder="••••••••"
               required
             />
           </div>
@@ -130,12 +130,6 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
 
-          <div className="border-t border-stone-200 pt-6 text-center space-y-2">
-            <p className="text-sm text-stone-600 font-body">Test credentials:</p>
-            <p className="font-mono text-sm text-ink font-bold">admin@innovativealuminum.com / admin123</p>
-            <p className="font-mono text-sm text-ink">dealer1@test.com / password123</p>
-            <p className="font-mono text-sm text-ink">dealer2@test.com / password123</p>
-          </div>
         </form>
       </div>
     </div>
