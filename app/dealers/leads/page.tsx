@@ -521,7 +521,7 @@ function LeadDetailModal({
     setError("");
     const { error: updErr } = await supabase
       .from("leads")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq("id", lead.id);
     setSaving(false);
     if (updErr) {
