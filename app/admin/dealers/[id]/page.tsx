@@ -317,13 +317,13 @@ export default function DealerDetailPage() {
   return (
     <div className="bg-ink min-h-screen text-cream">
       <div className="border-b border-stone-800 bg-ink sticky top-0 z-20">
-        <div className="section-container py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/admin/dashboard" className="text-sm font-body text-stone-400 hover:text-cream">← Dealers</Link>
+        <div className="section-container py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-3 md:gap-6 min-w-0">
+            <Link href="/admin/dashboard" className="text-sm font-body text-stone-400 hover:text-cream flex-shrink-0">← Dealers</Link>
             <span className="text-stone-700">/</span>
-            <p className="eyebrow text-stone-400">{dealer.company_name}</p>
+            <p className="eyebrow text-stone-400 truncate">{dealer.company_name}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             {isEditing ? (
               <>
                 <button onClick={handleCancel} disabled={saving} className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-cream px-4 py-2 transition-colors">Cancel</button>

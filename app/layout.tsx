@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Ubuntu, Titillium_Web, Dancing_Script } from "next/font/google";
-import Link from "next/link";
+import SiteHeader from "./components/SiteHeader";
 import "./globals.css";
 
 const ubuntu = Ubuntu({
@@ -37,33 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${ubuntu.variable} ${titillium.variable} ${dancingScript.variable}`}>
       <body>
-        <header className="border-b border-stone-200 bg-cream">
-          <nav className="section-container flex items-center justify-between py-6">
-            <Link href="/" className="font-heading text-xl font-bold text-ink">
-              IAS
-            </Link>
-            <ul className="hidden md:flex items-center gap-8">
-              <li><a href="https://innovativealuminum.com/products" className="nav-link">Products</a></li>
-              <li><a href="https://innovativealuminum.com/designer-tool" className="nav-link">Designer Tool</a></li>
-              <li><a href="https://innovativealuminum.com/company" className="nav-link">Company</a></li>
-              <li><a href="https://innovativealuminum.com/resources" className="nav-link">Resources</a></li>
-            </ul>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dealers/dashboard"
-                className="hidden md:inline-flex items-center px-5 py-2.5 text-xs font-body font-bold uppercase tracking-widest border-2 border-ink text-ink hover:bg-ink hover:text-cream transition-colors"
-              >
-                Dealer Portal
-              </Link>
-              <a
-                href="https://innovativealuminum.com/quote"
-                className="btn-gold"
-              >
-                Get a Quote
-              </a>
-            </div>
-          </nav>
-        </header>
+        <SiteHeader />
         <main className="min-h-screen">{children}</main>
         <footer className="border-t border-stone-200 bg-ink text-cream py-12">
           <div className="section-container text-center">
