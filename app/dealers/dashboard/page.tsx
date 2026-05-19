@@ -454,7 +454,7 @@ export default function DashboardPage() {
         .from("profiles")
         .select("full_name, email")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       setDealer({
         name: profile?.full_name ?? "Dealer",

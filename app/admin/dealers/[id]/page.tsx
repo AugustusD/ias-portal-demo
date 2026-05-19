@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { humanizeError } from "@/lib/errors";
 
 type Dealer = {
   id: string;
@@ -92,6 +93,9 @@ const LEAD_STAGE_LABELS: Record<string, string> = {
   bid_submitted: "Bid Submitted",
   won: "Won",
   lost: "Lost",
+  // 'declined' was missing — declined leads rendered as the literal word with
+  // the catch-all amber styling, which looked identical to bid_submitted.
+  declined: "Declined",
 };
 
 function formatDate(s: string | null): string {
@@ -146,16 +150,25 @@ export default function DealerDetailPage() {
         .from("profiles")
         .select("full_name, role")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile || profile.role !== "admin") { router.push("/dealers/login"); return; }
       setAdminName(profile.full_name || "Admin");
+
+      // UUID-format check up front. Otherwise Postgres returns a 400 with
+      // "invalid input syntax for type uuid" which is uglier than a clean 404.
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!dealerId || !UUID_RE.test(dealerId)) {
+        setError("Dealer not found.");
+        setLoading(false);
+        return;
+      }
 
       const { data: dealerData, error: dealerErr } = await supabase
         .from("dealers")
         .select("*")
         .eq("id", dealerId)
-        .single();
+        .maybeSingle();
 
       if (dealerErr || !dealerData) {
         setError("Dealer not found.");
@@ -221,7 +234,7 @@ export default function DealerDetailPage() {
       .update({ onboarding_stage: newStage })
       .eq("id", dealerId);
     setSaving(false);
-    if (updateError) { setSaveError(updateError.message); return; }
+    if (updateError) { setSaveError(humanizeError(updateError, "Couldn't update stage.")); return; }
     setDealer({ ...dealer, onboarding_stage: newStage } as Dealer);
     setFormData((prev) => ({ ...prev, onboarding_stage: newStage }));
   }
@@ -241,6 +254,29 @@ export default function DealerDetailPage() {
     delete updates.signature_title;
     delete updates.signature_signed_at;
 
+    // Empty-string → null. Without this, clearing a previously-set text input
+    // writes "" to a nullable column, which then renders as a blank instead of
+    // "—" and triggers spurious "field changed" diffs on every subsequent save.
+    // Skip booleans/numbers/arrays — those have their own empty representations.
+    for (const key of Object.keys(updates) as (keyof Dealer)[]) {
+      const v = updates[key];
+      if (typeof v === "string" && v.trim() === "") {
+        (updates as Record<string, unknown>)[key as string] = null;
+      }
+    }
+
+    // Hero text "{location} · Joined {date}" was rendering stale data after an
+    // admin edited city/province but didn't manually update the `location`
+    // free-text field. Auto-derive it whenever city or province changes so the
+    // two never drift. Admin can still override by editing the form, but the
+    // common case (just fixing the address) now stays consistent.
+    const cityChanged = (formData.city ?? "") !== (dealer.city ?? "");
+    const provChanged = (formData.province ?? "") !== (dealer.province ?? "");
+    if (cityChanged || provChanged) {
+      const derived = [formData.city, formData.province].filter(Boolean).join(", ");
+      updates.location = derived || null;
+    }
+
     if (discountChanged) {
       updates.discount_set_at = new Date().toISOString();
       updates.discount_set_by = adminName;
@@ -254,7 +290,7 @@ export default function DealerDetailPage() {
     setSaving(false);
 
     if (updateError) {
-      setSaveError(updateError.message);
+      setSaveError(humanizeError(updateError, "Couldn't save changes."));
       return;
     }
 
@@ -409,7 +445,14 @@ export default function DealerDetailPage() {
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Team</p><p className="text-3xl font-heading font-bold text-cream">{team.length}</p><p className="text-xs text-stone-500 font-body mt-1">{team.length === 1 ? "user" : "users"}</p></div>
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Active Leads</p><p className="text-3xl font-heading font-bold text-cream">{activeLeads.length}</p><p className="text-xs text-stone-500 font-body mt-1">in pipeline</p></div>
           <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Won</p><p className="text-3xl font-heading font-bold text-cream">{wonLeads.length}</p><p className="text-xs text-stone-500 font-body mt-1">total</p></div>
-          <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Won Value</p><p className="text-3xl font-heading font-bold text-gold">${(totalWonValue / 1000).toFixed(1)}K</p><p className="text-xs text-stone-500 font-body mt-1">all time</p></div>
+          <div className="bg-stone-900 border border-stone-800 p-5"><p className="eyebrow text-stone-500 mb-2">Won Value</p><p className="text-3xl font-heading font-bold text-gold">{
+            // "$0.0K" looked broken for new dealers. Switch to plain dollars
+            // below $1k (where K is misleading anyway) and only flip to K/M
+            // notation once there's meaningful volume.
+            totalWonValue >= 1_000_000 ? `$${(totalWonValue / 1_000_000).toFixed(1)}M`
+            : totalWonValue >= 1_000 ? `$${(totalWonValue / 1_000).toFixed(1)}K`
+            : `$${totalWonValue.toLocaleString()}`
+          }</p><p className="text-xs text-stone-500 font-body mt-1">all time</p></div>
         </div>
 
         {/* Performance — competitive insight, requested in the 2026-05-04 meeting */}
@@ -554,7 +597,15 @@ export default function DealerDetailPage() {
             </div>
             <div>
               <label className={labelCls}>Years in Business</label>
-              {isEditing ? (<input type="number" value={formData.years_in_business ?? ""} onChange={(e) => setField("years_in_business", e.target.value === "" ? null : parseInt(e.target.value))} className={inputCls} />) : (<p className="text-cream">{dealer.years_in_business ?? "—"}</p>)}
+              {isEditing ? (<input type="number" min="0" max="200" value={formData.years_in_business ?? ""} onChange={(e) => {
+                // parseInt("abc") → NaN. Without the isFinite guard a typed
+                // letter would silently store NaN, which Postgres coerces to
+                // null but only at write-time — the form would briefly show
+                // a garbled value mid-typing.
+                if (e.target.value === "") { setField("years_in_business", null); return; }
+                const n = parseInt(e.target.value, 10);
+                setField("years_in_business", Number.isFinite(n) ? n : null);
+              }} className={inputCls} />) : (<p className="text-cream">{dealer.years_in_business ?? "—"}</p>)}
             </div>
             <div>
               <label className={labelCls}>Registered Business #</label>
@@ -733,6 +784,7 @@ export default function DealerDetailPage() {
                         lead.stage === "lost" ? "bg-stone-800 text-stone-300" :
                         lead.stage === "new" ? "bg-gold text-ink" :
                         lead.stage === "accepted" ? "bg-blue-900 text-blue-100" :
+                        lead.stage === "declined" ? "bg-amber-950 text-amber-200 border border-amber-700" :
                         "bg-amber-900 text-amber-100"
                       }`}>{LEAD_STAGE_LABELS[lead.stage] || lead.stage}</span>
                     </td>

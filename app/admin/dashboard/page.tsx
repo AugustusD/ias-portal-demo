@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -99,12 +100,43 @@ const ACTIVITY_LABELS: Record<string, { label: string; color: string }> = {
 
 export default function AdminDashboard() {
   const router = useRouter();
+  // URL-driven active tab. Deep links like /admin/dashboard?tab=leads now
+  // open directly to the leads view, and the browser back button restores
+  // the previous tab. Without this, the back button broke navigation for
+  // anyone using the tabs as if they were sub-pages.
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams?.get("tab");
+  const initialTab: "onboarding" | "leads" = tabFromUrl === "leads" ? "leads" : "onboarding";
+
   const [adminName, setAdminName] = useState("Admin");
   const [dealers, setDealers] = useState<DealerStat[]>([]);
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"onboarding" | "leads">("onboarding");
+  const [activeTab, setActiveTabState] = useState<"onboarding" | "leads">(initialTab);
+
+  // Wrap setActiveTab so a click also pushes a new history entry.
+  // replaceState would prevent back-button restoration; pushState gives the
+  // expected browser behavior.
+  function setActiveTab(tab: "onboarding" | "leads") {
+    setActiveTabState(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (tab === "onboarding") url.searchParams.delete("tab");
+      else url.searchParams.set("tab", tab);
+      window.history.pushState({}, "", url.toString());
+    }
+  }
+
+  // Sync back/forward navigation (popstate) to local state.
+  useEffect(() => {
+    const onPop = () => {
+      const t = new URL(window.location.href).searchParams.get("tab");
+      setActiveTabState(t === "leads" ? "leads" : "onboarding");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<EditLead | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -118,11 +150,13 @@ export default function AdminDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/dealers/login"); return; }
 
+      // maybeSingle so a missing profile row routes to login instead of
+      // throwing an unhandled error inside the effect.
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, role")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile || profile.role !== "admin") {
         router.push("/dealers/login");
@@ -332,14 +366,17 @@ export default function AdminDashboard() {
             )}
 
             <div className="flex flex-wrap gap-3 mb-4">
+              <label className="sr-only" htmlFor="dealer-search">Search dealers</label>
               <input
+                id="dealer-search"
                 type="text"
                 value={dealerSearch}
                 onChange={(e) => setDealerSearch(e.target.value)}
                 placeholder="Search by company, contact, or location…"
                 className="flex-1 min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
               />
-              <select value={dealerStageFilter} onChange={(e) => setDealerStageFilter(e.target.value)}
+              <label className="sr-only" htmlFor="dealer-stage-filter">Filter by stage</label>
+              <select id="dealer-stage-filter" value={dealerStageFilter} onChange={(e) => setDealerStageFilter(e.target.value)}
                 className="bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm">
                 <option value="all">All stages</option>
                 <option value="new">Pending</option>
@@ -372,7 +409,18 @@ export default function AdminDashboard() {
                         <tr
                           key={d.dealer_id}
                           onClick={() => router.push(`/admin/dealers/${d.dealer_id}`)}
-                          className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors cursor-pointer ${isBottleneck ? "bg-red-950/20" : ""}`}
+                          onKeyDown={(e) => {
+                            // Keyboard activation parity with the click handler.
+                            // <tr> isn't natively focusable, but with tabIndex={0}
+                            // it can be — Enter follows the link, Space prevents
+                            // default page-scroll then follows.
+                            if (e.key === "Enter") { router.push(`/admin/dealers/${d.dealer_id}`); }
+                            else if (e.key === " ") { e.preventDefault(); router.push(`/admin/dealers/${d.dealer_id}`); }
+                          }}
+                          tabIndex={0}
+                          role="link"
+                          aria-label={`Open ${d.company_name} dealer detail`}
+                          className={`border-b border-stone-800 hover:bg-stone-800/50 focus:bg-stone-800/50 focus:outline-none focus:ring-1 focus:ring-gold transition-colors cursor-pointer ${isBottleneck ? "bg-red-950/20" : ""}`}
                         >
                           <td className="py-4 px-4 min-w-[180px]">
                             <p className="font-body font-semibold text-cream">{d.company_name}</p>
@@ -429,14 +477,17 @@ export default function AdminDashboard() {
         {activeTab === "leads" && (
           <div>
             <div className="flex flex-wrap gap-3 mb-4 items-center">
+              <label className="sr-only" htmlFor="lead-search">Search leads</label>
               <input
+                id="lead-search"
                 type="text"
                 value={leadSearch}
                 onChange={(e) => setLeadSearch(e.target.value)}
                 placeholder="Search by project, company, customer, dealer, or city…"
                 className="flex-1 min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
               />
-              <select value={leadStageFilter} onChange={(e) => setLeadStageFilter(e.target.value)}
+              <label className="sr-only" htmlFor="lead-stage-filter">Filter by lead stage</label>
+              <select id="lead-stage-filter" value={leadStageFilter} onChange={(e) => setLeadStageFilter(e.target.value)}
                 className="bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm">
                 <option value="all">All active stages</option>
                 <option value="new">New</option>
@@ -475,7 +526,14 @@ export default function AdminDashboard() {
                         <tr
                           key={lead.id}
                           onClick={() => openEditLead(lead)}
-                          className={`border-b border-stone-800 hover:bg-stone-800/50 transition-colors cursor-pointer ${stalled ? "bg-gold/5" : ""}`}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") { openEditLead(lead); }
+                            else if (e.key === " ") { e.preventDefault(); openEditLead(lead); }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`Edit lead ${lead.project_name || lead.homeowner_name || "unnamed"}`}
+                          className={`border-b border-stone-800 hover:bg-stone-800/50 focus:bg-stone-800/50 focus:outline-none focus:ring-1 focus:ring-gold transition-colors cursor-pointer ${stalled ? "bg-gold/5" : ""}`}
                         >
                           <td className="py-4 px-4">
                             <p className="font-body font-semibold text-cream">{lead.project_name || "—"}</p>
