@@ -196,6 +196,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="e.g. Harbour View Towers, Phase 2"
+              maxLength={200}
               className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
             />
           </div>
@@ -208,6 +209,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
                 value={contactCompany}
                 onChange={(e) => setContactCompany(e.target.value)}
                 placeholder="e.g. Insignia Construction"
+                maxLength={200}
                 className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
               />
               <p className="text-xs text-stone-500 mt-1 font-body italic">Used for duplicate detection.</p>
@@ -276,6 +278,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
               type="text"
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
+              maxLength={200}
               className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
             />
           </div>
@@ -329,6 +332,7 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
+              maxLength={5000}
               placeholder="Any additional info to pass along to the dealer (project size, timeline, special requirements, source of the lead, etc.)"
               className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
             />
