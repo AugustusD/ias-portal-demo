@@ -154,3 +154,62 @@
     text-transform: uppercase;
   }
 }
+
+/* ============================================================================
+ * Print stylesheet — minimal but useful. Saves Mike+Fred's ink/toner when
+ * they print lead details or dealer info. Hides interactive UI; forces
+ * light backgrounds; expands modals so a printed lead detail isn't cut off.
+ * ============================================================================ */
+@media print {
+  /* Force white backgrounds + black ink for everything. Saves toner. */
+  *, *::before, *::after {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    overflow: visible !important;
+    -webkit-print-color-adjust: economy;
+    print-color-adjust: economy;
+  }
+
+  /* Hide chrome that doesn't make sense on paper */
+  header, footer, nav,
+  .sticky, [class*="sticky"],
+  button, [role="button"],
+  .btn-gold, .btn-outline-dark,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Modal: expand to fit instead of viewport, drop the overlay */
+  .fixed.inset-0 {
+    position: static !important;
+    background: white !important;
+  }
+  .max-h-\[90vh\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Don't cut lines between header rows and body rows */
+  tr, li, .border-b, .border-t {
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555 !important;
+  }
+  a[href^="#"]::after,
+  a[href^="javascript:"]::after {
+    content: "";
+  }
+}
