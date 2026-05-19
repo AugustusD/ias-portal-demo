@@ -708,8 +708,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      <ThemeSwitcher current={themeId} onChange={handleThemeChange} />
     </div>
   );
 }
