@@ -124,13 +124,13 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
         <form onSubmit={handleSave} className="p-6 space-y-4">
           <div>
             <label className="block eyebrow text-stone-400 mb-1">Project Name</label>
-            <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Harbour View Towers, Phase 2" className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+            <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Harbour View Towers, Phase 2" maxLength={200} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block eyebrow text-stone-400 mb-1">Contracting Company</label>
-              <input type="text" value={contactCompany} onChange={(e) => setContactCompany(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+              <input type="text" value={contactCompany} onChange={(e) => setContactCompany(e.target.value)} maxLength={200} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
             </div>
             <div>
               <label className="block eyebrow text-stone-400 mb-1">Bid Due Date</label>
@@ -157,7 +157,7 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
 
           <div>
             <label className="block eyebrow text-stone-400 mb-1">Contact Name</label>
-            <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+            <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={200} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -184,7 +184,7 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
 
           <div>
             <label className="block eyebrow text-stone-400 mb-1">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} maxLength={5000} className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body" />
           </div>
 
           {error && <p className="text-red-400 text-sm font-body">{error}</p>}

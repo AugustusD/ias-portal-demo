@@ -819,7 +819,7 @@ function LeadDetailModal({
                 <div className="space-y-4">
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Scope of Work</label>
-                    <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={3} />
+                    <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} maxLength={2000} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={3} />
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-2">System Type(s)</label>
@@ -865,7 +865,7 @@ function LeadDetailModal({
                 <div className="space-y-4">
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Final Scope of Work</label>
-                    <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
+                    <textarea value={formData.scopeOfWork} onChange={(e) => setFormData({ ...formData, scopeOfWork: e.target.value })} maxLength={2000} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-2">System Type(s)</label>
@@ -908,7 +908,7 @@ function LeadDetailModal({
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
-                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
+                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} maxLength={5000} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={handleMarkWon} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Confirm Won"}</button>
@@ -935,7 +935,7 @@ function LeadDetailModal({
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
-                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
+                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} maxLength={5000} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={handleMarkLost} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Confirm Lost"}</button>
@@ -960,7 +960,7 @@ function LeadDetailModal({
                   </div>
                   <div>
                     <label className="eyebrow text-stone-600 block mb-1">Notes (optional)</label>
-                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
+                    <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} maxLength={5000} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" rows={2} />
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={handleDecline} disabled={saving} className="btn-gold text-xs px-5 py-2 disabled:opacity-50">{saving ? "Saving…" : "Confirm Decline"}</button>
