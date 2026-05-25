@@ -9,7 +9,7 @@
  *   2. While in recovery mode the user has a session that ONLY permits
  *      updateUser(password). We set the new password.
  *   3. After success we sign the user out (so they re-authenticate fresh) and
- *      send them back to /dealers/login.
+ *      send them back to /login.
  *
  * Edge cases handled:
  *   - User hits this URL directly with no token → "Recovery link expired"
@@ -82,7 +82,7 @@ export default function ResetPasswordPage() {
     // invalidates the recovery session so the link can't be reused.
     await supabase.auth.signOut();
     setSuccess(true);
-    setTimeout(() => router.push("/dealers/login"), 1800);
+    setTimeout(() => router.push("/login"), 1800);
   }
 
   if (!ready) {
@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
           <p className="font-body text-stone-700 mb-8">
             This password reset link is invalid or has already been used. Please request a new one.
           </p>
-          <Link href="/dealers/forgot-password" className="btn-gold w-full">Request New Link</Link>
+          <Link href="/forgot-password" className="btn-gold w-full">Request New Link</Link>
         </div>
       </div>
     );

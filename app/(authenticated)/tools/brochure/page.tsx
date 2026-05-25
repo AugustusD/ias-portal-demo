@@ -13,10 +13,10 @@ export default function BrochurePage() {
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/dealers/login"); return; }
+    if (!stored) { router.push("/login"); return; }
     try {
       setDealer(JSON.parse(stored));
-    } catch { router.push("/dealers/login"); return; }
+    } catch { router.push("/login"); return; }
     setLoading(false);
   }, [router]);
 
@@ -30,7 +30,7 @@ export default function BrochurePage() {
       <div className="sticky top-0 z-30 bg-cream border-b border-stone-200">
         <div className="section-container py-5">
           <div className="flex items-center gap-4">
-            <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
+            <Link href="/" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
             <span className="text-stone-300">/</span>
             <p className="eyebrow text-stone-600">Tools / Brochure</p>
           </div>

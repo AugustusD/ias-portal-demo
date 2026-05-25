@@ -17,6 +17,28 @@ const nextConfig = {
       },
     ];
   },
+
+  // Backward-compat redirects for the /dealers/* → / flatten (2026-05-25).
+  // Anyone with a bookmarked /dealers/dashboard, an email-link to
+  // /dealers/training/module-3, or a Slack-pasted /dealers/leads URL will
+  // get a 301 to the new location. Permanent so browsers cache it.
+  //
+  // /dealers/dashboard is special — the new dashboard is at /, not
+  // /dashboard — so handle it explicitly before the catch-all.
+  async redirects() {
+    return [
+      {
+        source: "/dealers/dashboard",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/dealers/:path*",
+        destination: "/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

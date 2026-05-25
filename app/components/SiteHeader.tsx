@@ -1,25 +1,22 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+/**
+ * Marketing-style header shown on the public auth pages (/login,
+ * /forgot-password, /reset-password, /register/[token]).
+ *
+ * Used to be rendered globally with a path-prefix block-list to hide
+ * itself on app surfaces. After the /* → / restructure, layout
+ * scoping handles that — the (auth) route group includes this component,
+ * the (authenticated) and /admin layouts don't. Much cleaner.
+ *
+ * Logo link goes to / which is now the dashboard (auth-gated). Anyone
+ * not signed in clicking the logo will be bounced through the auth check
+ * back to /login.
+ */
 
-// Authenticated app surfaces that have their own internal header. The global
-// marketing header would just stack and eat vertical space on mobile.
-const APP_PATH_PREFIXES = [
-  "/admin",
-  "/dealers/dashboard",
-  "/dealers/leads",
-  "/dealers/training",
-  "/dealers/resources",
-  "/dealers/tools",
-  "/dealers/register",
-];
+import Link from "next/link";
 
 export default function SiteHeader() {
-  const pathname = usePathname() || "/";
-  const isAppSurface = APP_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
-  if (isAppSurface) return null;
-
   return (
     <header className="border-b border-stone-200 bg-cream">
       <nav className="section-container flex items-center justify-between py-6">
@@ -34,7 +31,7 @@ export default function SiteHeader() {
         </ul>
         <div className="flex items-center gap-3">
           <Link
-            href="/dealers/dashboard"
+            href="/"
             className="hidden md:inline-flex items-center px-5 py-2.5 text-xs font-body font-bold uppercase tracking-widest border-2 border-ink text-ink hover:bg-ink hover:text-cream transition-colors"
           >
             Dealer Portal

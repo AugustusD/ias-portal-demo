@@ -108,7 +108,7 @@ export default function RegisterPage() {
   }
 
   function handleCopyLink() {
-    const url = typeof window !== "undefined" ? `${window.location.origin}/dealers/register/${token}` : "";
+    const url = typeof window !== "undefined" ? `${window.location.origin}/register/${token}` : "";
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -129,7 +129,7 @@ export default function RegisterPage() {
           <p className="eyebrow text-stone-500 mb-3">Invalid Link</p>
           <h1 className="font-heading text-3xl font-bold mb-3">This link doesn&apos;t work.</h1>
           <p className="font-body text-stone-600 mb-6">{tokenError}</p>
-          <Link href="/dealers/training" className="btn-gold text-xs px-6 py-3">Start Onboarding →</Link>
+          <Link href="/training" className="btn-gold text-xs px-6 py-3">Start Onboarding →</Link>
         </div>
       </div>
     );
@@ -149,14 +149,14 @@ export default function RegisterPage() {
           <p className="font-body text-stone-600 mb-6">
             We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then return here to log in.
           </p>
-          <Link href="/dealers/login" className="btn-gold text-xs px-6 py-3">Go to Login</Link>
+          <Link href="/login" className="btn-gold text-xs px-6 py-3">Go to Login</Link>
         </div>
       </div>
     );
   }
 
   if (registered && dealer) {
-    const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/dealers/register/${token}` : "";
+    const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/register/${token}` : "";
     return (
       <div className="section-container section-padding">
         <div className="max-w-2xl mx-auto">
@@ -198,7 +198,7 @@ export default function RegisterPage() {
 
           <div className="text-center">
             <button
-              onClick={() => router.push("/dealers/dashboard")}
+              onClick={() => router.push("/")}
               className="btn-outline-dark text-xs px-6 py-3"
             >
               Continue to Dashboard →
@@ -283,7 +283,7 @@ export default function RegisterPage() {
         <div className="mt-8 pt-6 border-t border-stone-200 text-center">
           <p className="font-body text-sm text-stone-600">
             Already have an account?{" "}
-            <Link href="/dealers/login" className="text-gold hover:text-gold-hover underline">
+            <Link href="/login" className="text-gold hover:text-gold-hover underline">
               Sign in
             </Link>
           </p>

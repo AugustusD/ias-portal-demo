@@ -148,7 +148,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadData() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/dealers/login"); return; }
+      if (!session) { router.push("/login"); return; }
 
       // maybeSingle so a missing profile row routes to login instead of
       // throwing an unhandled error inside the effect.
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (!profile || profile.role !== "admin") {
-        router.push("/dealers/login");
+        router.push("/login");
         return;
       }
       setAdminName(profile.full_name || "Admin");
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/dealers/login");
+    router.push("/login");
   }
 
   function openEditLead(lead: LeadRow) {

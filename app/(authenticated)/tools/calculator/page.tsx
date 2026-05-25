@@ -19,10 +19,10 @@ export default function CalculatorPage() {
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/dealers/login"); return; }
+    if (!stored) { router.push("/login"); return; }
     try {
       setDealer(JSON.parse(stored));
-    } catch { router.push("/dealers/login"); return; }
+    } catch { router.push("/login"); return; }
     setLoading(false);
   }, [router]);
 
@@ -53,7 +53,7 @@ export default function CalculatorPage() {
         <div className="section-container py-5">
           <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4">
             <div className="flex items-center gap-2 md:gap-4">
-              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors whitespace-nowrap">← Dashboard</Link>
+              <Link href="/" className="text-sm font-body text-stone-600 hover:text-ink transition-colors whitespace-nowrap">← Dashboard</Link>
               <span className="hidden md:inline text-stone-300">/</span>
               <p className="hidden md:block eyebrow text-stone-600">Tools / Calculator</p>
             </div>
@@ -70,7 +70,7 @@ export default function CalculatorPage() {
                 <span className="hidden md:inline">Video Guide</span>
               </button>
               <a
-                href="https://ias-calculator.vercel.app"
+                href="https://infinity.innovativealuminum.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 border-2 border-gold text-ink font-body font-bold text-xs uppercase tracking-widest hover:bg-gold transition-colors whitespace-nowrap"
@@ -101,7 +101,7 @@ export default function CalculatorPage() {
       <div className="w-full px-4 md:px-6 lg:px-8 pb-24">
         <div className="relative border border-stone-200 bg-white overflow-hidden" style={{ height: "1400px" }}>
           <iframe
-            src="https://ias-calculator.vercel.app"
+            src="https://infinity.innovativealuminum.com"
             title="Infinity Calculator"
             className="w-full h-full"
             frameBorder="0"

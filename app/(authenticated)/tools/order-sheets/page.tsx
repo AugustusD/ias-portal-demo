@@ -21,10 +21,10 @@ export default function OrderSheetsPage() {
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/dealers/login"); return; }
+    if (!stored) { router.push("/login"); return; }
     try {
       setDealer(JSON.parse(stored));
-    } catch { router.push("/dealers/login"); return; }
+    } catch { router.push("/login"); return; }
     setLoading(false);
   }, [router]);
 
@@ -55,7 +55,7 @@ export default function OrderSheetsPage() {
         <div className="section-container py-5">
           <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4">
             <div className="flex items-center gap-2 md:gap-4">
-              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors whitespace-nowrap">← Dashboard</Link>
+              <Link href="/" className="text-sm font-body text-stone-600 hover:text-ink transition-colors whitespace-nowrap">← Dashboard</Link>
               <span className="hidden md:inline text-stone-300">/</span>
               <p className="hidden md:block eyebrow text-stone-600">Tools / Order Sheets</p>
             </div>
