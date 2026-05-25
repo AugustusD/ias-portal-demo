@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { VERSION_LABEL, RELEASED } from "@/lib/version";
 
 type Dealer = { name: string; email: string };
 
@@ -539,7 +540,23 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="flex-1">
-                <p className="eyebrow mb-3" style={{ color: theme.gold }}>Dealer Portal</p>
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <p className="eyebrow" style={{ color: theme.gold }}>Dealer Portal</p>
+                  {/*
+                    Build-version pill — small, monospaced, intentionally
+                    understated. Lets Mike/Suneet eyeball which build a
+                    tester is on at a glance ("Did you see this on 4.2.2
+                    or did you grab a stale tab?"). Sourced from
+                    lib/version.ts so bumping is a one-file change.
+                  */}
+                  <span
+                    title={`Released ${RELEASED}`}
+                    className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border"
+                    style={{ color: theme.textMuted, borderColor: theme.textMuted + "55" }}
+                  >
+                    {VERSION_LABEL}
+                  </span>
+                </div>
                 <h1 className="text-4xl md:text-5xl font-heading font-bold mb-2" style={{ color: theme.textPrimary }}>
                   {isGuest ? "Welcome." : `Welcome back, ${dealer.name}.`}
                 </h1>
@@ -553,7 +570,7 @@ export default function DashboardPage() {
               </div>
             </div>
             {isGuest ? (
-              <Link href="/dealers/login" className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors" style={{ borderColor: theme.gold, color: theme.id === "architect" ? "#FFFFFF" : "#0A0908", background: theme.gold }}>
+              <Link href="/login" className="flex-shrink-0 self-start px-6 py-3 text-xs font-body font-bold uppercase tracking-widest border-2 transition-colors" style={{ borderColor: theme.gold, color: theme.id === "architect" ? "#FFFFFF" : "#0A0908", background: theme.gold }}>
                 Log In
               </Link>
             ) : (
@@ -603,8 +620,8 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <ToolTile theme={theme} href="https://designer.innovativealuminum.com" eyebrow="Visualize" title="Designer" subtitle="3D project visualizer ↗" external={true} locked={isGuest} />
-            <ToolTile theme={theme} href="/dealers/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} inDevelopment={!isGuest} locked={isGuest} />
-            <ToolTile theme={theme} href="/dealers/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} inDevelopment={!isGuest} locked={isGuest} />
+            <ToolTile theme={theme} href="/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} inDevelopment={!isGuest} locked={isGuest} />
+            <ToolTile theme={theme} href="/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} inDevelopment={!isGuest} locked={isGuest} />
           </div>
         </div>
 
@@ -612,9 +629,9 @@ export default function DashboardPage() {
         <div className="mb-16">
           <p className="eyebrow mb-5" style={{ color: theme.textMuted }}>Your Account</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AccountTile theme={theme} href="/dealers/training" eyebrow="Program" title="Onboarding" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={isAuthorized} highlight={isGuest} />
-            <AccountTile theme={theme} href="/dealers/leads" eyebrow="Pipeline" title="Leads" subtitle={leadsCount === 0 ? "No leads yet" : `${leadsCount} lead${leadsCount === 1 ? "" : "s"} in your pipeline`} locked={isGuest} />
-            <AccountTile theme={theme} href="/dealers/resources" eyebrow="Library" title="Dealer Resources" subtitle="Installation guides and documents." locked={isGuest} />
+            <AccountTile theme={theme} href="/training" eyebrow="Program" title="Onboarding" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={isAuthorized} highlight={isGuest} />
+            <AccountTile theme={theme} href="/leads" eyebrow="Pipeline" title="Leads" subtitle={leadsCount === 0 ? "No leads yet" : `${leadsCount} lead${leadsCount === 1 ? "" : "s"} in your pipeline`} locked={isGuest} />
+            <AccountTile theme={theme} href="/resources" eyebrow="Library" title="Dealer Resources" subtitle="Installation guides and documents." locked={isGuest} />
           </div>
         </div>
 
@@ -631,7 +648,7 @@ export default function DashboardPage() {
                 <span className="mb-2" style={{ color: theme.textMuted }}>active</span>
               </div>
               <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Track current orders and view past order history.</div>
-              <Link href={isGuest ? "/dealers/training" : "/dealers/orders"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+              <Link href={isGuest ? "/training" : "/orders"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
                 {isGuest ? "Complete Onboarding →" : "View Orders →"}
               </Link>
             </div>
@@ -644,7 +661,7 @@ export default function DashboardPage() {
                 <span className="mb-2" style={{ color: theme.textMuted }}>total</span>
               </div>
               <div className="text-sm font-body mb-4" style={{ color: theme.textSecondary }}>Leads sent to you from IAS.</div>
-              <Link href={isGuest ? "/dealers/training" : "/dealers/leads"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+              <Link href={isGuest ? "/training" : "/leads"} className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
                 {isGuest ? "Complete Onboarding →" : "View Leads →"}
               </Link>
             </div>
@@ -659,7 +676,7 @@ export default function DashboardPage() {
               <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
                 <div className="h-full transition-all duration-1000 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
               </div>
-              <Link href="/dealers/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
+              <Link href="/training" className="text-sm font-body font-semibold uppercase tracking-wider" style={{ color: theme.gold }}>
                 {isAuthorized ? "Review Training →" : "Continue Training →"}
               </Link>
             </div>

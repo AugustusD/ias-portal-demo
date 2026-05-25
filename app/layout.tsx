@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Ubuntu, Titillium_Web, Dancing_Script } from "next/font/google";
-import SiteHeader from "./components/SiteHeader";
 import "./globals.css";
 
 const ubuntu = Ubuntu({
@@ -37,8 +36,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${ubuntu.variable} ${titillium.variable} ${dancingScript.variable}`}>
       <body>
-        <SiteHeader />
-        <main className="min-h-screen">{children}</main>
+        {/*
+          SiteHeader (marketing nav) is now scoped to the (auth) route group
+          only — pre-auth pages still show it; the dashboard + app pages
+          have their own internal headers and don't want the marketing
+          chrome stacked on top.
+        */}
+        {children}
         <footer className="border-t border-stone-200 bg-ink text-cream py-12">
           <div className="section-container text-center">
             <p className="font-body text-sm">© 2026 Innovative Aluminum Systems · Demo Build</p>

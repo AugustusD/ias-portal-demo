@@ -1084,7 +1084,7 @@ export default function LeadsPage() {
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/dealers/login"); return; }
+      if (!session) { router.push("/login"); return; }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -1135,7 +1135,7 @@ export default function LeadsPage() {
       <div className="sticky top-0 z-30 bg-cream border-b border-stone-200">
         <div className="section-container py-5">
           <div className="flex items-center gap-4">
-            <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
+            <Link href="/" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
             <span className="text-stone-300">/</span>
             <p className="eyebrow text-stone-600">Leads</p>
           </div>

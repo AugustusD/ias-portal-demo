@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
     // Build absolute reset URL from window.location — works in prod + previews
     // without having to hardcode a domain. Supabase requires the redirect to
     // be on the configured Site URL allow-list.
-    const redirectTo = `${window.location.origin}/dealers/reset-password`;
+    const redirectTo = `${window.location.origin}/reset-password`;
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
       redirectTo,
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
             we&apos;ve sent a password reset link. It may take a minute to arrive — also
             check spam.
           </p>
-          <Link href="/dealers/login" className="btn-gold w-full">Back to Sign In</Link>
+          <Link href="/login" className="btn-gold w-full">Back to Sign In</Link>
         </div>
       </div>
     );
@@ -102,7 +102,7 @@ export default function ForgotPasswordPage() {
           </button>
 
           <p className="text-sm font-body text-stone-600 text-center">
-            Remembered it? <Link href="/dealers/login" className="text-gold hover:underline">Sign in</Link>
+            Remembered it? <Link href="/login" className="text-gold hover:underline">Sign in</Link>
           </p>
         </form>
       </div>

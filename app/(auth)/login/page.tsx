@@ -32,7 +32,7 @@ export default function LoginPage() {
       if (profile?.role === "admin") {
         router.replace("/admin/dashboard");
       } else {
-        router.replace("/dealers/dashboard");
+        router.replace("/");
       }
     }
     checkSession();
@@ -79,7 +79,7 @@ export default function LoginPage() {
     if (profile.role === "admin") {
       router.push("/admin/dashboard");
     } else {
-      router.push("/dealers/dashboard");
+      router.push("/");
     }
   }
 
@@ -118,7 +118,7 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-body font-semibold uppercase tracking-wider">
                 Password
               </label>
-              <Link href="/dealers/forgot-password" className="text-xs font-body text-stone-600 hover:text-gold underline">
+              <Link href="/forgot-password" className="text-xs font-body text-stone-600 hover:text-gold underline">
                 Forgot?
               </Link>
             </div>

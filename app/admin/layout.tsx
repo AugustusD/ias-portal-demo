@@ -18,7 +18,7 @@ export default function AdminLayout({
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
-        router.replace('/dealers/login')
+        router.replace('/login')
         return
       }
 
@@ -34,7 +34,7 @@ export default function AdminLayout({
 
       if (!profile || profile.role !== 'admin') {
         // Logged in but not an admin — kick them to the dealer side
-        router.replace('/dealers/dashboard')
+        router.replace('/')
         return
       }
 
@@ -45,7 +45,7 @@ export default function AdminLayout({
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        router.replace('/dealers/login')
+        router.replace('/login')
       }
     })
 

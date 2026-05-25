@@ -919,7 +919,7 @@ export default function OnboardingPage() {
         <div className="section-container py-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4">
-              <Link href="/dealers/dashboard" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
+              <Link href="/" className="text-sm font-body text-stone-600 hover:text-ink transition-colors">← Dashboard</Link>
               <span className="text-stone-300">/</span>
               <p className="eyebrow text-stone-600">Onboarding</p>
             </div>
@@ -1124,7 +1124,7 @@ export default function OnboardingPage() {
                   </p>
                   {formSubmitted && registrationToken && (
                     <Link
-                      href={`/dealers/register/${registrationToken}`}
+                      href={`/register/${registrationToken}`}
                       className="btn-gold text-xs px-5 py-2.5 inline-block"
                     >
                       Create my account →
@@ -1152,7 +1152,7 @@ export default function OnboardingPage() {
             </p>
             <div className="flex flex-col gap-3">
               <Link
-                href={`/dealers/register/${registrationToken}`}
+                href={`/register/${registrationToken}`}
                 className="btn-gold text-center"
               >
                 Create my account →

@@ -144,7 +144,7 @@ export default function DealerDetailPage() {
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/dealers/login"); return; }
+      if (!session) { router.push("/login"); return; }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -152,7 +152,7 @@ export default function DealerDetailPage() {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (!profile || profile.role !== "admin") { router.push("/dealers/login"); return; }
+      if (!profile || profile.role !== "admin") { router.push("/login"); return; }
       setAdminName(profile.full_name || "Admin");
 
       // UUID-format check up front. Otherwise Postgres returns a 400 with
@@ -210,7 +210,7 @@ export default function DealerDetailPage() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/dealers/login");
+    router.push("/login");
   }
 
   function handleEdit() {
