@@ -1153,6 +1153,7 @@ export default function OnboardingPage() {
   const [showAccountPopup, setShowAccountPopup] = useState(false);
   const [quizPassed, setQuizPassed] = useState<Record<string, boolean>>({});
   const [justPassedQuiz, setJustPassedQuiz] = useState<string | null>(null);
+  const [dealerStage, setDealerStage] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProgress() {
@@ -1182,14 +1183,28 @@ export default function OnboardingPage() {
 
       setIsGuest(false);
 
-      const { data: progress } = await supabase
-        .from("training_progress")
-        .select("module_id")
-        .eq("user_id", user.id);
+      // Load training progress + the dealer's onboarding_stage. Stage drives
+      // the "Authorized" vs "Pending Approval" UI after all modules are done.
+      const [progressRes, profileRes] = await Promise.all([
+        supabase
+          .from("training_progress")
+          .select("module_id")
+          .eq("user_id", user.id),
+        supabase
+          .from("profiles")
+          .select("dealer_id, dealers(onboarding_stage)")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
+      const { data: progress } = progressRes;
       const completedIds = (progress || []).map((p) => p.module_id);
       setCompleted(completedIds);
       const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
       if (firstIncomplete) setActiveId(firstIncomplete.id);
+
+      const dealerRow = (profileRes.data as { dealers?: { onboarding_stage?: string } | { onboarding_stage?: string }[] } | null)?.dealers;
+      const stage = Array.isArray(dealerRow) ? dealerRow[0]?.onboarding_stage : dealerRow?.onboarding_stage;
+      setDealerStage(stage ?? null);
 
       // Hydrate quiz pass state. Catches the case where a dealer passed the
       // quiz on one device but closed the tab before sliding to complete —
@@ -1282,7 +1297,12 @@ export default function OnboardingPage() {
   const completedCount = completed.length;
   const totalCount = MODULES.length;
   const progressPercent = (completedCount / totalCount) * 100;
-  const isAuthorized = !isGuest && completedCount === totalCount;
+  // "isFinished" = all modules done, "isAuthorized" = admin has actually
+  // approved the dealer (stage in approved/authorized). A dealer who just
+  // finished module 5 is isFinished but NOT isAuthorized until admin acts.
+  const isFinished = !isGuest && completedCount === totalCount;
+  const isAuthorized = !isGuest && (dealerStage === "approved" || dealerStage === "authorized");
+  const isPendingApproval = isFinished && !isAuthorized;
 
   const canCompleteActive =
     activeModule.type === "form"
@@ -1315,12 +1335,17 @@ export default function OnboardingPage() {
                 <span className="font-bold text-ink">{completedCount}</span>
                 <span className="text-stone-400"> / {totalCount} complete</span>
               </p>
-              {isAuthorized && (
+              {isAuthorized ? (
                 <span className="inline-flex items-center gap-2 bg-ink text-cream px-4 py-1.5 text-xs font-body font-bold uppercase tracking-widest">
                   <span className="w-2 h-2 rounded-full bg-gold"></span>
                   Authorized
                 </span>
-              )}
+              ) : isPendingApproval ? (
+                <span className="inline-flex items-center gap-2 bg-gold/20 text-ink border border-gold px-4 py-1.5 text-xs font-body font-bold uppercase tracking-widest">
+                  <span className="w-2 h-2 rounded-full bg-gold"></span>
+                  Pending Approval
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="w-full bg-stone-200 h-1 overflow-hidden">
@@ -1332,11 +1357,17 @@ export default function OnboardingPage() {
       <div className="section-container pt-16 pb-12">
         <p className="eyebrow text-gold mb-4">Authorized Dealer Program</p>
         <h1 className="text-5xl md:text-6xl font-heading font-bold mb-4 max-w-3xl">
-          {isAuthorized ? "You're authorized." : "Become an authorized dealer."}
+          {isAuthorized
+            ? "You're authorized."
+            : isPendingApproval
+            ? "Pending final approval."
+            : "Become an authorized dealer."}
         </h1>
         <p className="font-body text-lg text-stone-600 max-w-2xl">
           {isAuthorized
             ? "All onboarding modules complete. You now have full access to the IAS dealer network."
+            : isPendingApproval
+            ? "All 5 modules complete. We've notified IAS — an admin will review your account and grant tool access shortly."
             : isGuest
             ? "Walk through Modules 1 and 2 to learn about IAS and submit your business info. After that you'll create your account to unlock the rest."
             : "Complete each module in order to unlock your authorized dealer status, premium pricing, and lead distribution."}
@@ -1523,7 +1554,13 @@ export default function OnboardingPage() {
               <div className="bg-ink text-cream p-8">
               <p className="eyebrow text-gold mb-4">Your Status</p>
               <p className="font-heading text-3xl font-bold mb-6">
-                {isAuthorized ? "Authorized Dealer" : isGuest ? "Guest" : "In Onboarding"}
+                {isAuthorized
+                  ? "Authorized Dealer"
+                  : isPendingApproval
+                  ? "Pending Approval"
+                  : isGuest
+                  ? "Guest"
+                  : "In Onboarding"}
               </p>
               <div className="space-y-3 mb-8">
                 {MODULES.map((mod) => {
