@@ -36,6 +36,7 @@ type Dealer = {
   contractor_license_number: string | null;
   regions_sold_to: string | null;
   infinity_discount_pct: number | null;
+  standard_discount_pct: number | null;
   glass_component_discount_pct: number | null;
   picket_discount_pct: number | null;
   custom_discount_pct: number | null;
@@ -119,6 +120,7 @@ function timeAgo(s: string | null): string {
 
 const DISCOUNT_FIELDS: (keyof Dealer)[] = [
   "infinity_discount_pct",
+  "standard_discount_pct",
   "glass_component_discount_pct",
   "picket_discount_pct",
   "custom_discount_pct",
@@ -141,6 +143,10 @@ export default function DealerDetailPage() {
   const [formData, setFormData] = useState<Partial<Dealer>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [approveInfinity, setApproveInfinity] = useState<string>("");
+  const [approveStandard, setApproveStandard] = useState<string>("");
+  const [approveError, setApproveError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -238,6 +244,62 @@ export default function DealerDetailPage() {
     if (updateError) { setSaveError(humanizeError(updateError, "Couldn't update stage.")); return; }
     setDealer({ ...dealer, onboarding_stage: newStage } as Dealer);
     setFormData((prev) => ({ ...prev, onboarding_stage: newStage }));
+  }
+
+  function openApproveModal() {
+    // Pre-fill from existing values if the dealer already has them set
+    // (e.g., they were previously approved, demoted, and are being re-approved).
+    setApproveInfinity(dealer?.infinity_discount_pct != null ? String(dealer.infinity_discount_pct) : "");
+    setApproveStandard(dealer?.standard_discount_pct != null ? String(dealer.standard_discount_pct) : "");
+    setApproveError("");
+    setApproveModalOpen(true);
+  }
+
+  async function submitApproval() {
+    if (!dealer) return;
+    const infinityNum = parseFloat(approveInfinity);
+    const standardNum = parseFloat(approveStandard);
+    if (!Number.isFinite(infinityNum) || infinityNum < 0 || infinityNum > 100) {
+      setApproveError("Infinity discount must be between 0 and 100.");
+      return;
+    }
+    if (!Number.isFinite(standardNum) || standardNum < 0 || standardNum > 100) {
+      setApproveError("Standard discount must be between 0 and 100.");
+      return;
+    }
+    setSaving(true);
+    setApproveError("");
+    const { error: updateError } = await supabase
+      .from("dealers")
+      .update({
+        onboarding_stage: "approved",
+        infinity_discount_pct: infinityNum,
+        standard_discount_pct: standardNum,
+        discount_set_at: new Date().toISOString(),
+        discount_set_by: adminName,
+      })
+      .eq("id", dealerId);
+    setSaving(false);
+    if (updateError) {
+      setApproveError(humanizeError(updateError, "Couldn't approve dealer."));
+      return;
+    }
+    const updated = {
+      ...dealer,
+      onboarding_stage: "approved",
+      infinity_discount_pct: infinityNum,
+      standard_discount_pct: standardNum,
+      discount_set_at: new Date().toISOString(),
+      discount_set_by: adminName,
+    } as Dealer;
+    setDealer(updated);
+    setFormData((prev) => ({
+      ...prev,
+      onboarding_stage: "approved",
+      infinity_discount_pct: infinityNum,
+      standard_discount_pct: standardNum,
+    }));
+    setApproveModalOpen(false);
   }
 
   async function handleSave() {
@@ -374,7 +436,7 @@ export default function DealerDetailPage() {
                     pending_final_approval → approved → authorized */}
                 {dealer && ["new", "training", "forms_pending", "pending_final_approval"].includes(dealer.onboarding_stage) && (
                   <button
-                    onClick={() => transitionStage("approved")}
+                    onClick={openApproveModal}
                     disabled={saving}
                     className={`text-xs uppercase tracking-wider px-4 py-2 font-body font-bold transition-colors disabled:opacity-50 ${
                       dealer.onboarding_stage === "pending_final_approval"
@@ -383,8 +445,8 @@ export default function DealerDetailPage() {
                     }`}
                     title={
                       dealer.onboarding_stage === "pending_final_approval"
-                        ? "Dealer has finished all 5 training modules. Approve to give them tool access."
-                        : "Approve as a dealer (unlocks engineering docs + costs). They still need to complete onboarding modules to be 'authorized' and use the tools."
+                        ? "Dealer has finished all 5 training modules. Approve to give them tool access (you'll set discount % next)."
+                        : "Approve as a dealer (sets discount %, unlocks tool access)."
                     }
                   >
                     {saving ? "…" : "Approve Dealer"}
@@ -427,6 +489,26 @@ export default function DealerDetailPage() {
       </div>
 
       <div className="section-container section-padding">
+        {/* Missing-discount banner: flag dealers who got approved/authorized
+            without their Infinity + Standard discount % set. These two
+            values are what the Calculator + Order Sheet apps will read. */}
+        {dealer && ["approved", "authorized"].includes(dealer.onboarding_stage) &&
+          (dealer.infinity_discount_pct == null || dealer.standard_discount_pct == null) && (
+          <div className="mb-6 p-5 bg-red-950/40 border-l-4 border-red-500">
+            <p className="eyebrow text-red-400 mb-1">Action Required</p>
+            <h3 className="font-heading text-lg font-bold mb-2">
+              {dealer.infinity_discount_pct == null && dealer.standard_discount_pct == null
+                ? "Both discount % values are missing."
+                : dealer.infinity_discount_pct == null
+                ? "Infinity discount % is missing."
+                : "Standard discount % is missing."}
+            </h3>
+            <p className="font-body text-sm text-stone-300">
+              This dealer is approved but the tools won't apply a discount until both values are set. Click <strong>Edit Dealer</strong> above and fill in the Discounts &amp; Pricing section.
+            </p>
+          </div>
+        )}
+
         {/* Hero */}
         <div className="mb-10">
           <p className="eyebrow text-gold mb-2">Dealer</p>
@@ -507,11 +589,14 @@ export default function DealerDetailPage() {
               </p>
             )}
           </div>
-          <p className="font-body text-sm text-stone-400 mb-5">Per-product discount percentages negotiated for this dealer. Applied automatically when generating quotes.</p>
+          <p className="font-body text-sm text-stone-400 mb-5">
+            Infinity applies to the Calculator. Standard applies to the Order Sheet (all non-Infinity products).
+            The three legacy fields below are not currently read by either tool.
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
             <div>
-              <label className={labelCls}>Infinity Topless</label>
+              <label className={labelCls}>Infinity (Calculator)</label>
               {isEditing ? (
                 <div className="flex items-center gap-1">
                   <input type="number" step="0.01" min="0" max="100" value={formData.infinity_discount_pct ?? ""} onChange={(e) => setField("infinity_discount_pct", e.target.value === "" ? null : parseFloat(e.target.value))} className={inputCls} />
@@ -519,6 +604,17 @@ export default function DealerDetailPage() {
                 </div>
               ) : (
                 <p className="text-3xl font-heading font-bold text-gold">{dealer.infinity_discount_pct != null ? `${dealer.infinity_discount_pct}%` : "—"}</p>
+              )}
+            </div>
+            <div>
+              <label className={labelCls}>Standard (Order Sheet)</label>
+              {isEditing ? (
+                <div className="flex items-center gap-1">
+                  <input type="number" step="0.01" min="0" max="100" value={formData.standard_discount_pct ?? ""} onChange={(e) => setField("standard_discount_pct", e.target.value === "" ? null : parseFloat(e.target.value))} className={inputCls} />
+                  <span className="text-stone-400">%</span>
+                </div>
+              ) : (
+                <p className="text-3xl font-heading font-bold text-gold">{dealer.standard_discount_pct != null ? `${dealer.standard_discount_pct}%` : "—"}</p>
               )}
             </div>
             <div>
@@ -809,6 +905,100 @@ export default function DealerDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Approve Dealer modal — admin must set Infinity + Standard discount %
+          before the stage flips. Both values save in the same UPDATE as the
+          stage change so the dealer is never in an "approved but no discount"
+          intermediate state. */}
+      {approveModalOpen && dealer && (
+        <div
+          className="fixed inset-0 z-50 bg-ink/85 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="approve-modal-title"
+          onClick={() => !saving && setApproveModalOpen(false)}
+        >
+          <div
+            className="bg-stone-900 border-2 border-gold w-full max-w-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-stone-800 flex items-center justify-between">
+              <div>
+                <p className="eyebrow text-gold">Approve Dealer</p>
+                <h3 id="approve-modal-title" className="font-heading text-xl font-bold text-cream mt-1">{dealer.company_name}</h3>
+              </div>
+              <button
+                onClick={() => !saving && setApproveModalOpen(false)}
+                className="text-stone-500 hover:text-cream text-2xl leading-none"
+                aria-label="Close"
+                disabled={saving}
+              >×</button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <p className="font-body text-sm text-stone-300">
+                Set this dealer's discount % before approving. These values are saved to <span className="font-semibold text-cream">dealers.infinity_discount_pct</span> and <span className="font-semibold text-cream">dealers.standard_discount_pct</span>, and the tools read them at runtime.
+              </p>
+
+              <div>
+                <label className="text-xs uppercase tracking-wider text-stone-400 font-body font-bold mb-1 block">
+                  Infinity Discount % <span className="text-stone-500">(applies to the Calculator)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={approveInfinity}
+                    onChange={(e) => setApproveInfinity(e.target.value)}
+                    placeholder="e.g. 43.5"
+                    className="flex-1 bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+                    autoFocus
+                  />
+                  <span className="text-stone-400 text-lg">%</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-wider text-stone-400 font-body font-bold mb-1 block">
+                  Standard Discount % <span className="text-stone-500">(applies to the Order Sheet)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={approveStandard}
+                    onChange={(e) => setApproveStandard(e.target.value)}
+                    placeholder="e.g. 33.5"
+                    className="flex-1 bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
+                  />
+                  <span className="text-stone-400 text-lg">%</span>
+                </div>
+              </div>
+
+              {approveError && <p className="text-sm text-red-400 font-body">{approveError}</p>}
+            </div>
+
+            <div className="px-6 py-4 border-t border-stone-800 flex justify-end gap-3 bg-stone-950">
+              <button
+                onClick={() => setApproveModalOpen(false)}
+                disabled={saving}
+                className="text-xs font-body uppercase tracking-wider border border-stone-700 hover:border-cream px-4 py-2 transition-colors disabled:opacity-50"
+              >Cancel</button>
+              <button
+                onClick={submitApproval}
+                disabled={saving || !approveInfinity || !approveStandard}
+                className="text-xs font-body font-bold uppercase tracking-wider px-5 py-2.5 bg-gold text-ink hover:bg-gold/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? "Approving…" : "Approve & Save Discounts"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
