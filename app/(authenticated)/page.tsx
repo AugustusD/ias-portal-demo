@@ -685,12 +685,11 @@ export default function DashboardPage() {
             />
             <ToolTile
               theme={theme}
-              href="/tools/calculator"
+              href="https://infinity.innovativealuminum.com"
               eyebrow="Pricing"
               title="Calculator"
-              subtitle="Live pricing for Infinity systems."
-              external={false}
-              inDevelopment={!isGuest && canUseTools}
+              subtitle="Live pricing for Infinity systems ↗"
+              external={true}
               locked={isGuest || !canUseTools}
               lockEyebrow={isPendingApproval ? "Pending Approval" : "Locked"}
               lockLabel={
@@ -703,12 +702,13 @@ export default function DashboardPage() {
             />
             <ToolTile
               theme={theme}
-              href="/tools/order-sheets"
+              // Temporary Vercel URL until the order-sheet subdomain is set up.
+              // Swap to e.g. https://pricelist.innovativealuminum.com when DNS lands.
+              href="https://ias-pricing-tool.vercel.app"
               eyebrow="Catalog"
               title="Order Sheets"
-              subtitle="Full product catalog and order builder."
-              external={false}
-              inDevelopment={!isGuest && canUseTools}
+              subtitle="Full product catalog and order builder ↗"
+              external={true}
               locked={isGuest || !canUseTools}
               lockEyebrow={isPendingApproval ? "Pending Approval" : "Locked"}
               lockLabel={

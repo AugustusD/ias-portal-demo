@@ -6,7 +6,9 @@ import Link from "next/link";
 
 type Dealer = { name: string; email: string };
 
-const ORDER_SHEETS_URL = "https://iaspricing-ewb5yxbe.manus.space/";
+// Temporary Vercel URL until the order-sheet subdomain is set up.
+// Swap to e.g. https://pricelist.innovativealuminum.com when DNS lands.
+const ORDER_SHEETS_URL = "https://ias-pricing-tool.vercel.app";
 
 export default function OrderSheetsPage() {
   const router = useRouter();
