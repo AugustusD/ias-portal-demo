@@ -14,7 +14,7 @@ type DealerStat = {
   contact_name: string | null;
   location: string | null;
   joined_date: string | null;
-  onboarding_stage: "new" | "training" | "forms_pending" | "approved" | "authorized" | "inactive";
+  onboarding_stage: "new" | "training" | "forms_pending" | "pending_final_approval" | "approved" | "authorized" | "inactive";
   modules_complete: number;
   forms_submitted: number;
   last_activity_at: string | null;
@@ -52,6 +52,7 @@ const STAGE_LABELS: Record<DealerStat["onboarding_stage"], string> = {
   new: "Pending",
   training: "In Training",
   forms_pending: "Forms Pending",
+  pending_final_approval: "Pending Final Approval",
   approved: "Approved",
   authorized: "Authorized",
   inactive: "Inactive",
@@ -220,8 +221,15 @@ export default function AdminDashboard() {
   const authorizedCount = dealers.filter((d) => d.onboarding_stage === "authorized").length;
   const inOnboardingCount = dealers.filter((d) => d.onboarding_stage !== "authorized" && d.onboarding_stage !== "inactive").length;
 
+  // Dealers who finished all 5 modules and are waiting on admin sign-off.
+  // These are NOT bottlenecks — the ball is in admin's court.
+  const pendingFinalApprovalDealers = dealers.filter((d) => d.onboarding_stage === "pending_final_approval");
+  const pendingFinalApprovalCount = pendingFinalApprovalDealers.length;
+
   const bottleneckDealers = dealers.filter((d) => {
     if (d.onboarding_stage === "authorized" || d.onboarding_stage === "inactive") return false;
+    // pending_final_approval = waiting on admin, not stuck on the dealer's side
+    if (d.onboarding_stage === "pending_final_approval") return false;
     return daysAgo(d.last_activity_at) > 7;
   });
   const bottleneckCount = bottleneckDealers.length;
@@ -296,6 +304,9 @@ export default function AdminDashboard() {
           <div className="bg-stone-900 border border-stone-800 p-5">
             <p className="eyebrow text-stone-500 mb-2">In Onboarding</p>
             <p className="text-3xl font-heading font-bold text-cream">{inOnboardingCount}</p>
+            {pendingFinalApprovalCount > 0 && (
+              <p className="text-xs text-gold font-body font-semibold uppercase tracking-wider mt-1">{pendingFinalApprovalCount} awaiting approval</p>
+            )}
             {bottleneckCount > 0 && (
               <p className="text-xs text-red-400 font-body font-semibold uppercase tracking-wider mt-1">{bottleneckCount} bottleneck{bottleneckCount === 1 ? "" : "s"}</p>
             )}
@@ -357,6 +368,26 @@ export default function AdminDashboard() {
 
         {activeTab === "onboarding" && (
           <div>
+            {pendingFinalApprovalCount > 0 && (
+              <div className="mb-6 p-5 bg-gold/10 border-l-4 border-gold">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="eyebrow text-gold mb-2">Pending Final Approval</p>
+                    <h3 className="font-heading text-lg font-bold mb-2">
+                      {pendingFinalApprovalCount} dealer{pendingFinalApprovalCount === 1 ? "" : "s"} finished onboarding and {pendingFinalApprovalCount === 1 ? "is" : "are"} waiting on your sign-off.
+                    </h3>
+                    <p className="font-body text-sm text-stone-300 mb-3">Open each dealer to review their info and either approve or authorize them so they can use the apps.</p>
+                  </div>
+                  <button
+                    onClick={() => setDealerStageFilter("pending_final_approval")}
+                    className="text-xs uppercase tracking-wider px-4 py-2 bg-gold text-ink hover:bg-gold/80 font-body font-bold transition-colors whitespace-nowrap"
+                  >
+                    Show {pendingFinalApprovalCount} dealer{pendingFinalApprovalCount === 1 ? "" : "s"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {bottleneckCount > 0 && (
               <div className="mb-6 p-5 bg-red-950/30 border-l-4 border-red-500">
                 <p className="eyebrow text-red-400 mb-2">Bottleneck Alert</p>
@@ -382,6 +413,7 @@ export default function AdminDashboard() {
                 <option value="new">Pending</option>
                 <option value="training">In Training</option>
                 <option value="forms_pending">Forms Pending</option>
+                <option value="pending_final_approval">Pending Final Approval</option>
                 <option value="approved">Approved</option>
                 <option value="authorized">Authorized</option>
                 <option value="inactive">Inactive</option>
@@ -430,6 +462,7 @@ export default function AdminDashboard() {
                             <span className={`text-xs uppercase tracking-wider px-2.5 py-0.5 font-bold ${
                               d.onboarding_stage === "authorized" ? "bg-green-900 text-green-100" :
                               d.onboarding_stage === "approved"   ? "bg-emerald-900 text-emerald-100 border border-emerald-700" :
+                              d.onboarding_stage === "pending_final_approval" ? "bg-gold/20 text-gold border border-gold" :
                               d.onboarding_stage === "training"   ? "bg-amber-900 text-amber-100" :
                               d.onboarding_stage === "forms_pending" ? "bg-red-900 text-red-100" :
                               d.onboarding_stage === "inactive"   ? "bg-stone-900 text-stone-500 border border-stone-700" :

@@ -184,14 +184,14 @@ function useCountUp(target: number, duration: number = 1200, enabled: boolean = 
   return value;
 }
 
-function LockedOverlay({ theme }: { theme: Theme }) {
+function LockedOverlay({ theme, eyebrow = "Locked", label = "Complete Onboarding to Access" }: { theme: Theme; eyebrow?: string; label?: string }) {
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[2px] pointer-events-none"
       style={{ background: "rgba(10, 9, 8, 0.78)" }}
     >
-      <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>Locked</p>
-      <p className="font-heading text-base font-bold text-cream text-center px-4">Complete Onboarding to Access</p>
+      <p className="eyebrow mb-1" style={{ color: theme.gold, letterSpacing: "0.2em" }}>{eyebrow}</p>
+      <p className="font-heading text-base font-bold text-cream text-center px-4">{label}</p>
     </div>
   );
 }
@@ -282,7 +282,7 @@ function ThemeSwitcher({ current, onChange }: { current: ThemeId; onChange: (id:
   );
 }
 
-function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopment, locked }: {
+function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopment, locked, lockEyebrow, lockLabel }: {
   theme: Theme;
   href: string;
   eyebrow: string;
@@ -291,6 +291,8 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
   external: boolean;
   inDevelopment?: boolean;
   locked?: boolean;
+  lockEyebrow?: string;
+  lockLabel?: string;
 }) {
   const [isHover, setIsHover] = useState(false);
   const bg = isHover && !locked ? theme.toolHoverBg : theme.toolBg;
@@ -310,7 +312,7 @@ function ToolTile({ theme, href, eyebrow, title, subtitle, external, inDevelopme
         </div>
         <h3 className="font-heading text-2xl font-bold mb-2" style={{ color: theme.toolText }}>{title}</h3>
         <p className="font-body text-sm" style={{ color: theme.toolText, opacity: 0.6 }}>{subtitle}</p>
-        <LockedOverlay theme={theme} />
+        <LockedOverlay theme={theme} eyebrow={lockEyebrow} label={lockLabel} />
       </div>
     );
   }
@@ -411,6 +413,15 @@ function formatStage(stage: string): string {
   return stage.split("_").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
 }
 
+type DealerStage =
+  | "new"
+  | "training"
+  | "forms_pending"
+  | "pending_final_approval"
+  | "approved"
+  | "authorized"
+  | "inactive";
+
 export default function DashboardPage() {
   const router = useRouter();
   const [dealer, setDealer] = useState<Dealer | null>(null);
@@ -422,6 +433,7 @@ export default function DashboardPage() {
   const [animationsReady, setAnimationsReady] = useState(false);
   const [themeId, setThemeId] = useState<ThemeId>("editorial");
   const [logoutHover, setLogoutHover] = useState(false);
+  const [dealerStage, setDealerStage] = useState<DealerStage | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -453,7 +465,7 @@ export default function DashboardPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, email, dealer_id, dealers(onboarding_stage)")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -461,6 +473,13 @@ export default function DashboardPage() {
         name: profile?.full_name ?? "Dealer",
         email: profile?.email ?? user.email ?? "",
       });
+
+      // Read the dealer's onboarding_stage so we can gate tool access. Falls
+      // back to null for admin users (no dealer_id) or anyone whose dealer
+      // record can't be read; null is treated as "not yet approved" below.
+      const dealerRow = (profile as { dealers?: { onboarding_stage?: DealerStage } | { onboarding_stage?: DealerStage }[] } | null)?.dealers;
+      const stage = Array.isArray(dealerRow) ? dealerRow[0]?.onboarding_stage : dealerRow?.onboarding_stage;
+      setDealerStage(stage ?? null);
 
       const { count: trainingCount } = await supabase
         .from("training_progress")
@@ -523,7 +542,13 @@ export default function DashboardPage() {
 
   const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
   const trainingPercent = (completedCount / TRAINING_TOTAL) * 100;
-  const isAuthorized = !isGuest && completedCount === TRAINING_TOTAL;
+  // "Authorized" badge means admin has flipped the stage. Just finishing
+  // 5 modules is no longer enough — the DB trigger moves them to
+  // pending_final_approval and an admin still has to approve.
+  const isAuthorized = !isGuest && (dealerStage === "approved" || dealerStage === "authorized");
+  const isPendingApproval = !isGuest && dealerStage === "pending_final_approval";
+  // Tool access (Designer / Calculator / Order Sheets) requires admin sign-off.
+  const canUseTools = isAuthorized;
   const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
 
   return (
@@ -536,7 +561,13 @@ export default function DashboardPage() {
               <div className="hidden sm:block flex-shrink-0 pt-1">
                 <AuthorizedBadge authorized={isAuthorized} progress={trainingPercent / 100} theme={theme} />
                 <p className="text-[10px] font-body font-bold uppercase tracking-widest text-center mt-2" style={{ color: theme.textMuted }}>
-                  {isGuest ? "Guest" : isAuthorized ? "Authorized Partner" : "In Training"}
+                  {isGuest
+                    ? "Guest"
+                    : isAuthorized
+                    ? "Authorized Partner"
+                    : isPendingApproval
+                    ? "Pending Approval"
+                    : "In Training"}
                 </p>
               </div>
               <div className="flex-1">
@@ -565,6 +596,8 @@ export default function DashboardPage() {
                     ? "You're browsing as a guest. Complete our Onboarding process to create your free account and become an authorized dealer."
                     : isAuthorized
                     ? "Authorized Dealer · Full access to all tools and programs."
+                    : isPendingApproval
+                    ? "You've finished all 5 training modules. We're reviewing your account — once an IAS admin approves you, the tools will unlock."
                     : `Complete ${TRAINING_TOTAL - completedCount} more module${TRAINING_TOTAL - completedCount === 1 ? "" : "s"} to unlock authorized partner status.`}
                 </p>
               </div>
@@ -580,7 +613,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {!isAuthorized && (
+          {!isAuthorized && !isPendingApproval && (
             <div className="pt-6" style={{ borderTop: `1px solid ${theme.divider}` }}>
               <div className="flex items-center justify-between mb-3">
                 <p className="eyebrow" style={{ color: theme.textMuted }}>
@@ -593,6 +626,20 @@ export default function DashboardPage() {
               </div>
               <div className="relative w-full h-2 overflow-hidden" style={{ background: theme.id === "architect" ? "#F5F5F5" : theme.divider }}>
                 <div className="absolute inset-y-0 left-0 transition-all duration-1500 ease-out" style={{ width: animationsReady ? `${trainingPercent}%` : "0%", background: theme.gold }}></div>
+              </div>
+            </div>
+          )}
+
+          {isPendingApproval && (
+            <div className="pt-6" style={{ borderTop: `1px solid ${theme.divider}` }}>
+              <div className="flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="9" stroke={theme.gold} strokeWidth="2" />
+                  <path d="M10 5V10L13 12" stroke={theme.gold} strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <p className="font-body text-sm font-semibold" style={{ color: theme.textPrimary }}>
+                  All 5 training modules complete. Waiting for IAS to review and approve your account.
+                </p>
               </div>
             </div>
           )}
@@ -619,9 +666,59 @@ export default function DashboardPage() {
             <p className="text-xs font-body" style={{ color: theme.textMuted }}>Open and use any time</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ToolTile theme={theme} href="https://designer.innovativealuminum.com" eyebrow="Visualize" title="Designer" subtitle="3D project visualizer ↗" external={true} locked={isGuest} />
-            <ToolTile theme={theme} href="/tools/calculator" eyebrow="Pricing" title="Calculator" subtitle="Live pricing for Infinity systems." external={false} inDevelopment={!isGuest} locked={isGuest} />
-            <ToolTile theme={theme} href="/tools/order-sheets" eyebrow="Catalog" title="Order Sheets" subtitle="Full product catalog and order builder." external={false} inDevelopment={!isGuest} locked={isGuest} />
+            <ToolTile
+              theme={theme}
+              href="https://designer.innovativealuminum.com"
+              eyebrow="Visualize"
+              title="Designer"
+              subtitle="3D project visualizer ↗"
+              external={true}
+              locked={isGuest || !canUseTools}
+              lockEyebrow={isPendingApproval ? "Pending Approval" : "Locked"}
+              lockLabel={
+                isGuest
+                  ? "Complete Onboarding to Access"
+                  : isPendingApproval
+                  ? "Waiting for admin sign-off"
+                  : "Complete Onboarding to Access"
+              }
+            />
+            <ToolTile
+              theme={theme}
+              href="/tools/calculator"
+              eyebrow="Pricing"
+              title="Calculator"
+              subtitle="Live pricing for Infinity systems."
+              external={false}
+              inDevelopment={!isGuest && canUseTools}
+              locked={isGuest || !canUseTools}
+              lockEyebrow={isPendingApproval ? "Pending Approval" : "Locked"}
+              lockLabel={
+                isGuest
+                  ? "Complete Onboarding to Access"
+                  : isPendingApproval
+                  ? "Waiting for admin sign-off"
+                  : "Complete Onboarding to Access"
+              }
+            />
+            <ToolTile
+              theme={theme}
+              href="/tools/order-sheets"
+              eyebrow="Catalog"
+              title="Order Sheets"
+              subtitle="Full product catalog and order builder."
+              external={false}
+              inDevelopment={!isGuest && canUseTools}
+              locked={isGuest || !canUseTools}
+              lockEyebrow={isPendingApproval ? "Pending Approval" : "Locked"}
+              lockLabel={
+                isGuest
+                  ? "Complete Onboarding to Access"
+                  : isPendingApproval
+                  ? "Waiting for admin sign-off"
+                  : "Complete Onboarding to Access"
+              }
+            />
           </div>
         </div>
 
@@ -629,7 +726,7 @@ export default function DashboardPage() {
         <div className="mb-16">
           <p className="eyebrow mb-5" style={{ color: theme.textMuted }}>Your Account</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AccountTile theme={theme} href="/training" eyebrow="Program" title="Onboarding" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={isAuthorized} highlight={isGuest} />
+            <AccountTile theme={theme} href="/training" eyebrow="Program" title="Onboarding" subtitle={`${completedCount} of ${TRAINING_TOTAL} modules complete`} showCheck={completedCount === TRAINING_TOTAL} highlight={isGuest} />
             <AccountTile theme={theme} href="/leads" eyebrow="Pipeline" title="Leads" subtitle={leadsCount === 0 ? "No leads yet" : `${leadsCount} lead${leadsCount === 1 ? "" : "s"} in your pipeline`} locked={isGuest} />
             <AccountTile theme={theme} href="/resources" eyebrow="Library" title="Dealer Resources" subtitle="Installation guides and documents." locked={isGuest} />
           </div>
