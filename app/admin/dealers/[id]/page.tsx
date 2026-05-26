@@ -82,6 +82,7 @@ const STAGE_LABELS: Record<string, string> = {
   new: "Pending",
   training: "In Training",
   forms_pending: "Forms Pending",
+  pending_final_approval: "Pending Final Approval",
   approved: "Approved",
   authorized: "Authorized",
   inactive: "Inactive",
@@ -369,13 +370,22 @@ export default function DealerDetailPage() {
               </>
             ) : (
               <>
-                {/* Three-stage onboarding controls — pending or training → approved → authorized */}
-                {dealer && ["new", "training", "forms_pending"].includes(dealer.onboarding_stage) && (
+                {/* Four-stage onboarding controls — pending / training / forms_pending /
+                    pending_final_approval → approved → authorized */}
+                {dealer && ["new", "training", "forms_pending", "pending_final_approval"].includes(dealer.onboarding_stage) && (
                   <button
                     onClick={() => transitionStage("approved")}
                     disabled={saving}
-                    className="text-xs uppercase tracking-wider px-4 py-2 bg-emerald-700 text-emerald-50 hover:bg-emerald-600 font-body font-bold transition-colors disabled:opacity-50"
-                    title="Approve as a dealer (unlocks engineering docs + costs). They still need to complete onboarding modules to be 'authorized' and use the tools."
+                    className={`text-xs uppercase tracking-wider px-4 py-2 font-body font-bold transition-colors disabled:opacity-50 ${
+                      dealer.onboarding_stage === "pending_final_approval"
+                        ? "bg-gold text-ink hover:bg-gold/80"
+                        : "bg-emerald-700 text-emerald-50 hover:bg-emerald-600"
+                    }`}
+                    title={
+                      dealer.onboarding_stage === "pending_final_approval"
+                        ? "Dealer has finished all 5 training modules. Approve to give them tool access."
+                        : "Approve as a dealer (unlocks engineering docs + costs). They still need to complete onboarding modules to be 'authorized' and use the tools."
+                    }
                   >
                     {saving ? "…" : "Approve Dealer"}
                   </button>
@@ -430,6 +440,7 @@ export default function DealerDetailPage() {
               <span className={`text-xs uppercase tracking-wider px-3 py-1 font-bold ${
                 dealer.onboarding_stage === "authorized" ? "bg-green-900 text-green-100" :
                 dealer.onboarding_stage === "approved" ? "bg-emerald-900 text-emerald-100 border border-emerald-700" :
+                dealer.onboarding_stage === "pending_final_approval" ? "bg-gold/20 text-gold border border-gold" :
                 dealer.onboarding_stage === "training" ? "bg-amber-900 text-amber-100" :
                 dealer.onboarding_stage === "forms_pending" ? "bg-red-900 text-red-100" :
                 dealer.onboarding_stage === "inactive" ? "bg-stone-900 text-stone-500 border border-stone-700" :
