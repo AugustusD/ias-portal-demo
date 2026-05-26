@@ -11,14 +11,26 @@ type ReferenceDoc = {
   url: string;
 };
 
+type QuizOption = { label: string; text: string };
+
+type QuizQuestion = {
+  id: string;
+  category?: string;
+  question: string;
+  options: QuizOption[];
+  correctLabel: string;
+};
+
 type Module = {
   id: string;
   title: string;
   description: string;
   duration: string;
   videoId?: string;
-  type: "video" | "form";
+  type: "video" | "form" | "quiz";
   references?: ReferenceDoc[];
+  questions?: QuizQuestion[];
+  passThresholdPct?: number;
 };
 
 const MODULES: Module[] = [
@@ -40,10 +52,10 @@ const MODULES: Module[] = [
   {
     id: "products",
     title: "Product Family Overview",
-    description: "Walk through our four product lines: Infinity Topless, Glass Component, Picket, and Custom railings.",
+    description: "Walk through our four product lines: Infinity Topless, Glass Component, Picket, and Custom railings. Open-book quiz at the end.",
     duration: "6 min",
-    videoId: "8rBR4K4E9TA",
-    type: "video",
+    type: "quiz",
+    passThresholdPct: 80,
     references: [
       { name: "Infinity Topless Sell Sheet", description: "Product overview for our flagship topless glass system.", url: "/documents/sellsheet_infinity.pdf" },
       { name: "Glass Component Sell Sheet", description: "Product overview for component glass railings.", url: "/documents/sellsheet_glass.pdf" },
@@ -51,14 +63,76 @@ const MODULES: Module[] = [
       { name: "Custom Railings Sell Sheet", description: "Product overview for custom aluminum railing options.", url: "/documents/sellsheet_custom.pdf" },
       { name: "Powder Coating Sell Sheet", description: "Our 5-stage AAMA 2604 powder coating process and color options.", url: "/documents/sellsheet_powdercoating.pdf" },
     ],
+    questions: [
+      {
+        id: "p1",
+        question: 'Which IAS railing system is "topless" — no horizontal top rail across the glass?',
+        options: [
+          { label: "A", text: "Welded Picket" },
+          { label: "B", text: "Component Glass" },
+          { label: "C", text: "Infinity" },
+        ],
+        correctLabel: "C",
+      },
+      {
+        id: "p2",
+        question: "The standard IAS powder coating meets which AAMA spec — better than the basic 2603 used by many competitors?",
+        options: [
+          { label: "A", text: "AAMA 2603" },
+          { label: "B", text: "AAMA 2604" },
+          { label: "C", text: "AAMA 2602" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "p3",
+        question: "How many Innovative Series standard powder coat colors are offered?",
+        options: [
+          { label: "A", text: "8" },
+          { label: "B", text: "14" },
+          { label: "C", text: "20" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "p4",
+        question: "How many top rail profiles are offered across the Picket, Glass, and Flex Rail lines?",
+        options: [
+          { label: "A", text: "2 (Square, Round)" },
+          { label: "B", text: "4 (Square, Round, Flat, Colonial)" },
+          { label: "C", text: "6" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "p5",
+        question: 'Which product line offers BOTH 5/8" picket and broad slat designs?',
+        options: [
+          { label: "A", text: "Glass Railing" },
+          { label: "B", text: "Welded Picket" },
+          { label: "C", text: "Custom" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "p6",
+        question: "What is the standard limited warranty term across all IAS product lines (per the sell sheets)?",
+        options: [
+          { label: "A", text: "10 years" },
+          { label: "B", text: "15 years" },
+          { label: "C", text: "20 years" },
+        ],
+        correctLabel: "C",
+      },
+    ],
   },
   {
     id: "installation",
     title: "Installation Fundamentals",
-    description: "Core principles across all IAS railing systems: mounting types, post spacing, engineering requirements, and code compliance.",
+    description: "Core principles across all IAS railing systems: mounting types, post spacing, engineering requirements, and code compliance. Open-book quiz covering Picket, Glass, Flex Rail, and Infinity.",
     duration: "15 min",
-    videoId: "8rBR4K4E9TA",
-    type: "video",
+    type: "quiz",
+    passThresholdPct: 80,
     references: [
       { name: "Infinity Fascia Installation Guide", description: "Fascia mount installation reference for Infinity Topless systems.", url: "/documents/InfinityInstallationGuideFascia.pdf" },
       { name: "Infinity Surface Installation Guide", description: "Surface mount installation reference for Infinity Topless systems.", url: "/documents/InfinityInstallationGuideSurface.pdf" },
@@ -68,17 +142,356 @@ const MODULES: Module[] = [
       { name: "Picket Installation Reference", description: "Welded picket installation specifics.", url: "/documents/installation_picket.pdf" },
       { name: "Stairs Installation Reference", description: "Stair railing installation for sloped applications.", url: "/documents/installation_stairs.pdf" },
     ],
+    questions: [
+      // Picket
+      {
+        id: "i-pk-1",
+        category: "Picket",
+        question: "How much shorter should a mid post with a center sleeve be than a regular mid post with a post mount plate?",
+        options: [
+          { label: "A", text: '0"' },
+          { label: "B", text: '1/8"' },
+          { label: "C", text: '1/4"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-pk-2",
+        category: "Picket",
+        question: "Before they are cut, how tall are stair posts (as measured above the tread)?",
+        options: [
+          { label: "A", text: '40 1/4"' },
+          { label: "B", text: '36"' },
+          { label: "C", text: '42"' },
+        ],
+        correctLabel: "A",
+      },
+      {
+        id: "i-pk-3",
+        category: "Picket",
+        question: "Per code, what is the maximum diameter sphere that should be unable to pass through a stair railing?",
+        options: [
+          { label: "A", text: '4"' },
+          { label: "B", text: '6"' },
+          { label: "C", text: '8"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-pk-4",
+        category: "Picket",
+        question: "What is the maximum allowed gap between an end post and a wall?",
+        options: [
+          { label: "A", text: '2"' },
+          { label: "B", text: '4"' },
+          { label: "C", text: '6"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-pk-5",
+        category: "Picket",
+        question: "For surface mount, how far from the deck edge does the edge of the baseplate typically sit?",
+        options: [
+          { label: "A", text: '1/2"' },
+          { label: "B", text: '1"' },
+          { label: "C", text: '2"' },
+        ],
+        correctLabel: "B",
+      },
+      // Glass
+      {
+        id: "i-gl-1",
+        category: "Glass",
+        question: "What is the typical gap between a glass panel and the edge of its opening?",
+        options: [
+          { label: "A", text: '1/2" to 1"' },
+          { label: "B", text: "2 – 3 inches" },
+          { label: "C", text: "4 – 5 inches" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-gl-2",
+        category: "Glass",
+        question: "At what angle are top rail miter cuts at the component post mount plates?",
+        options: [
+          { label: "A", text: "30 degrees" },
+          { label: "B", text: "45 degrees" },
+          { label: "C", text: "90 degrees" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-gl-3",
+        category: "Glass",
+        question: "When installing a glass panel, what is the correct sequence?",
+        options: [
+          { label: "A", text: "Push down → Slide over → Lift up" },
+          { label: "B", text: "Lift up → Slide over → Push down" },
+          { label: "C", text: "Slide over → Push down → Lift up" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-gl-4",
+        category: "Glass",
+        question: 'On a 2 1/2" end post wall mount, what is the distance from the top of the base plate to the bottom of the sleeve plate?',
+        options: [
+          { label: "A", text: '39"' },
+          { label: "B", text: '40"' },
+          { label: "C", text: '42"' },
+        ],
+        correctLabel: "A",
+      },
+      {
+        id: "i-gl-5",
+        category: "Glass",
+        question: "What allowance must you give at every sleeve when sizing top rails?",
+        options: [
+          { label: "A", text: '1/8"' },
+          { label: "B", text: '1/2"' },
+          { label: "C", text: '1"' },
+        ],
+        correctLabel: "B",
+      },
+      // Flex Rail
+      {
+        id: "i-fx-1",
+        category: "Flex Rail",
+        question: "When the bottom rail terminates in a wall mount, how much should you deduct from the panel's bottom rail at that end?",
+        options: [
+          { label: "A", text: '1/8"' },
+          { label: "B", text: '1/2"' },
+          { label: "C", text: '1"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-fx-2",
+        category: "Flex Rail",
+        question: "How many tec screws secure a flex-rail insert panel to the top rail from below?",
+        options: [
+          { label: "A", text: "2" },
+          { label: "B", text: "3" },
+          { label: "C", text: "4" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-fx-3",
+        category: "Flex Rail",
+        question: "Which top rail profile is typically disallowed on stair applications (unless a separate handrail is added)?",
+        options: [
+          { label: "A", text: "Square" },
+          { label: "B", text: "Round" },
+          { label: "C", text: "Flat" },
+        ],
+        correctLabel: "C",
+      },
+      {
+        id: "i-fx-4",
+        category: "Flex Rail",
+        question: "For a stair angle of 22°–25°, what is the trim dimension at the post top (per the trim table)?",
+        options: [
+          { label: "A", text: '2"' },
+          { label: "B", text: '2 1/8"' },
+          { label: "C", text: '2 3/16"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-fx-5",
+        category: "Flex Rail",
+        question: "Inside sleeve posts (used to extend a run beyond 20') — are they trimmed down like normal sleeve posts?",
+        options: [
+          { label: "A", text: 'Yes, trim 1/8" shorter' },
+          { label: "B", text: "No, they are NOT trimmed down" },
+          { label: "C", text: 'Yes, trim 1/4" shorter' },
+        ],
+        correctLabel: "B",
+      },
+      // Infinity
+      {
+        id: "i-in-1",
+        category: "Infinity",
+        question: "When cutting the vinyl insert, how much of a gap should be left for thermal expansion and contraction?",
+        options: [
+          { label: "A", text: '1/4"' },
+          { label: "B", text: '1/8" to 3/16"' },
+          { label: "C", text: '1/2"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-in-2",
+        category: "Infinity",
+        question: "How far above deck level should setting blocks stop?",
+        options: [
+          { label: "A", text: '1"' },
+          { label: "B", text: '2 1/8"' },
+          { label: "C", text: '3"' },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-in-3",
+        category: "Infinity",
+        question: "What is the recommended maximum length for a single setting block piece?",
+        options: [
+          { label: "A", text: "3 inches" },
+          { label: "B", text: "5 inches" },
+          { label: "C", text: "8 inches" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "i-in-4",
+        category: "Infinity",
+        question: "What size allen key tightens the set screw on the glass wedge?",
+        options: [
+          { label: "A", text: '3/32"' },
+          { label: "B", text: '1/8"' },
+          { label: "C", text: '5/32"' },
+        ],
+        correctLabel: "A",
+      },
+      {
+        id: "i-in-5",
+        category: "Infinity",
+        question: "For fascia mount, approximately how many degrees should corner and end posts be shimmed to lean?",
+        options: [
+          { label: "A", text: "1°" },
+          { label: "B", text: "5°" },
+          { label: "C", text: "10°" },
+        ],
+        correctLabel: "A",
+      },
+      {
+        id: "i-in-6",
+        category: "Infinity",
+        question: 'How many #10 × 3/4" tek screws attach the fascia plates to each post?',
+        options: [
+          { label: "A", text: "2" },
+          { label: "B", text: "4" },
+          { label: "C", text: "6" },
+        ],
+        correctLabel: "B",
+      },
+    ],
   },
   {
     id: "warranty",
     title: "Warranty, Claims & Customer Support",
-    description: "Understand the 20-year structural warranty, when dealers must register warranties, and how warranty registration unlocks homeowner rewards and long-term business.",
+    description: "Understand the 20-year structural warranty, what's covered, and the care instructions that keep coverage valid. Open-book quiz at the end.",
     duration: "8 min",
-    videoId: "8rBR4K4E9TA",
-    type: "video",
+    type: "quiz",
+    passThresholdPct: 80,
     references: [
-      { name: "Residential Warranty", description: "Full residential warranty terms — 20 year structural, 10 year finish.", url: "/documents/INNOVATIVE-ALUMINUM-RESIDENTIAL-WARRANTY.pdf" },
-      { name: "Commercial Warranty", description: "Commercial warranty terms — 20 year structural, 5 year finish.", url: "/documents/INNOVATIVE-ALUMINUM-COMMERCIAL-WARRANTY.pdf" },
+      { name: "Residential Warranty", description: "Full residential warranty terms — 20 year structural, 10 year finish.", url: "/documents/INNOVATIVE ALUMINUM RESIDENTIAL WARRANTY.pdf" },
+      { name: "Commercial Warranty", description: "Commercial warranty terms — 20 year structural, 5 year finish.", url: "/documents/INNOVATIVE ALUMINUM COMMERCIAL WARRANTY.pdf" },
+    ],
+    questions: [
+      {
+        id: "w1",
+        question: "How long is the structural defect warranty on the IAS Residential warranty?",
+        options: [
+          { label: "A", text: "10 years" },
+          { label: "B", text: "20 years" },
+          { label: "C", text: "Lifetime" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "w2",
+        question: "How long is the residential powder coat finish warranty?",
+        options: [
+          { label: "A", text: "5 years" },
+          { label: "B", text: "10 years" },
+          { label: "C", text: "20 years" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "w3",
+        question: "How long is the commercial powder coat warranty (vs. 10 years for residential)?",
+        options: [
+          { label: "A", text: "5 years" },
+          { label: "B", text: "3 years" },
+          { label: "C", text: "Same 10 years" },
+        ],
+        correctLabel: "A",
+      },
+      {
+        id: "w4",
+        question: "The residential powder coat warranty reduces to how many years if the product is installed within 5 miles of the ocean?",
+        options: [
+          { label: "A", text: "1 year" },
+          { label: "B", text: "5 years" },
+          { label: "C", text: "10 years" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "w5",
+        question: "After discovering a problem, how long does the customer have to submit a warranty claim in writing?",
+        options: [
+          { label: "A", text: "7 days" },
+          { label: "B", text: "30 days" },
+          { label: "C", text: "90 days" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "w6",
+        question: "The warranty does NOT cover corrosion of which component?",
+        options: [
+          { label: "A", text: "Powder coat" },
+          { label: "B", text: "Screws and other fastening devices" },
+          { label: "C", text: "Aluminum extrusions" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "w7",
+        question: "Is the warranty transferable to a new owner if the home is sold?",
+        options: [
+          { label: "A", text: "Yes, automatically" },
+          { label: "B", text: "Yes, with paperwork" },
+          { label: "C", text: "No — original purchaser only" },
+        ],
+        correctLabel: "C",
+      },
+      {
+        id: "w8",
+        question: "How often must fasteners be inspected and tightened to maintain warranty eligibility?",
+        options: [
+          { label: "A", text: "Once a year" },
+          { label: "B", text: "Once a month" },
+          { label: "C", text: "Every 5 years" },
+        ],
+        correctLabel: "A",
+      },
+      {
+        id: "w9",
+        question: "Within 1 mile of saltwater, how often is cleaning and inspection required?",
+        options: [
+          { label: "A", text: "Weekly" },
+          { label: "B", text: "Monthly" },
+          { label: "C", text: "Annually" },
+        ],
+        correctLabel: "B",
+      },
+      {
+        id: "w10",
+        question: "Which finish type should NOT be car-waxed (per the care instructions)?",
+        options: [
+          { label: "A", text: "Gloss White" },
+          { label: "B", text: "Matte or Textured Finishes" },
+          { label: "C", text: "Sandalwood" },
+        ],
+        correctLabel: "B",
+      },
     ],
   },
 ];
@@ -751,6 +1164,265 @@ function CustomerForm({
   );
 }
 
+function Quiz({
+  questions,
+  passThresholdPct,
+  alreadyPassed,
+  onPass,
+}: {
+  questions: QuizQuestion[];
+  passThresholdPct: number;
+  alreadyPassed: boolean;
+  onPass: () => void;
+}) {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  function setAnswer(qid: string, label: string) {
+    if (submitted) return;
+    setAnswers((prev) => ({ ...prev, [qid]: label }));
+  }
+
+  const total = questions.length;
+  const correctCount = questions.reduce(
+    (acc, q) => acc + (answers[q.id] === q.correctLabel ? 1 : 0),
+    0
+  );
+  const scorePct = total === 0 ? 0 : Math.round((correctCount / total) * 100);
+  const passed = scorePct >= passThresholdPct;
+  const allAnswered = questions.every((q) => answers[q.id]);
+
+  function handleSubmit() {
+    if (!allAnswered) return;
+    setSubmitted(true);
+    const newCorrect = questions.reduce(
+      (acc, q) => acc + (answers[q.id] === q.correctLabel ? 1 : 0),
+      0
+    );
+    const newPct = total === 0 ? 0 : Math.round((newCorrect / total) * 100);
+    if (newPct >= passThresholdPct) {
+      // small delay so the success state can render before the slide auto-completes
+      setTimeout(() => onPass(), 200);
+    }
+  }
+
+  function handleRetry() {
+    setAnswers({});
+    setSubmitted(false);
+    const el = document.getElementById("quiz-top");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Group consecutive questions by category for rendering category headers.
+  const groups: { category: string | null; items: QuizQuestion[] }[] = [];
+  for (const q of questions) {
+    const cat = q.category ?? null;
+    const last = groups[groups.length - 1];
+    if (last && last.category === cat) {
+      last.items.push(q);
+    } else {
+      groups.push({ category: cat, items: [q] });
+    }
+  }
+
+  let questionIndex = 0;
+
+  return (
+    <div id="quiz-top" className="bg-white border border-stone-200">
+      <div className="p-6 bg-cream-dark border-l-4 border-gold">
+        <p className="eyebrow text-gold mb-1">Open-Book Quiz</p>
+        <p className="font-body text-sm text-stone-700 leading-relaxed">
+          Refer to the reference documents at any time — they stay pinned on the right while you take the quiz.
+          Pass with <span className="font-semibold">{passThresholdPct}%</span> or higher to complete this module.
+        </p>
+      </div>
+
+      <div className="p-6 space-y-8">
+        {groups.map((group, gi) => (
+          <div key={gi} className="space-y-6">
+            {group.category && (
+              <div className="border-b border-stone-200 pb-2">
+                <p className="eyebrow text-stone-500">Section</p>
+                <h3 className="font-heading text-xl font-bold">{group.category}</h3>
+              </div>
+            )}
+
+            {group.items.map((q) => {
+              questionIndex += 1;
+              const selected = answers[q.id];
+              const isCorrect = submitted && selected === q.correctLabel;
+              const isWrong = submitted && selected && selected !== q.correctLabel;
+
+              return (
+                <div key={q.id} className="space-y-3">
+                  <p className="font-body font-semibold text-ink leading-relaxed">
+                    <span className="text-stone-400 mr-2">{questionIndex}.</span>
+                    {q.question}
+                  </p>
+                  <div className="space-y-2">
+                    {q.options.map((opt) => {
+                      const isSelected = selected === opt.label;
+                      const isThisCorrect = submitted && opt.label === q.correctLabel;
+                      const isThisWrongSelected = submitted && isSelected && !isCorrect;
+
+                      let classes =
+                        "flex items-start gap-3 p-3 border cursor-pointer transition-colors ";
+                      if (submitted) {
+                        if (isThisCorrect) {
+                          classes += "border-green-600 bg-green-50";
+                        } else if (isThisWrongSelected) {
+                          classes += "border-red-600 bg-red-50";
+                        } else {
+                          classes += "border-stone-200 bg-stone-50 opacity-70";
+                        }
+                        classes += " cursor-default";
+                      } else if (isSelected) {
+                        classes += "border-gold bg-gold/5";
+                      } else {
+                        classes += "border-stone-200 bg-white hover:border-stone-400";
+                      }
+
+                      return (
+                        <label key={opt.label} className={classes}>
+                          <input
+                            type="radio"
+                            name={q.id}
+                            value={opt.label}
+                            checked={isSelected}
+                            disabled={submitted}
+                            onChange={() => setAnswer(q.id, opt.label)}
+                            className="mt-1 flex-shrink-0"
+                          />
+                          <span className="font-body text-sm flex-1">
+                            <span className="font-semibold text-stone-500 mr-2">{opt.label}.</span>
+                            {opt.text}
+                          </span>
+                          {submitted && isThisCorrect && (
+                            <span className="text-xs font-body font-bold text-green-700 uppercase tracking-wider flex-shrink-0">Correct</span>
+                          )}
+                          {submitted && isThisWrongSelected && (
+                            <span className="text-xs font-body font-bold text-red-700 uppercase tracking-wider flex-shrink-0">Your answer</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {isWrong && (
+                    <p className="text-xs font-body text-red-700 italic">
+                      The correct answer is {q.correctLabel}.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="p-6 border-t border-stone-200 bg-cream-dark">
+        {!submitted ? (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <p className="font-body text-sm text-stone-600">
+              <span className="font-semibold text-ink">
+                {Object.keys(answers).length}
+              </span>{" "}
+              / {total} answered
+            </p>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!allAnswered}
+              className="btn-gold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Check Answers
+            </button>
+          </div>
+        ) : passed ? (
+          <div className="flex items-start gap-3">
+            <svg width="28" height="28" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 mt-0.5">
+              <circle cx="10" cy="10" r="10" fill="#15803d" />
+              <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div>
+              <p className="font-heading text-lg font-bold text-green-800 mb-1">
+                Passed — {correctCount} / {total} correct ({scorePct}%)
+              </p>
+              <p className="font-body text-sm text-stone-700">
+                {alreadyPassed
+                  ? "Module already completed. Nice work."
+                  : "Module unlocked. Slide to complete below."}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <svg width="28" height="28" viewBox="0 0 20 20" fill="none" className="flex-shrink-0 mt-0.5">
+                <circle cx="10" cy="10" r="10" fill="#b91c1c" />
+                <path d="M7 7L13 13M13 7L7 13" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <div>
+                <p className="font-heading text-lg font-bold text-red-800 mb-1">
+                  {correctCount} / {total} correct ({scorePct}%) — need {passThresholdPct}% to pass
+                </p>
+                <p className="font-body text-sm text-stone-700">
+                  Review the highlighted answers, check the reference documents, and try again.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="btn-outline-dark flex-shrink-0"
+            >
+              Retry Quiz
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SidebarReferenceList({ docs }: { docs: ReferenceDoc[] }) {
+  return (
+    <div className="bg-white border border-stone-200">
+      <div className="px-5 py-4 border-b border-stone-200 bg-cream-dark">
+        <p className="eyebrow text-gold mb-1">Reference Documents</p>
+        <p className="font-body text-xs text-stone-600">
+          Open-book — refer to these while taking the quiz.
+        </p>
+      </div>
+      <div className="max-h-[60vh] overflow-y-auto divide-y divide-stone-100">
+        {docs.map((doc) => (
+          <div key={doc.name} className="p-4">
+            <p className="eyebrow text-stone-400 mb-1">PDF</p>
+            <p className="font-body text-sm font-semibold mb-1 leading-snug">{doc.name}</p>
+            <p className="font-body text-xs text-stone-500 mb-3 leading-snug">{doc.description}</p>
+            <div className="flex gap-2">
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center text-xs font-body font-bold uppercase tracking-wider px-3 py-1.5 border border-ink text-ink hover:bg-ink hover:text-cream transition-colors"
+              >
+                View
+              </a>
+              <a
+                href={doc.url}
+                download
+                className="flex-1 text-center text-xs font-body font-bold uppercase tracking-wider px-3 py-1.5 bg-gold text-ink hover:bg-gold-hover transition-colors"
+              >
+                Download
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ReferenceDocCard({ doc }: { doc: ReferenceDoc }) {
   return (
     <div className="block p-5 bg-white border border-stone-200 hover:border-gold transition-colors">
@@ -781,6 +1453,8 @@ export default function OnboardingPage() {
   const [registrationToken, setRegistrationToken] = useState<string | null>(null);
   const [lockedClickFeedback, setLockedClickFeedback] = useState<string | null>(null);
   const [showAccountPopup, setShowAccountPopup] = useState(false);
+  const [quizPassed, setQuizPassed] = useState<Record<string, boolean>>({});
+  const [justPassedQuiz, setJustPassedQuiz] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProgress() {
@@ -902,6 +1576,8 @@ export default function OnboardingPage() {
   const canCompleteActive =
     activeModule.type === "form"
       ? formSubmitted
+      : activeModule.type === "quiz"
+      ? quizPassed[activeModule.id] === true || completed.includes(activeModule.id)
       : true;
 
   return (
@@ -1046,7 +1722,27 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {activeModule.references && activeModule.references.length > 0 && (
+            {activeModule.type === "quiz" && activeModule.questions && (
+              <div className="mb-8">
+                <Quiz
+                  key={activeModule.id}
+                  questions={activeModule.questions}
+                  passThresholdPct={activeModule.passThresholdPct ?? 80}
+                  alreadyPassed={completed.includes(activeModule.id)}
+                  onPass={() => {
+                    if (!quizPassed[activeModule.id]) {
+                      setQuizPassed((prev) => ({ ...prev, [activeModule.id]: true }));
+                      setJustPassedQuiz(activeModule.id);
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Reference documents render in the main column ONLY for non-quiz modules.
+                For quiz modules they live in the sticky sidebar so the dealer can
+                consult them while answering. */}
+            {activeModule.type !== "quiz" && activeModule.references && activeModule.references.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-baseline justify-between mb-5">
                   <h3 className="font-heading text-xl font-bold">Reference Documents</h3>
@@ -1074,19 +1770,33 @@ export default function OnboardingPage() {
                   onComplete={() => {
                     markComplete(activeModule.id);
                     setJustSubmittedForm(false);
+                    setJustPassedQuiz(null);
                   }}
-                  autoComplete={activeModule.type === "form" && justSubmittedForm}
+                  autoComplete={
+                    (activeModule.type === "form" && justSubmittedForm) ||
+                    (activeModule.type === "quiz" && justPassedQuiz === activeModule.id)
+                  }
                 />
               ) : (
                 <div className="bg-stone-100 border border-stone-300 h-14 flex items-center justify-center">
-                  <span className="font-body text-sm text-stone-400 uppercase tracking-widest">Submit the form to unlock</span>
+                  <span className="font-body text-sm text-stone-400 uppercase tracking-widest">
+                    {activeModule.type === "form"
+                      ? "Submit the form to unlock"
+                      : activeModule.type === "quiz"
+                      ? "Pass the quiz to unlock"
+                      : "Complete the module to unlock"}
+                  </span>
                 </div>
               )}
             </div>
           </div>
 
           <div className="lg:col-span-1">
-            <div className="bg-ink text-cream p-8 sticky top-32">
+            <div className="sticky top-32 space-y-6">
+              {activeModule.type === "quiz" && activeModule.references && activeModule.references.length > 0 && (
+                <SidebarReferenceList docs={activeModule.references} />
+              )}
+              <div className="bg-ink text-cream p-8">
               <p className="eyebrow text-gold mb-4">Your Status</p>
               <p className="font-heading text-3xl font-bold mb-6">
                 {isAuthorized ? "Authorized Dealer" : isGuest ? "Guest" : "In Onboarding"}
@@ -1132,6 +1842,7 @@ export default function OnboardingPage() {
                   )}
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
