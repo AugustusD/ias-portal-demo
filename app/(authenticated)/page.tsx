@@ -434,6 +434,11 @@ export default function DashboardPage() {
   const [themeId, setThemeId] = useState<ThemeId>("editorial");
   const [logoutHover, setLogoutHover] = useState(false);
   const [dealerStage, setDealerStage] = useState<DealerStage | null>(null);
+  // Per-dealer discount %. Stored as 0-100 (e.g. 43.5 means 43.5% off list).
+  // Appended to tool tile URLs as a hash fragment so the standalone tool
+  // apps can read it without needing their own Supabase auth.
+  const [infinityDiscount, setInfinityDiscount] = useState<number | null>(null);
+  const [standardDiscount, setStandardDiscount] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -465,7 +470,7 @@ export default function DashboardPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email, dealer_id, dealers(onboarding_stage)")
+        .select("full_name, email, dealer_id, dealers(onboarding_stage, infinity_discount_pct, standard_discount_pct)")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -477,9 +482,12 @@ export default function DashboardPage() {
       // Read the dealer's onboarding_stage so we can gate tool access. Falls
       // back to null for admin users (no dealer_id) or anyone whose dealer
       // record can't be read; null is treated as "not yet approved" below.
-      const dealerRow = (profile as { dealers?: { onboarding_stage?: DealerStage } | { onboarding_stage?: DealerStage }[] } | null)?.dealers;
-      const stage = Array.isArray(dealerRow) ? dealerRow[0]?.onboarding_stage : dealerRow?.onboarding_stage;
-      setDealerStage(stage ?? null);
+      type DealerRowShape = { onboarding_stage?: DealerStage; infinity_discount_pct?: number | null; standard_discount_pct?: number | null };
+      const dealerRow = (profile as { dealers?: DealerRowShape | DealerRowShape[] } | null)?.dealers;
+      const dealerData = Array.isArray(dealerRow) ? dealerRow[0] : dealerRow;
+      setDealerStage(dealerData?.onboarding_stage ?? null);
+      setInfinityDiscount(dealerData?.infinity_discount_pct ?? null);
+      setStandardDiscount(dealerData?.standard_discount_pct ?? null);
 
       const { count: trainingCount } = await supabase
         .from("training_progress")
@@ -550,6 +558,19 @@ export default function DashboardPage() {
   // Tool access (Designer / Calculator / Order Sheets) requires admin sign-off.
   const canUseTools = isAuthorized;
   const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
+
+  // Build tool tile URLs with discount hash fragments. Standalone tool apps
+  // read the hash on load (no Supabase auth needed in those apps). We always
+  // emit numeric values so the apps can trust the parse — null becomes 0
+  // since an unset discount is functionally "no discount" until admin sets one.
+  // We only append the hash if the dealer is approved and we have at least
+  // one value, to avoid putting #d=0 on URLs for guests / pending dealers.
+  const calculatorUrl = canUseTools && infinityDiscount != null
+    ? `https://infinity.innovativealuminum.com/#d=${infinityDiscount}`
+    : "https://infinity.innovativealuminum.com";
+  const orderSheetsUrl = canUseTools && (standardDiscount != null || infinityDiscount != null)
+    ? `https://ias-pricing-tool.vercel.app/#std=${standardDiscount ?? 0}&inf=${infinityDiscount ?? 0}`
+    : "https://ias-pricing-tool.vercel.app";
 
   return (
     <div style={{ background: theme.bg, color: theme.textPrimary, transition: "background 0.4s, color 0.4s", backgroundImage: theme.bgPattern, backgroundSize: theme.bgPattern ? "40px 40px" : undefined }}>
@@ -685,7 +706,7 @@ export default function DashboardPage() {
             />
             <ToolTile
               theme={theme}
-              href="https://infinity.innovativealuminum.com"
+              href={calculatorUrl}
               eyebrow="Pricing"
               title="Calculator"
               subtitle="Live pricing for Infinity systems ↗"
@@ -704,7 +725,7 @@ export default function DashboardPage() {
               theme={theme}
               // Temporary Vercel URL until the order-sheet subdomain is set up.
               // Swap to e.g. https://pricelist.innovativealuminum.com when DNS lands.
-              href="https://ias-pricing-tool.vercel.app"
+              href={orderSheetsUrl}
               eyebrow="Catalog"
               title="Order Sheets"
               subtitle="Full product catalog and order builder ↗"
