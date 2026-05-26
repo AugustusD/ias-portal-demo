@@ -1191,6 +1191,19 @@ export default function OnboardingPage() {
       const firstIncomplete = MODULES.find((m) => !completedIds.includes(m.id));
       if (firstIncomplete) setActiveId(firstIncomplete.id);
 
+      // Hydrate quiz pass state. Catches the case where a dealer passed the
+      // quiz on one device but closed the tab before sliding to complete —
+      // when they come back on any device, the pass survives.
+      const { data: passes } = await supabase
+        .from("quiz_passes")
+        .select("module_id")
+        .eq("user_id", user.id);
+      if (passes) {
+        const passMap: Record<string, boolean> = {};
+        for (const row of passes) passMap[row.module_id] = true;
+        setQuizPassed(passMap);
+      }
+
       setFormSubmitted(true);
 
       setLoading(false);
@@ -1427,10 +1440,23 @@ export default function OnboardingPage() {
                   questions={activeModule.questions}
                   passThresholdPct={activeModule.passThresholdPct ?? 80}
                   alreadyPassed={completed.includes(activeModule.id)}
-                  onPass={() => {
-                    if (!quizPassed[activeModule.id]) {
-                      setQuizPassed((prev) => ({ ...prev, [activeModule.id]: true }));
-                      setJustPassedQuiz(activeModule.id);
+                  onPass={async () => {
+                    if (quizPassed[activeModule.id]) return;
+                    setQuizPassed((prev) => ({ ...prev, [activeModule.id]: true }));
+                    setJustPassedQuiz(activeModule.id);
+                    // Persist for logged-in dealers so the pass survives a refresh
+                    // or device switch. Guests stay client-side only. Idempotent
+                    // via the unique(user_id, module_id) constraint.
+                    if (!isGuest) {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        await supabase
+                          .from("quiz_passes")
+                          .upsert(
+                            { user_id: user.id, module_id: activeModule.id },
+                            { onConflict: "user_id,module_id", ignoreDuplicates: true }
+                          );
+                      }
                     }
                   }}
                 />
