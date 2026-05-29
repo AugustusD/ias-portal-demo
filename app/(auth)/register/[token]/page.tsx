@@ -48,13 +48,18 @@ export default function RegisterPage() {
       }
       setDealer(data[0] as DealerInfo);
 
-      // Prefill from localStorage if the form-submitter is the one registering
+      // Prefill from localStorage if the form-submitter is the one registering.
+      // Scope by token so a coworker clicking the same invite link on a
+      // shared browser doesn't see the original submitter's name/email
+      // silently prefilled (and then submit as the wrong identity).
       const stored = typeof window !== "undefined" ? localStorage.getItem(PENDING_SIGNUP_KEY) : null;
       if (stored) {
         try {
           const info = JSON.parse(stored);
-          if (info.contactName) setFullName(info.contactName);
-          if (info.email) setEmail(info.email);
+          if (info.token === token) {
+            if (info.contactName) setFullName(info.contactName);
+            if (info.email) setEmail(info.email);
+          }
         } catch {}
       }
 
