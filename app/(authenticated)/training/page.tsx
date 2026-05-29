@@ -1266,10 +1266,24 @@ export default function OnboardingPage() {
       });
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        // Session expired mid-action. The slide visually animated to
+        // 100% but the row never lands — surface it instead of silently
+        // no-oping, and bounce to login.
+        alert("Your session has expired. Please sign in again.");
+        router.push("/login");
+        return;
+      }
+      // Upsert with ignoreDuplicates so back-button / two-tab replays
+      // of the same module slide don't hit the unique constraint and
+      // surface a confusing "Couldn't save your progress" alert loop.
+      // Same pattern as quiz_passes.
       const { error } = await supabase
         .from("training_progress")
-        .insert({ user_id: user.id, module_id: id });
+        .upsert(
+          { user_id: user.id, module_id: id },
+          { onConflict: "user_id,module_id", ignoreDuplicates: true }
+        );
       if (error) {
         alert("Couldn't save your progress. Try again.");
         return;

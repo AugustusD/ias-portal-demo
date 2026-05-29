@@ -257,6 +257,10 @@ export default function DealerDetailPage() {
 
   async function submitApproval() {
     if (!dealer) return;
+    // Double-click guard. Without this, two near-simultaneous Approve
+    // clicks before the first UPDATE resolves both write — second one
+    // overwrites discount_set_at and re-fires the audit trigger.
+    if (saving) return;
     const infinityNum = parseFloat(approveInfinity);
     const standardNum = parseFloat(approveStandard);
     if (!Number.isFinite(infinityNum) || infinityNum < 0 || infinityNum > 100) {
@@ -316,6 +320,16 @@ export default function DealerDetailPage() {
     delete updates.signature_name;
     delete updates.signature_title;
     delete updates.signature_signed_at;
+    // Strip stage + discount-audit fields IF they match the loaded dealer
+    // value — i.e. the admin didn't intentionally change them on this
+    // form. Without this, a stale Tab B (loaded before Tab A approved)
+    // would silently revert Tab A's approval by spreading
+    // onboarding_stage='new' on a routine "fix phone number" save. If
+    // the admin explicitly picked a different stage from the hero
+    // <select>, that change still goes through.
+    if (updates.onboarding_stage === dealer.onboarding_stage) delete updates.onboarding_stage;
+    if (updates.discount_set_at === dealer.discount_set_at) delete updates.discount_set_at;
+    if (updates.discount_set_by === dealer.discount_set_by) delete updates.discount_set_by;
 
     // Empty-string → null. Without this, clearing a previously-set text input
     // writes "" to a nullable column, which then renders as a blank instead of
