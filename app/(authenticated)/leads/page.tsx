@@ -181,7 +181,9 @@ function dbToLead(r: DbLead): Lead {
         installationDate: r.warranty_install_date || "",
         ownerName: r.warranty_building_owner_name || r.homeowner_name || "",
         ownerAddress: r.project_address || "",
-        nearOcean: (r.warranty_ocean_proximity_miles || 99) <= 5,
+        // ?? not || — a dealer literally on the ocean (0 miles) was
+        // registering as inland because `0 || 99` evaluates to 99.
+        nearOcean: (r.warranty_ocean_proximity_miles ?? 99) <= 5,
         workmanshipYears: r.warranty_dealer_workmanship_years || 1,
         photosUploaded: (r.warranty_photo_paths || []).length,
         attestation: true,

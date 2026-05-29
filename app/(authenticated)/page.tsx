@@ -519,7 +519,19 @@ export default function DashboardPage() {
   async function handleLogout() {
     await supabase.auth.signOut();
     if (typeof window !== "undefined") {
-      localStorage.removeItem("ias_dealer");
+      // Sweep every dealer-scoped localStorage key so the next user
+      // on this browser doesn't inherit the prior dealer's theme,
+      // dismissed help popups, guest-onboarding progress, or pending
+      // signup state. Anything namespaced with `ias_` is per-dealer
+      // by convention; sweep them all.
+      try {
+        const stale: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("ias_")) stale.push(key);
+        }
+        for (const key of stale) localStorage.removeItem(key);
+      } catch {}
     }
     setIsGuest(true);
     setDealer({ name: "Guest", email: "" });
