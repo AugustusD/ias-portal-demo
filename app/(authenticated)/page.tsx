@@ -525,6 +525,12 @@ export default function DashboardPage() {
     setDealer({ name: "Guest", email: "" });
     setRecentLeads([]);
     setLeadsCount(0);
+    // Clear dealer-scoped state — otherwise the prior dealer's stage
+    // and discount values leak into the guest preview and continue to
+    // appear in the tool tile URL hashes built below until a remount.
+    setDealerStage(null);
+    setInfinityDiscount(null);
+    setStandardDiscount(null);
     const guestProgress = typeof window !== "undefined" ? localStorage.getItem("ias_guest_onboarding_progress") : null;
     if (guestProgress) {
       try {
@@ -560,17 +566,23 @@ export default function DashboardPage() {
   const borderStyle = theme.id === "architect" ? `2px solid ${theme.cardBorder}` : `1px solid ${theme.cardBorder}`;
 
   // Build tool tile URLs with discount hash fragments. Standalone tool apps
-  // read the hash on load (no Supabase auth needed in those apps). We always
-  // emit numeric values so the apps can trust the parse — null becomes 0
-  // since an unset discount is functionally "no discount" until admin sets one.
-  // We only append the hash if the dealer is approved and we have at least
-  // one value, to avoid putting #d=0 on URLs for guests / pending dealers.
+  // read the hash on load (no Supabase auth needed in those apps). We only
+  // emit values that are actually set on the dealer — a null discount column
+  // means "admin hasn't set one yet", which is NOT the same as 0%. Sending
+  // 0 would silently lock the tool to "no discount" instead of leaving it
+  // available for the dealer to enter manually (or for the admin to fix).
   const calculatorUrl = canUseTools && infinityDiscount != null
     ? `https://infinity.innovativealuminum.com/#d=${infinityDiscount}`
     : "https://infinity.innovativealuminum.com";
-  const orderSheetsUrl = canUseTools && (standardDiscount != null || infinityDiscount != null)
-    ? `https://ias-pricing-tool.vercel.app/#std=${standardDiscount ?? 0}&inf=${infinityDiscount ?? 0}`
-    : "https://ias-pricing-tool.vercel.app";
+  const orderSheetsUrl = (() => {
+    if (!canUseTools) return "https://ias-pricing-tool.vercel.app";
+    const parts: string[] = [];
+    if (standardDiscount != null) parts.push(`std=${standardDiscount}`);
+    if (infinityDiscount != null) parts.push(`inf=${infinityDiscount}`);
+    return parts.length > 0
+      ? `https://ias-pricing-tool.vercel.app/#${parts.join("&")}`
+      : "https://ias-pricing-tool.vercel.app";
+  })();
 
   return (
     <div style={{ background: theme.bg, color: theme.textPrimary, transition: "background 0.4s, color 0.4s", backgroundImage: theme.bgPattern, backgroundSize: theme.bgPattern ? "40px 40px" : undefined }}>

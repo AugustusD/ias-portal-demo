@@ -597,14 +597,19 @@ function CustomerForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Guard against rapid double-click. Setting submitting=true before
+    // validation closes the window where a second click could fire while
+    // the first was still in pre-await synchronous validation. Button is
+    // disabled={submitting} so the second click can't even register from
+    // here on out.
+    if (submitting) return;
+    setSubmitting(true);
     setError("");
 
-    if (businessTypes.length === 0) { setError("Please select at least one Type of Business."); return; }
-    if (!data.engineerRelationship) { setError("Please answer the engineer relationship question."); return; }
-    if (!signature) { setError("Please sign the form before submitting."); return; }
-    if (!data.signatureName.trim()) { setError("Please type your name to sign."); return; }
-
-    setSubmitting(true);
+    if (businessTypes.length === 0) { setError("Please select at least one Type of Business."); setSubmitting(false); return; }
+    if (!data.engineerRelationship) { setError("Please answer the engineer relationship question."); setSubmitting(false); return; }
+    if (!signature) { setError("Please sign the form before submitting."); setSubmitting(false); return; }
+    if (!data.signatureName.trim()) { setError("Please type your name to sign."); setSubmitting(false); return; }
 
     const { data: token, error: rpcError } = await supabase.rpc("create_pending_dealer", {
       p_company_name: data.companyName.trim(),
@@ -646,7 +651,11 @@ function CustomerForm({
     }
 
     if (typeof window !== "undefined") {
+      // Include the token so the register page only prefills if THIS token
+      // is being used — otherwise a coworker on the same browser would
+      // silently inherit the original submitter's identity.
       localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({
+        token,
         contactName: data.contactName.trim(),
         email: data.email.trim(),
       }));
@@ -1248,9 +1257,13 @@ export default function OnboardingPage() {
     if (completed.includes(id)) return;
 
     if (isGuest) {
-      const newCompleted = [...completed, id];
-      setCompleted(newCompleted);
-      localStorage.setItem(GUEST_PROGRESS_KEY, JSON.stringify(newCompleted));
+      // Functional updater so a rapid pair of completions (e.g. the
+      // auto-complete slide + a queued click) doesn't race on stale state.
+      setCompleted((prev) => {
+        const next = prev.includes(id) ? prev : [...prev, id];
+        try { localStorage.setItem(GUEST_PROGRESS_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -1261,7 +1274,7 @@ export default function OnboardingPage() {
         alert("Couldn't save your progress. Try again.");
         return;
       }
-      setCompleted([...completed, id]);
+      setCompleted((prev) => (prev.includes(id) ? prev : [...prev, id]));
     }
 
     setJustCompleted(id);
@@ -1300,9 +1313,12 @@ export default function OnboardingPage() {
   // "isFinished" = all modules done, "isAuthorized" = admin has actually
   // approved the dealer (stage in approved/authorized). A dealer who just
   // finished module 5 is isFinished but NOT isAuthorized until admin acts.
+  // dealerStage is null for admin users (no dealer_id) — exclude them from
+  // the pending-approval branch, otherwise an admin who happens to have 5
+  // training_progress rows from testing would see "Pending Approval" copy.
   const isFinished = !isGuest && completedCount === totalCount;
   const isAuthorized = !isGuest && (dealerStage === "approved" || dealerStage === "authorized");
-  const isPendingApproval = isFinished && !isAuthorized;
+  const isPendingApproval = isFinished && !isAuthorized && dealerStage !== null;
 
   const canCompleteActive =
     activeModule.type === "form"
@@ -1473,22 +1489,28 @@ export default function OnboardingPage() {
                   alreadyPassed={completed.includes(activeModule.id)}
                   onPass={async () => {
                     if (quizPassed[activeModule.id]) return;
-                    setQuizPassed((prev) => ({ ...prev, [activeModule.id]: true }));
-                    setJustPassedQuiz(activeModule.id);
-                    // Persist for logged-in dealers so the pass survives a refresh
-                    // or device switch. Guests stay client-side only. Idempotent
-                    // via the unique(user_id, module_id) constraint.
+                    // Persist FIRST for logged-in dealers, then flip local state.
+                    // If the DB write fails (RLS, network), don't claim the pass
+                    // locally either — otherwise a refresh would lose it and we'd
+                    // also have already enabled the slide-to-complete bar.
                     if (!isGuest) {
                       const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        await supabase
-                          .from("quiz_passes")
-                          .upsert(
-                            { user_id: user.id, module_id: activeModule.id },
-                            { onConflict: "user_id,module_id", ignoreDuplicates: true }
-                          );
+                      if (!user) return;
+                      const { error: upsertErr } = await supabase
+                        .from("quiz_passes")
+                        .upsert(
+                          { user_id: user.id, module_id: activeModule.id },
+                          { onConflict: "user_id,module_id", ignoreDuplicates: true }
+                        );
+                      if (upsertErr) {
+                        // Surface the error to the user; don't silently
+                        // mark them as passed when the DB doesn't know.
+                        alert("Couldn't save your quiz pass. Please try Check Answers again.");
+                        return;
                       }
                     }
+                    setQuizPassed((prev) => ({ ...prev, [activeModule.id]: true }));
+                    setJustPassedQuiz(activeModule.id);
                   }}
                 />
               </div>
