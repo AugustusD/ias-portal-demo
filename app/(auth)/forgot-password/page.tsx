@@ -102,7 +102,15 @@ export default function ForgotPasswordPage() {
           </button>
 
           <p className="text-sm font-body text-stone-600 text-center">
-            Remembered it? <Link href="/login" className="text-gold hover:underline">Sign in</Link>
+            {/*
+              Inline link must be visually distinguishable from surrounding
+              text at all times — WCAG 2.1 SC 1.4.1 + 2.5.8. We use
+              `underline font-semibold` always-on (not just on hover) and
+              `text-ink` to land above the 4.5:1 contrast threshold against
+              the cream background. The Playwright axe a11y suite catches
+              regressions here.
+            */}
+            Remembered it? <Link href="/login" className="text-ink underline font-semibold">Sign in</Link>
           </p>
         </form>
       </div>
