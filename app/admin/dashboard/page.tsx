@@ -148,6 +148,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadData() {
+      try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
 
@@ -185,14 +186,23 @@ export default function AdminDashboard() {
         .order("at", { ascending: false, nullsFirst: false })
         .limit(15);
       setActivity((activityData as ActivityEvent[]) || []);
-
-      setLoading(false);
+      } catch (err) {
+        // Any of these supabase calls could throw (the
+        // dealer_dashboard_stats view in particular has expensive
+        // correlated subqueries). Without this catch the page would
+        // hang on "Loading…" with no recovery. Render whatever data
+        // loaded successfully before the throw — the early-returned
+        // empty arrays act as a fallback.
+        console.error("Admin dashboard load failed:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     loadData();
   }, [router, refreshKey]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "global" });
     router.push("/login");
   }
 
@@ -404,7 +414,7 @@ export default function AdminDashboard() {
                 value={dealerSearch}
                 onChange={(e) => setDealerSearch(e.target.value)}
                 placeholder="Search by company, contact, or location…"
-                className="flex-1 min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
+                className="flex-1 min-w-[200px] md:min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
               />
               <label className="sr-only" htmlFor="dealer-stage-filter">Filter by stage</label>
               <select id="dealer-stage-filter" value={dealerStageFilter} onChange={(e) => setDealerStageFilter(e.target.value)}
@@ -517,7 +527,7 @@ export default function AdminDashboard() {
                 value={leadSearch}
                 onChange={(e) => setLeadSearch(e.target.value)}
                 placeholder="Search by project, company, customer, dealer, or city…"
-                className="flex-1 min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
+                className="flex-1 min-w-[200px] md:min-w-[240px] bg-stone-900 border border-stone-700 text-cream px-3 py-2 font-body text-sm"
               />
               <label className="sr-only" htmlFor="lead-stage-filter">Filter by lead stage</label>
               <select id="lead-stage-filter" value={leadStageFilter} onChange={(e) => setLeadStageFilter(e.target.value)}

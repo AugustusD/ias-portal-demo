@@ -155,7 +155,7 @@ export default function OrderSheetsPage() {
       )}
 
       {showPopup && (
-        <div className="fixed bottom-6 right-6 z-40 max-w-sm">
+        <div className="fixed bottom-6 right-6 z-40 max-w-[calc(100vw-3rem)] sm:max-w-sm">
           <div className="bg-ink text-cream shadow-2xl border-l-4 border-gold">
             <div className="p-5">
               <div className="flex items-start justify-between gap-3 mb-2">

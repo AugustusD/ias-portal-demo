@@ -114,21 +114,34 @@ export default function EditLeadModal({ open, lead, onClose, onSaved, dealers }:
     if (!dealerId) { setError("Please assign to a dealer."); return; }
     setSaving(true);
 
+    // Only include fields that actually changed since the lead was loaded.
+    // Without this diff, a second admin editing the same row in another
+    // tab can silently overwrite a field they didn't touch (e.g. fix the
+    // city while a parallel save just updated dealer_id — second save
+    // reverts dealer_id back to the old loaded value). Same pattern the
+    // admin dealer detail page got in round 2.
+    const updates: Record<string, string | null> = {};
+    if (dealerId !== lead!.dealer_id) updates.dealer_id = dealerId;
+    if ((customerType || null) !== (lead!.customer_type ?? null)) updates.customer_type = customerType || null;
+    if ((contactName.trim() || null) !== (lead!.homeowner_name ?? null)) updates.homeowner_name = contactName.trim() || null;
+    if ((contactPhone.trim() || null) !== (lead!.homeowner_phone ?? null)) updates.homeowner_phone = contactPhone.trim() || null;
+    if ((contactEmail.trim() || null) !== (lead!.homeowner_email ?? null)) updates.homeowner_email = contactEmail.trim() || null;
+    if ((city.trim() || null) !== (lead!.city ?? null)) updates.city = city.trim() || null;
+    if ((province.trim() || null) !== (lead!.province ?? null)) updates.province = province.trim() || null;
+    if ((notes.trim() || null) !== (lead!.notes ?? null)) updates.notes = notes.trim() || null;
+    if ((projectName.trim() || null) !== (lead!.project_name ?? null)) updates.project_name = projectName.trim() || null;
+    if ((contactCompany.trim() || null) !== (lead!.contact_company ?? null)) updates.contact_company = contactCompany.trim() || null;
+    if ((bidDueDate || null) !== (lead!.bid_due_date ?? null)) updates.bid_due_date = bidDueDate || null;
+
+    if (Object.keys(updates).length === 0) {
+      setSaving(false);
+      onClose();
+      return;
+    }
+
     const { error: updateError } = await supabase
       .from("leads")
-      .update({
-        dealer_id: dealerId,
-        customer_type: customerType || null,
-        homeowner_name: contactName.trim() || null,
-        homeowner_phone: contactPhone.trim() || null,
-        homeowner_email: contactEmail.trim() || null,
-        city: city.trim() || null,
-        province: province.trim() || null,
-        notes: notes.trim() || null,
-        project_name: projectName.trim() || null,
-        contact_company: contactCompany.trim() || null,
-        bid_due_date: bidDueDate || null,
-      })
+      .update(updates)
       .eq("id", lead!.id);
 
     setSaving(false);

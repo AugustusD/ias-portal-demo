@@ -442,6 +442,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
 
       const savedTheme = typeof window !== "undefined" ? localStorage.getItem("ias_dashboard_theme") : null;
@@ -509,15 +510,28 @@ export default function DashboardPage() {
         .select("*", { count: "exact", head: true });
 
       setLeadsCount(totalLeads ?? 0);
-
-      setLoading(false);
-      setTimeout(() => setAnimationsReady(true), 150);
+      } catch (err) {
+        // Any supabase call inside load() could throw (network down, RLS,
+        // rate limit). Without this finally the page would sit on
+        // "Loading…" forever. Reuse the guest fallback state so the
+        // dealer still sees a usable shell instead of a dead page.
+        console.error("Dashboard load failed:", err);
+        setIsGuest(true);
+        setDealer({ name: "Guest", email: "" });
+        setRecentLeads([]);
+        setLeadsCount(0);
+      } finally {
+        setLoading(false);
+        setTimeout(() => setAnimationsReady(true), 150);
+      }
     }
     load();
   }, [router]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    // Global scope invalidates the refresh token everywhere — without
+    // this, sessions on other devices stay alive until JWT expiry (~1h).
+    await supabase.auth.signOut({ scope: "global" });
     if (typeof window !== "undefined") {
       // Sweep every dealer-scoped localStorage key so the next user
       // on this browser doesn't inherit the prior dealer's theme,

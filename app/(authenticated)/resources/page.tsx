@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type Dealer = { name: string; email: string };
 
@@ -195,12 +196,31 @@ export default function DealerResourcesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("ias_dealer") : null;
-    if (!stored) { router.push("/login"); return; }
-    try {
-      setDealer(JSON.parse(stored));
-    } catch { router.push("/login"); return; }
-    setLoading(false);
+    // Switched from reading the `ias_dealer` localStorage key (set on
+    // login) to checking the actual supabase session. The LS key is now
+    // swept on logout (round-2 audit fix), so a signed-in user whose
+    // LS was cleared by a prior logout-then-login on the same browser
+    // would have been bounced to /login here even though their session
+    // is valid. supabase.auth.getUser is the source of truth.
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (!user) { router.push("/login"); return; }
+        setDealer({
+          name: user.user_metadata?.full_name || user.email || "Dealer",
+          email: user.email || "",
+        });
+      } catch (err) {
+        console.error("Resources load failed:", err);
+        if (!cancelled) router.push("/login");
+        return;
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   const filteredResources = useMemo(() => {
