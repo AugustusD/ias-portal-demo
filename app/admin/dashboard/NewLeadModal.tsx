@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { humanizeError } from "@/lib/errors";
 
 type Dealer = {
   dealer_id: string;
@@ -197,7 +198,11 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
 
     if (insertError || !insertData) {
       setSubmitting(false);
-      setError(insertError?.message ?? "Couldn't create lead.");
+      // humanizeError maps raw supabase / PG codes (CHECK violations,
+      // FK violations, network errors) to friendlier copy. Without it
+      // an admin sees the raw "duplicate key value violates unique
+      // constraint" / "values outside the allowed range" strings.
+      setError(humanizeError(insertError, "Couldn't create lead."));
       return;
     }
 
@@ -284,6 +289,11 @@ export default function NewLeadModal({ open, onClose, onCreated, dealers }: Prop
               <input
                 type="date"
                 value={bidDueDate}
+                // min={today}: native browser-level guard against picking a
+                // past date when creating a new lead. The detail view already
+                // flags overdue bids in red, but it's a confusing signal if
+                // the lead was created overdue.
+                min={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setBidDueDate(e.target.value)}
                 className="w-full bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
               />

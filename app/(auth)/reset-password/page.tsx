@@ -44,16 +44,17 @@ export default function ResetPasswordPage() {
       }
     });
 
-    // If the recovery event already fired before this listener attached
-    // (rare but possible on slow hydration), fall back to checking the
-    // existing session.
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) setTokenValid(true);
-      setReady(true);
-    })();
+    // Don't accept just any existing session as a recovery token —
+    // previously this fallback would treat a regular logged-in user
+    // navigating directly to /reset-password as if they had clicked the
+    // recovery link, letting them set a new password without the email
+    // loop. The recovery state is signalled specifically via
+    // PASSWORD_RECOVERY (above). If we don't see it within a short
+    // window, mark ready=true without tokenValid=true so the
+    // "invalid link" branch renders.
+    const fallback = setTimeout(() => setReady(true), 400);
 
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(fallback); };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -78,9 +79,10 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // Sign out so the dealer logs in fresh with the new password. This also
-    // invalidates the recovery session so the link can't be reused.
-    await supabase.auth.signOut();
+    // Sign out so the dealer logs in fresh with the new password. Global
+    // scope also kicks any other devices that had the old password's
+    // session — standard hygiene after a password change.
+    await supabase.auth.signOut({ scope: "global" });
     setSuccess(true);
     setTimeout(() => router.push("/login"), 1800);
   }
@@ -132,6 +134,7 @@ export default function ResetPasswordPage() {
             <input
               id="password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"
@@ -149,6 +152,7 @@ export default function ResetPasswordPage() {
             <input
               id="confirm"
               type="password"
+              autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"

@@ -150,6 +150,7 @@ export default function DealerDetailPage() {
 
   useEffect(() => {
     async function load() {
+      try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
 
@@ -210,13 +211,22 @@ export default function DealerDetailPage() {
         .order("received_at", { ascending: false });
 
       setLeads((leadsData as LeadRow[]) || []);
-      setLoading(false);
+      } catch (err) {
+        // The N+1 team-progress loop especially could throw — without
+        // this catch, a single failed query freezes the whole page on
+        // "Loading…". Surface the failure as a "Dealer not found"
+        // since we can't reliably render the rest.
+        console.error("Dealer detail load failed:", err);
+        setError("Couldn't load this dealer. Refresh to retry.");
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [dealerId, router]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "global" });
     router.push("/login");
   }
 
@@ -706,7 +716,7 @@ export default function DealerDetailPage() {
               <label className={labelCls}>City</label>
               {isEditing ? (<input value={formData.city || ""} onChange={(e) => setField("city", e.target.value)} className={inputCls} />) : (<p className="text-cream">{dealer.city || "—"}</p>)}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>Province</label>
                 {isEditing ? (<input value={formData.province || ""} onChange={(e) => setField("province", e.target.value)} className={inputCls} />) : (<p className="text-cream">{dealer.province || "—"}</p>)}
@@ -926,14 +936,18 @@ export default function DealerDetailPage() {
           intermediate state. */}
       {approveModalOpen && dealer && (
         <div
-          className="fixed inset-0 z-50 bg-ink/85 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-ink/85 flex items-start justify-center overflow-y-auto p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="approve-modal-title"
           onClick={() => !saving && setApproveModalOpen(false)}
         >
           <div
-            className="bg-stone-900 border-2 border-gold w-full max-w-lg shadow-2xl"
+            // my-8 + max-h-[90vh] + overflow-y-auto: on a short viewport
+            // (mobile landscape, keyboard open) the modal was clipping its
+            // Cancel/Approve footer below the fold with no way to scroll
+            // to reach it. Match the other admin modals' pattern.
+            className="bg-stone-900 border-2 border-gold w-full max-w-lg shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-5 border-b border-stone-800 flex items-center justify-between">
@@ -965,7 +979,7 @@ export default function DealerDetailPage() {
                     min="0"
                     max="100"
                     value={approveInfinity}
-                    onChange={(e) => setApproveInfinity(e.target.value)}
+                    onChange={(e) => { setApproveInfinity(e.target.value); if (approveError) setApproveError(""); }}
                     placeholder="e.g. 43.5"
                     className="flex-1 bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
                     autoFocus
@@ -985,7 +999,7 @@ export default function DealerDetailPage() {
                     min="0"
                     max="100"
                     value={approveStandard}
-                    onChange={(e) => setApproveStandard(e.target.value)}
+                    onChange={(e) => { setApproveStandard(e.target.value); if (approveError) setApproveError(""); }}
                     placeholder="e.g. 33.5"
                     className="flex-1 bg-stone-950 border border-stone-700 text-cream px-3 py-2 font-body"
                   />

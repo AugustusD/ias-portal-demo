@@ -174,6 +174,11 @@ type DbLead = {
 };
 
 function dbToLead(r: DbLead): Lead {
+  // TODO(round-3 audit): warranty_classification null silently rendered as
+  // "residential", warranty_system_type null as "Custom", and
+  // workmanship_years null as 1 (below). These misleadingly look entered.
+  // Fixing properly requires nullable fields on the Warranty type +
+  // every render site rendering "—". Deferred to avoid cascading refactor.
   const warranty: Warranty | undefined = r.warranty_registered_at
     ? {
         type: (r.warranty_classification || "residential") as "residential" | "commercial",
@@ -681,8 +686,20 @@ function LeadDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-ink/70 flex items-start justify-center overflow-y-auto p-4 md:p-8">
-        <div role="dialog" aria-modal="true" aria-labelledby="lead-detail-title" className="bg-cream w-full max-w-3xl lg:max-w-4xl my-8 shadow-2xl">
+      <div
+        className="fixed inset-0 z-50 bg-ink/70 flex items-start justify-center overflow-y-auto p-4 md:p-8"
+        // Backdrop tap to close — important on mobile where the × button
+        // is small and at the top-right out of thumb reach. Guard against
+        // closing mid-action so an admin doesn't lose form state.
+        onClick={() => { if (!saving && !uploadingPhotos && !showWarrantyFlow && actionMode === "none") onClose(); }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lead-detail-title"
+          className="bg-cream w-full max-w-3xl lg:max-w-4xl my-8 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="sticky top-0 bg-cream border-b border-stone-200 px-6 md:px-8 py-5 flex items-center justify-between z-10">
             <div className="flex items-center gap-3 flex-wrap">
               <p className="eyebrow text-stone-500">Lead Detail</p>
@@ -874,7 +891,7 @@ function LeadDetailModal({
                       })}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="eyebrow text-stone-600 block mb-1">Lineal Footage</label>
                       <input type="text" value={formData.linealFootage} onChange={(e) => setFormData({ ...formData, linealFootage: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
@@ -920,7 +937,7 @@ function LeadDetailModal({
                       })}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="eyebrow text-stone-600 block mb-1">Lineal Footage</label>
                       <input type="text" value={formData.linealFootage} onChange={(e) => setFormData({ ...formData, linealFootage: e.target.value })} className="w-full border border-stone-300 px-3 py-2 text-sm font-body bg-white" />
@@ -1085,23 +1102,32 @@ export default function LeadsPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/login"); return; }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { router.push("/login"); return; }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      if (profile?.full_name) setDealerName(profile.full_name);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (profile?.full_name) setDealerName(profile.full_name);
 
-      const { data: rows } = await supabase
-        .from("leads")
-        .select("*")
-        .order("received_at", { ascending: false });
+        const { data: rows } = await supabase
+          .from("leads")
+          .select("*")
+          .order("received_at", { ascending: false });
 
-      setLeads((rows || []).map((r) => dbToLead(r as DbLead)));
-      setLoading(false);
+        setLeads((rows || []).map((r) => dbToLead(r as DbLead)));
+      } catch (err) {
+        // Without this guard a thrown supabase error left the page sat on
+        // "Loading…" forever. Surface what we can and render an empty
+        // state instead.
+        console.error("Leads load failed:", err);
+        setLeads([]);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [router, refreshKey]);

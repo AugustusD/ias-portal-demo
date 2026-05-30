@@ -56,11 +56,15 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     }
     checkAuth();
 
-    // SIGNED_OUT can happen from any tab (multi-tab session sync). Bounce
-    // to /login from gated pages so the user isn't sitting on a stale
-    // authenticated view. Guest-allowed pages just refresh their guest UI.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT" && !isGuestAllowed(pathname)) {
+    // Multi-tab sync. Bounce to /login from gated pages when:
+    //   - SIGNED_OUT fires (explicit logout in another tab)
+    //   - TOKEN_REFRESHED fires with null session (refresh token revoked
+    //     or expired — supabase-js doesn't emit SIGNED_OUT in this case,
+    //     so without this branch the user sits on a stale UI while RLS
+    //     denies every fetch).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const lost = event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session);
+      if (lost && !isGuestAllowed(pathname)) {
         router.replace("/login");
       }
     });

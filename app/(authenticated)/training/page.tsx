@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { humanizeError } from "@/lib/errors";
 
 type ReferenceDoc = {
   name: string;
@@ -645,7 +646,7 @@ function CustomerForm({
     });
 
     if (rpcError || !token) {
-      setError(rpcError?.message ?? "Couldn't submit. Please try again.");
+      setError(humanizeError(rpcError, "Couldn't submit. Please try again."));
       setSubmitting(false);
       return;
     }
@@ -1166,6 +1167,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     async function loadProgress() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
@@ -1229,8 +1231,16 @@ export default function OnboardingPage() {
       }
 
       setFormSubmitted(true);
-
-      setLoading(false);
+      } catch (err) {
+        // Without this catch, a supabase throw (network, RLS) left the
+        // page on "Loading…" forever. Fall through to guest-like state
+        // so the user at least sees the module list and can retry.
+        console.error("Training load failed:", err);
+        setIsGuest(true);
+        setCompleted([]);
+      } finally {
+        setLoading(false);
+      }
     }
     loadProgress();
   }, [router]);
@@ -1405,7 +1415,7 @@ export default function OnboardingPage() {
       </div>
 
       <div className="section-container mb-16">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {MODULES.map((mod, idx) => {
             const isComplete = completed.includes(mod.id);
             const isActive = mod.id === activeId;
@@ -1583,7 +1593,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="sticky top-32 space-y-6">
+            <div className="lg:sticky lg:top-32 space-y-6">
               {activeModule.type === "quiz" && activeModule.references && activeModule.references.length > 0 && (
                 <SidebarReferenceList docs={activeModule.references} />
               )}

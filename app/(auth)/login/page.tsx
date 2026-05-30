@@ -49,7 +49,12 @@ export default function LoginPage() {
     });
 
     if (authError || !authData.user) {
-      setError(authError?.message ?? "Invalid email or password.");
+      // Map all auth errors to the same string so the response doesn't
+      // distinguish "wrong password on a known email" from "no such user"
+      // — supabase's raw message reveals which case it is via different
+      // codes (invalid_credentials vs email_not_confirmed vs over_email_send_rate_limit).
+      // The user-existence leak via these codes was flagged in round-3 audit.
+      setError("Invalid email or password.");
       setLoading(false);
       return;
     }
@@ -105,6 +110,7 @@ export default function LoginPage() {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"
@@ -125,6 +131,7 @@ export default function LoginPage() {
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border border-stone-300 bg-white focus:outline-none focus:border-gold"
